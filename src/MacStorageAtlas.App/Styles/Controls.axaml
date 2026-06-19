@@ -1,0 +1,153 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Reusable control styles for MacStorageAtlas. These replace the inline,
+        copy-pasted styling that previously lived in MainWindow.axaml.
+    -->
+
+    <Design.PreviewWith>
+        <Border Padding="20" Background="{DynamicResource AppBackgroundBrush}">
+            <StackPanel Spacing="12" Width="320">
+                <TextBlock Classes="title" Text="Title text"/>
+                <TextBlock Classes="section-header" Text="Section header"/>
+                <TextBlock Classes="caption" Text="Caption / helper text"/>
+                <Border Classes="card" Padding="12">
+                    <TextBlock Text="Card surface"/>
+                </Border>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Classes="accent" Content="Primary"/>
+                    <Button Content="Secondary"/>
+                    <Button Classes="danger" Content="Danger"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Design.PreviewWith>
+
+    <!-- ===================== TYPOGRAPHY ===================== -->
+
+    <Style Selector="TextBlock.title">
+        <Setter Property="FontSize" Value="{StaticResource FontSizeTitle}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+
+    <Style Selector="TextBlock.section-header">
+        <Setter Property="FontSize" Value="{StaticResource FontSizeSubtitle}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+
+    <Style Selector="TextBlock.label">
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+    </Style>
+
+    <Style Selector="TextBlock.subtle">
+        <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+    </Style>
+
+    <Style Selector="TextBlock.caption">
+        <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TertiaryTextBrush}"/>
+    </Style>
+
+    <Style Selector="TextBlock.danger">
+        <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+    </Style>
+
+    <!-- ===================== CARD SURFACE ===================== -->
+
+    <Style Selector="Border.card">
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{StaticResource CardRadius}"/>
+        <Setter Property="Padding" Value="16"/>
+    </Style>
+
+    <!-- ===================== BUTTONS ===================== -->
+
+    <!-- Smooth, consistent base treatment for every button. -->
+    <Style Selector="Button">
+        <Setter Property="CornerRadius" Value="{StaticResource ControlRadius}"/>
+        <Setter Property="Padding" Value="14,7"/>
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.12"/>
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <!-- Primary / accent button -->
+    <Style Selector="Button.accent">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource OnAccentBrush}"/>
+    </Style>
+    <Style Selector="Button.accent:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AccentPressedBrush}"/>
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource OnAccentBrush}"/>
+    </Style>
+
+    <!-- Destructive button -->
+    <Style Selector="Button.danger">
+        <Setter Property="Background" Value="{DynamicResource DangerBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OnDangerBrush}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource DangerHoverBrush}"/>
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource OnDangerBrush}"/>
+    </Style>
+
+    <!-- Flat / ghost button (used for list rows like recent locations) -->
+    <Style Selector="Button.ghost">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Padding" Value="10,6"/>
+    </Style>
+    <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+    </Style>
+
+    <!-- Icons inside buttons match the button's foreground and a consistent size -->
+    <Style Selector="Button PathIcon">
+        <Setter Property="Width" Value="15"/>
+        <Setter Property="Height" Value="15"/>
+        <Setter Property="Foreground" Value="{Binding $parent[Button].Foreground}"/>
+    </Style>
+
+    <!-- ===================== INPUTS ===================== -->
+
+    <Style Selector="TextBox">
+        <Setter Property="CornerRadius" Value="{StaticResource ControlRadius}"/>
+    </Style>
+
+    <!-- ===================== TREE ===================== -->
+
+    <!-- Let the view model drive initial expansion (root + search matches open) -->
+    <Style Selector="TreeViewItem" x:CompileBindings="False">
+        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+    </Style>
+
+    <!-- ===================== TABS ===================== -->
+
+    <Style Selector="TabControl">
+        <Setter Property="Padding" Value="0"/>
+    </Style>
+    <Style Selector="TabItem">
+        <Setter Property="FontSize" Value="{StaticResource FontSizeBody}"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Padding" Value="4,6"/>
+        <Setter Property="Margin" Value="0,0,16,0"/>
+    </Style>
+
+</Styles>

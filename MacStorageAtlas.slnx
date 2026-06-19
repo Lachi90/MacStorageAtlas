@@ -1,0 +1,16 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/src/">
+    <Project Path="src/MacStorageAtlas.App/MacStorageAtlas.App.csproj" />
+    <Project Path="src/MacStorageAtlas.Core/MacStorageAtlas.Core.csproj" />
+    <Project Path="src/MacStorageAtlas.Platform.Mac/MacStorageAtlas.Platform.Mac.csproj" />
+    <Project Path="src/MacStorageAtlas.Rendering/MacStorageAtlas.Rendering.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MacStorageAtlas.Tests/MacStorageAtlas.Tests.csproj" />
+  </Folder>
+</Solution>

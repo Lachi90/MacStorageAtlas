@@ -1,0 +1,10 @@
+bin/
+obj/
+.idea/
+.vscode/
+*.user
+*.suo
+.DS_Store
+TestResults/
+coverage/
+.claude/settings.local.json
