@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 
@@ -5,16 +6,16 @@ namespace MacStorageAtlas.Core;
 
 public sealed class DiskScanner : IDiskScanner
 {
-    private readonly Func<string, string[]> _getFileSystemEntries;
+    private readonly Func<string, IEnumerable<string>> _enumerateFileSystemEntries;
 
     public DiskScanner()
-        : this(Directory.GetFileSystemEntries)
+        : this(Directory.EnumerateFileSystemEntries)
     {
     }
 
-    internal DiskScanner(Func<string, string[]> getFileSystemEntries)
+    internal DiskScanner(Func<string, IEnumerable<string>> enumerateFileSystemEntries)
     {
-        _getFileSystemEntries = getFileSystemEntries;
+        _enumerateFileSystemEntries = enumerateFileSystemEntries;
     }
 
     public async IAsyncEnumerable<ScanProgress> ScanAsync(
@@ -34,7 +35,9 @@ public sealed class DiskScanner : IDiskScanner
 
         var root = new DiskItem(rootName, fullRootPath, isDirectory: true);
         var state = new ScanState(root);
-        var visitedDirectories = new HashSet<string>(PathComparer);
+        var visitedDirectories = options.FollowSymbolicLinks
+            ? new HashSet<string>(PathComparer)
+            : null;
 
         cancellationToken.ThrowIfCancellationRequested();
         state.DirectoriesScanned++;
@@ -60,63 +63,19 @@ public sealed class DiskScanner : IDiskScanner
         DiskItem directory,
         ScanOptions options,
         ScanState state,
-        HashSet<string> visitedDirectories,
+        HashSet<string>? visitedDirectories,
         bool includeChildren,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        string? identity = null;
-        Exception? recoverableError = null;
-        try
+        if (visitedDirectories is not null)
         {
-            identity = GetDirectoryIdentity(directory.Path);
-        }
-        catch (Exception exception) when (IsRecoverable(exception))
-        {
-            recoverableError = exception;
-        }
-
-        if (recoverableError is not null)
-        {
-            state.AddError(directory.Path, recoverableError);
-            yield return state.Progress(directory.Path);
-            yield break;
-        }
-
-        if (!visitedDirectories.Add(identity!))
-        {
-            yield break;
-        }
-
-        string[]? entries = null;
-        recoverableError = null;
-        try
-        {
-            entries = _getFileSystemEntries(directory.Path);
-        }
-        catch (Exception exception) when (IsRecoverable(exception))
-        {
-            recoverableError = exception;
-        }
-
-        if (recoverableError is not null)
-        {
-            state.AddError(directory.Path, recoverableError);
-            yield return state.Progress(directory.Path);
-            yield break;
-        }
-
-        foreach (var entryPath in entries!)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            await Task.Yield();
-
-            FileAttributes attributes = default;
-            recoverableError = null;
+            string? identity = null;
+            Exception? recoverableError = null;
             try
             {
-                attributes = File.GetAttributes(entryPath);
+                identity = GetDirectoryIdentity(directory.Path);
             }
             catch (Exception exception) when (IsRecoverable(exception))
             {
@@ -125,81 +84,190 @@ public sealed class DiskScanner : IDiskScanner
 
             if (recoverableError is not null)
             {
-                state.AddError(entryPath, recoverableError);
-                yield return state.Progress(entryPath);
-                continue;
+                state.AddError(directory.Path, recoverableError);
+                yield return state.Progress(directory.Path);
+                yield break;
             }
 
-            if (!options.IncludeHiddenFiles && IsHidden(entryPath, attributes))
+            if (!visitedDirectories.Add(identity!))
             {
-                continue;
+                yield break;
             }
+        }
 
-            var isDirectory = attributes.HasFlag(FileAttributes.Directory);
-            var isSymbolicLink = attributes.HasFlag(FileAttributes.ReparsePoint);
-            if (isSymbolicLink && !options.FollowSymbolicLinks)
-            {
-                continue;
-            }
+        var enumerator = CreateEntryEnumerator(directory.Path, state, out var enumerationErrorProgress);
+        if (enumerationErrorProgress is not null)
+        {
+            yield return enumerationErrorProgress;
+            yield break;
+        }
 
-            if (isDirectory)
+        if (enumerator is null)
+        {
+            yield break;
+        }
+
+        using (enumerator)
+        {
+            while (true)
             {
-                var child = new DiskItem(Path.GetFileName(entryPath), entryPath, isDirectory: true);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var hasNext = TryMoveNext(enumerator, directory.Path, state, out var entryPath, out enumerationErrorProgress);
+                if (enumerationErrorProgress is not null)
+                {
+                    yield return enumerationErrorProgress;
+                    yield break;
+                }
+
+                if (!hasNext)
+                {
+                    break;
+                }
+                var currentEntryPath = entryPath!;
+
+                FileAttributes attributes = default;
+                Exception? recoverableError = null;
+                try
+                {
+                    attributes = File.GetAttributes(currentEntryPath);
+                }
+                catch (Exception exception) when (IsRecoverable(exception))
+                {
+                    recoverableError = exception;
+                }
+
+                if (recoverableError is not null)
+                {
+                    state.AddError(currentEntryPath, recoverableError);
+                    yield return state.Progress(currentEntryPath);
+                    continue;
+                }
+
+                if (!options.IncludeHiddenFiles && IsHidden(currentEntryPath, attributes))
+                {
+                    continue;
+                }
+
+                var isDirectory = attributes.HasFlag(FileAttributes.Directory);
+                var isSymbolicLink = attributes.HasFlag(FileAttributes.ReparsePoint);
+                if (isSymbolicLink && !options.FollowSymbolicLinks)
+                {
+                    continue;
+                }
+
+                if (isDirectory)
+                {
+                    var child = new DiskItem(Path.GetFileName(currentEntryPath), currentEntryPath, isDirectory: true);
+                    if (includeChildren)
+                    {
+                        directory.AddChild(child);
+                    }
+
+                    state.DirectoriesScanned++;
+                    var directoryProgress = state.TryProgress(currentEntryPath);
+                    if (directoryProgress is not null)
+                    {
+                        yield return directoryProgress;
+                    }
+
+                    var expandPackage = options.TreatPackagesAsDirectories || !IsPackage(currentEntryPath);
+                    await foreach (var progress in ScanDirectoryAsync(
+                                       child,
+                                       options,
+                                       state,
+                                       visitedDirectories,
+                                       includeChildren && expandPackage,
+                                       cancellationToken))
+                    {
+                        yield return progress;
+                    }
+
+                    directory.SizeBytes += child.SizeBytes;
+                    continue;
+                }
+
+                long length = 0;
+                recoverableError = null;
+                try
+                {
+                    length = new FileInfo(currentEntryPath).Length;
+                }
+                catch (Exception exception) when (IsRecoverable(exception))
+                {
+                    recoverableError = exception;
+                }
+
+                if (recoverableError is not null)
+                {
+                    state.AddError(currentEntryPath, recoverableError);
+                    yield return state.Progress(currentEntryPath);
+                    continue;
+                }
+
+                var file = new DiskItem(Path.GetFileName(currentEntryPath), currentEntryPath, isDirectory: false)
+                {
+                    SizeBytes = length
+                };
                 if (includeChildren)
                 {
-                    directory.AddChild(child);
+                    directory.AddChild(file);
                 }
 
-                state.DirectoriesScanned++;
-                yield return state.Progress(entryPath);
-
-                var expandPackage = options.TreatPackagesAsDirectories || !IsPackage(entryPath);
-                await foreach (var progress in ScanDirectoryAsync(
-                                   child,
-                                   options,
-                                   state,
-                                   visitedDirectories,
-                                   includeChildren && expandPackage,
-                                   cancellationToken))
+                directory.SizeBytes += length;
+                state.FilesScanned++;
+                state.BytesScanned += length;
+                var fileProgress = state.TryProgress(currentEntryPath);
+                if (fileProgress is not null)
                 {
-                    yield return progress;
+                    yield return fileProgress;
                 }
+            }
+        }
+    }
 
-                directory.SizeBytes += child.SizeBytes;
-                continue;
+    private IEnumerator<string>? CreateEntryEnumerator(
+        string directoryPath,
+        ScanState state,
+        out ScanProgress? errorProgress)
+    {
+        errorProgress = null;
+        try
+        {
+            return _enumerateFileSystemEntries(directoryPath).GetEnumerator();
+        }
+        catch (Exception exception) when (IsRecoverable(exception))
+        {
+            state.AddError(directoryPath, exception);
+            errorProgress = state.Progress(directoryPath);
+            return null;
+        }
+    }
+
+    private static bool TryMoveNext(
+        IEnumerator<string> enumerator,
+        string directoryPath,
+        ScanState state,
+        out string? entryPath,
+        out ScanProgress? errorProgress)
+    {
+        entryPath = null;
+        errorProgress = null;
+        try
+        {
+            if (!enumerator.MoveNext())
+            {
+                return false;
             }
 
-            long length = 0;
-            recoverableError = null;
-            try
-            {
-                length = new FileInfo(entryPath).Length;
-            }
-            catch (Exception exception) when (IsRecoverable(exception))
-            {
-                recoverableError = exception;
-            }
-
-            if (recoverableError is not null)
-            {
-                state.AddError(entryPath, recoverableError);
-                yield return state.Progress(entryPath);
-                continue;
-            }
-
-            var file = new DiskItem(Path.GetFileName(entryPath), entryPath, isDirectory: false)
-            {
-                SizeBytes = length
-            };
-            if (includeChildren)
-            {
-                directory.AddChild(file);
-            }
-
-            directory.SizeBytes += length;
-            state.FilesScanned++;
-            state.BytesScanned += length;
-            yield return state.Progress(entryPath);
+            entryPath = enumerator.Current;
+            return true;
+        }
+        catch (Exception exception) when (IsRecoverable(exception))
+        {
+            state.AddError(directoryPath, exception);
+            errorProgress = state.Progress(directoryPath);
+            return false;
         }
     }
 
@@ -230,7 +298,15 @@ public sealed class DiskScanner : IDiskScanner
 
     private sealed class ScanState(DiskItem root)
     {
+        private static readonly TimeSpan MinimumProgressInterval = TimeSpan.FromMilliseconds(150);
+        private const long MaximumEntriesBetweenProgress = 4_096;
+
         private readonly List<ScanError> _errors = [];
+        private IReadOnlyList<ScanError> _errorSnapshot = [];
+        private long _entriesSinceLastProgress;
+        private long _lastProgressTimestamp = Stopwatch.GetTimestamp();
+        private bool _errorsChanged;
+        private bool _reportedFirstEntry;
 
         public long FilesScanned { get; set; }
 
@@ -238,17 +314,52 @@ public sealed class DiskScanner : IDiskScanner
 
         public long BytesScanned { get; set; }
 
-        public void AddError(string path, Exception exception) =>
+        public void AddError(string path, Exception exception)
+        {
             _errors.Add(new ScanError(path, exception.Message, exception.GetType().Name));
+            _errorsChanged = true;
+        }
+
+        public ScanProgress? TryProgress(string currentPath)
+        {
+            _entriesSinceLastProgress++;
+            if (!_reportedFirstEntry)
+            {
+                _reportedFirstEntry = true;
+                return Progress(currentPath);
+            }
+
+            if (_entriesSinceLastProgress < MaximumEntriesBetweenProgress
+                && Stopwatch.GetElapsedTime(_lastProgressTimestamp) < MinimumProgressInterval)
+            {
+                return null;
+            }
+
+            return Progress(currentPath);
+        }
 
         public ScanProgress Progress(string currentPath, bool isCompleted = false) =>
-            new(
+            CreateProgress(currentPath, isCompleted);
+
+        private ScanProgress CreateProgress(string currentPath, bool isCompleted)
+        {
+            _entriesSinceLastProgress = 0;
+            _lastProgressTimestamp = Stopwatch.GetTimestamp();
+
+            if (_errorsChanged)
+            {
+                _errorSnapshot = _errors.ToArray();
+                _errorsChanged = false;
+            }
+
+            return new ScanProgress(
                 currentPath,
                 FilesScanned,
                 DirectoriesScanned,
                 BytesScanned,
                 root,
-                _errors.ToArray(),
+                _errorSnapshot,
                 isCompleted);
+        }
     }
 }

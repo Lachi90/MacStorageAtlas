@@ -30,7 +30,7 @@ public class TreemapLayoutServiceTests
     {
         var bounds = new TreemapBounds(13, 17, 37, 101);
         var rectangles = _service.Layout(
-            [Item("one", long.MaxValue), Item("zero", 0), Item("two", 2), Item("three", 1)],
+            [Item("one", 5), Item("zero", 0), Item("two", 2), Item("three", 1)],
             bounds);
 
         Assert.That(rectangles, Has.Count.EqualTo(3));
@@ -44,6 +44,35 @@ public class TreemapLayoutServiceTests
                 Assert.That(rectangle.Y + rectangle.Height, Is.LessThanOrEqualTo(bounds.Y + bounds.Height));
                 Assert.That(rectangle.Width, Is.GreaterThanOrEqualTo(0));
                 Assert.That(rectangle.Height, Is.GreaterThanOrEqualTo(0));
+            }
+        });
+    }
+
+    [Test]
+    public void LayoutOmitsSubPixelItems()
+    {
+        var rectangles = _service.Layout(
+            [Item("huge", long.MaxValue), Item("tiny", 1)],
+            new TreemapBounds(0, 0, 100, 100));
+
+        var rectangle = rectangles.Single();
+        Assert.That(rectangle.Item.Item.Name, Is.EqualTo("huge"));
+    }
+
+    [Test]
+    public void LayoutUsesSquarifiedRowsForBalancedItems()
+    {
+        var rectangles = _service.Layout(
+            [Item("one", 1), Item("two", 1), Item("three", 1), Item("four", 1)],
+            new TreemapBounds(0, 0, 100, 100));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rectangles, Has.Count.EqualTo(4));
+            foreach (var rectangle in rectangles)
+            {
+                Assert.That(rectangle.Width, Is.EqualTo(50).Within(0.000001));
+                Assert.That(rectangle.Height, Is.EqualTo(50).Within(0.000001));
             }
         });
     }

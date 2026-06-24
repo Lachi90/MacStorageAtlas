@@ -29,6 +29,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ITreemapLayoutService _treemapLayoutService = new TreemapLayoutService();
     private readonly FileTypeStatisticsService _fileTypeStatisticsService = new();
     private readonly LargeFilesService _largeFilesService = new();
+    private readonly Dictionary<DiskItem, IReadOnlyList<TreemapRect>> _treemapLayoutCache =
+        new(ReferenceEqualityComparer.Instance);
     private DiskItem? _scanRoot;
     private CancellationTokenSource? _scanCancellation;
     private bool _isApplyingSettings;
@@ -322,6 +324,7 @@ public partial class MainWindowViewModel : ViewModelBase
             ScanErrors = [];
             SelectedScanError = null;
             _scanRoot = null;
+            _treemapLayoutCache.Clear();
             TreeItems = [];
             SelectedTreeItem = null;
             LargeFiles = [];
@@ -342,12 +345,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
-            // Run the scan on a background thread. The scanner's internal
-            // `await Task.Yield()` would otherwise capture the UI synchronization
-            // context and run the entire (CPU/IO-bound) scan on the UI thread,
-            // freezing the window. Inside Task.Run there is no UI context, so the
-            // scan stays off the UI thread. Awaiting each progress update gives
-            // natural backpressure that keeps the UI responsive and animating.
+            // Run the scan on a background thread so recursive filesystem IO
+            // never executes on the UI synchronization context. Awaiting each
+            // throttled progress update keeps the UI responsive without letting
+            // progress rendering outrun the scanner.
             await Task.Run(async () =>
             {
                 await foreach (var progress in _diskScanner
@@ -449,10 +450,19 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedTreeItem = null;
     }
 
-    private IReadOnlyList<TreemapRect> LayoutChildren(DiskItem parent) =>
-        _treemapLayoutService.Layout(
+    private IReadOnlyList<TreemapRect> LayoutChildren(DiskItem parent)
+    {
+        if (_treemapLayoutCache.TryGetValue(parent, out var rectangles))
+        {
+            return rectangles;
+        }
+
+        rectangles = _treemapLayoutService.Layout(
             parent.Children.Select(child => new TreemapItem(child)).ToArray(),
             new TreemapBounds(0, 0, TreemapWidth, TreemapHeight));
+        _treemapLayoutCache[parent] = rectangles;
+        return rectangles;
+    }
 
     private void RemoveTrashedItem(DiskItem item)
     {
@@ -467,6 +477,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (ReferenceEquals(_scanRoot, item))
         {
             _scanRoot = null;
+            _treemapLayoutCache.Clear();
             TreeItems = [];
             TreemapRectangles = [];
             FileTypeSummaries = [];
@@ -476,6 +487,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             var parent = FindParent(_scanRoot, item);
             _scanRoot.RemoveDescendant(item);
+            _treemapLayoutCache.Clear();
             ApplySearch();
             TreemapRectangles = LayoutChildren(parent ?? _scanRoot);
             FileTypeSummaries = _fileTypeStatisticsService.Calculate(_scanRoot);
