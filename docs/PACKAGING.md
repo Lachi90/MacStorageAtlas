@@ -1,8 +1,27 @@
 # Packaging MacStorageAtlas for macOS
 
-This document describes how to publish the Avalonia desktop app for macOS. It
-covers the `dotnet publish` workflow today and records the signing, notarization,
-and DMG steps that are deferred to future work.
+This document describes how to publish the Avalonia desktop app for macOS. The
+[`build-dmg.sh`](../build-dmg.sh) script automates publishing, `.app` bundling,
+and DMG creation. Code signing and notarization remain deferred to future work.
+
+## Quick start
+
+From the repository root:
+
+```shell
+./build-dmg.sh            # Apple Silicon (default) → MacStorageAtlas.dmg
+./build-dmg.sh arm64      # Apple Silicon (osx-arm64)
+./build-dmg.sh x64        # Intel (osx-x64)
+./build-dmg.sh both       # both architectures, one DMG each
+```
+
+The script publishes a self-contained Release build, wraps it in a
+`MacStorageAtlas.app` bundle with the `.icns` icon, and produces a DMG with a
+drag-to-`Applications` shortcut. The resulting DMG is **unsigned and
+un-notarized** — see [Signing and notarization](#signing-and-notarization-future-work).
+
+The sections below document the individual steps the script performs, for
+reference and manual builds.
 
 ## Prerequisites
 
@@ -54,8 +73,9 @@ MacStorageAtlas.app/
     Resources/          AppIcon.icns and other assets
 ```
 
-The app icon under `src/MacStorageAtlas.App/Assets/` is a **placeholder**; replace
-it with final branding artwork (exported to `.icns`) before public distribution.
+The bundled icon comes from `src/MacStorageAtlas.App/Assets/MacStorageAtlas.icns`;
+`build-dmg.sh` copies it to `Contents/Resources/AppIcon.icns` and references it
+via `CFBundleIconFile` in the generated `Info.plist`.
 
 ## Signing and notarization (future work)
 
@@ -69,8 +89,25 @@ Public distribution outside the App Store requires:
 These steps need an Apple Developer account and credentials and are intentionally
 **not** automated yet.
 
-## DMG creation (future work)
+## DMG creation
 
-A user-friendly download is typically a `.dmg` containing the signed `.app` and a
-shortcut to `/Applications`. Tools such as `create-dmg` or `hdiutil` can build
-the image. This is deferred until signing and notarization are in place.
+`build-dmg.sh` assembles a staging folder containing the `.app` bundle and a
+symlink to `/Applications`, then packages it into a compressed (`UDZO`) disk
+image with `hdiutil`:
+
+```shell
+hdiutil create \
+  -volname MacStorageAtlas \
+  -srcfolder dmg-content \
+  -ov \
+  -format UDZO \
+  MacStorageAtlas.dmg
+```
+
+Because the bundle is not yet signed or notarized, Gatekeeper blocks it on first
+launch. Users can bypass this by right-clicking the app → **Open**, or by
+removing the quarantine attribute:
+
+```shell
+xattr -dr com.apple.quarantine /Applications/MacStorageAtlas.app
+```
