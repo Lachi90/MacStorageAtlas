@@ -1,9 +1,63 @@
 # MacStorageAtlas
 
+> **See what's eating your disk — at a glance.** A fast, native macOS disk usage
+> analyzer that turns a folder or volume into a sortable tree and an interactive
+> treemap, so you can find the space hogs and reclaim gigabytes in seconds.
+
+![Platform: macOS](https://img.shields.io/badge/platform-macOS-black?logo=apple)
+![Built with .NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)
+![UI: Avalonia](https://img.shields.io/badge/UI-Avalonia-8B5CF6)
+![Arch: Apple Silicon + Intel](https://img.shields.io/badge/arch-arm64%20%2B%20x64-informational)
+
 **MacStorageAtlas** is a macOS disk usage analyzer inspired by WinDirStat-style
 tools. It helps you understand what consumes storage on your Mac by scanning
 folders and volumes, then visualizing the results as a sortable folder tree, a
 proportional treemap, file-type statistics, and a list of the largest files.
+
+![Folder tree and interactive treemap of a scanned folder](docs/images/01-overview.png)
+
+## Highlights
+
+### 🗺️ Folder tree + interactive treemap, side by side
+
+Every scan gives you two synchronized views: a folder tree sorted by size and a
+proportional treemap where the biggest blocks are the biggest consumers. Click a
+block to inspect it — name, full path, and size — and jump straight to it.
+
+![Selected treemap block with item details](docs/images/02-selected-item.png)
+
+### ⚡ Live progress, and stop whenever you want
+
+Scanning is fully async and streams progress as it runs: current path, file and
+folder counts, and bytes scanned so far. Big volumes (hundreds of thousands of
+files) stay responsive, and a single click cancels — partial results stay
+visible.
+
+![Live scan progress overlay with file, folder, and byte counters](docs/images/06-scanning.png)
+
+### 📊 Breakdown by file type and largest files
+
+Two dedicated tabs answer the questions that matter: *which kinds of files take
+up the most room?* and *what are the single biggest files on disk?* — each with
+counts, sizes, and full paths.
+
+| File types | Largest files |
+| --- | --- |
+| ![Storage grouped by file extension](docs/images/03-file-types.png) | ![List of the largest files with paths](docs/images/04-largest-files.png) |
+
+### 🧹 Reveal in Finder or move to Trash — safely
+
+Found something to clean up? Reveal any item in Finder, or move it to the Trash
+after a confirmation. Files are never permanently deleted — they go to the Trash,
+so nothing is lost by accident.
+
+### ⚙️ Configurable scanning
+
+Fine-tune what gets counted: scan inside `.app` bundles (or treat them as single
+items), include hidden files, and follow symbolic links. Preferences and recent
+scan locations are remembered between runs.
+
+![Scan options: application bundles, hidden files, symbolic links](docs/images/05-options.png)
 
 ## Features
 
@@ -20,6 +74,10 @@ proportional treemap, file-type statistics, and a list of the largest files.
 - Remembers your scanner preferences and recent scan locations between runs.
 - Modern, native-feeling UI that follows the system light/dark appearance, with
   a responsive treemap and a live scan-progress overlay.
+
+> Screenshots above show MacStorageAtlas analyzing its own project folder — build
+> artifacts included — which is why `.pdb`, `.dll`, and `.dmg` files dominate the
+> breakdown.
 
 > Branding artwork lives under `src/MacStorageAtlas.App/Assets/`: `app.ico` (window
 > icon), `icon.png` (1024×1024 master), and `MacStorageAtlas.icns` for macOS app
