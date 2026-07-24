@@ -183,6 +183,8 @@ tests/
 ## Documentation
 
 - Product backlog and feature specifications: [`docs/FEATURES.md`](docs/FEATURES.md)
+- Market-driven implementation roadmap: [`docs/IMPLEMENTATION_ROADMAP.md`](docs/IMPLEMENTATION_ROADMAP.md)
+- OpenSpec feature workflow: [`docs/OPENSPEC_WORKFLOW.md`](docs/OPENSPEC_WORKFLOW.md)
 - macOS packaging and distribution: [`docs/PACKAGING.md`](docs/PACKAGING.md)
 
 ## License

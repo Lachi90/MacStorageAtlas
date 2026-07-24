@@ -4,11 +4,18 @@ This document turns the market analysis into an implementation plan. It is the
 working roadmap for the features that move MacStorageAtlas from a capable disk
 visualizer to a trustworthy, precise, and safe macOS storage-management tool.
 
+Feature-level planning and implementation follows the
+[`OPENSPEC_WORKFLOW.md`](OPENSPEC_WORKFLOW.md). The roadmap controls priority and
+sequencing; each implementation unit receives a focused OpenSpec change before
+code is written.
+
 ## Working branch
 
 - Integration branch: `codex/storage-feature-roadmap`
 - Implementation work is committed and pushed to this branch before it is
   merged into `main`.
+- Every non-trivial feature starts as a focused change under
+  `openspec/changes/`; roadmap work packages may be split into multiple changes.
 - Each work package below should use one or more focused commits. Unrelated work
   must not be mixed into the same commit.
 - The branch must remain buildable and testable after every completed work
@@ -992,7 +999,7 @@ Update this table when work starts or finishes.
 
 | ID | Status | Owner/branch | Notes |
 | --- | --- | --- | --- |
-| WP-00 | Planned | `codex/storage-feature-roadmap` | First implementation item |
+| WP-00 | Ready | `codex/storage-feature-roadmap` | OpenSpec change: `correct-market-comparison` |
 | WP-01 | Planned | `codex/storage-feature-roadmap` | Requires Apple Developer account |
 | WP-02 | Planned | `codex/storage-feature-roadmap` | Begin with measurement spec and benchmark |
 | WP-03 | Planned | `codex/storage-feature-roadmap` |  |

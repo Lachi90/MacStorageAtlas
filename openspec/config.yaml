@@ -1,0 +1,60 @@
+schema: spec-driven
+
+context: |
+  Artifact language: English.
+  Product: MacStorageAtlas, a privacy-focused, open-source disk usage analyzer
+  for macOS.
+  Tech stack: .NET 10, C#, Avalonia UI, CommunityToolkit.Mvvm, NUnit.
+  Supported targets: macOS on Apple Silicon and Intel.
+  Repository layout:
+  - MacStorageAtlas.Core owns portable domain and scanning logic.
+  - MacStorageAtlas.Rendering owns treemap layout logic.
+  - MacStorageAtlas.Platform.Mac owns macOS-specific integrations.
+  - MacStorageAtlas.App owns Avalonia UI, view models, and app services.
+  - MacStorageAtlas.Tests owns NUnit tests.
+  Product roadmap: docs/IMPLEMENTATION_ROADMAP.md.
+  Original feature backlog: docs/FEATURES.md.
+  Integration branch: codex/storage-feature-roadmap. Feature work is committed
+  and pushed there before it is merged into main.
+  Safety principles:
+  - Prefer reversible operations such as moving items to Trash.
+  - Never describe a file as safe to delete merely because it is large or old.
+  - Require explicit review before filesystem mutations.
+  - Revalidate paths and file identity before mutations.
+  Privacy principles:
+  - File names, paths, hashes, and scan results remain local by default.
+  - Scanning must not materialize cloud placeholders unless the user explicitly
+    requests a download.
+  Engineering conventions:
+  - Keep project responsibilities separated.
+  - Preserve cancellation and partial scan results.
+  - Keep filesystem work off the UI thread.
+  - Avoid duplicate full copies of scan trees.
+  - Add or update tests for changed behavior.
+  - Keep the solution buildable after each task group.
+  Validation commands:
+  - dotnet build
+  - dotnet test
+  - openspec validate --all --strict --no-interactive
+
+rules:
+  proposal:
+    - Reference the related WP identifier from docs/IMPLEMENTATION_ROADMAP.md.
+    - Keep one change focused on one independently reviewable intent.
+    - Include explicit Non-goals, dependencies, risks, and the roadmap estimate.
+    - State user value and observable outcomes rather than implementation detail.
+  specs:
+    - Write behavior-first requirements using SHALL or MUST.
+    - Give every requirement at least one concrete GIVEN/WHEN/THEN scenario.
+    - Cover relevant failure, cancellation, privacy, and destructive-action cases.
+    - Keep implementation choices out of requirements and scenarios.
+  design:
+    - Map responsibilities to Core, Rendering, Platform.Mac, App, and Tests.
+    - Record alternatives considered and why the chosen approach is preferred.
+    - Address macOS compatibility, performance, privacy, and rollback behavior.
+    - Identify any required technical spike before committing to an unstable API.
+  tasks:
+    - Order tasks by dependency and keep each checkbox independently verifiable.
+    - Put tests next to the behavior they verify rather than in one final test task.
+    - Include build, test, strict OpenSpec validation, documentation, and roadmap status updates.
+    - Do not mix unrelated roadmap work packages in one task list.
