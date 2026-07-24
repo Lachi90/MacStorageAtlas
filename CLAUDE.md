@@ -105,6 +105,11 @@ synchronized.
 - Write Markdown compatible with CommonMark: use ATX headings, blank lines around
   blocks, language identifiers on fenced code blocks, valid links, and useful
   image alt text.
+- After adding or changing a feature, explicitly review `README.md`, the
+  relevant documentation under `docs/`, and the GitHub Pages landing page at
+  `docs/index.html`. Update them when user-visible behavior, commands, options,
+  limitations, comparisons, or screenshots changed, and report when no
+  documentation update was necessary.
 - Update user-facing documentation when commands, behavior, limitations, or
   screenshots change.
 - Verify time-sensitive market comparisons against current primary sources and
