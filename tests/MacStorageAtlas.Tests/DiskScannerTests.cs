@@ -450,6 +450,37 @@ public class DiskScannerTests
     }
 
     [Test]
+    public async Task ScanAsyncUsesAllocatedSizeReaderWhenMeasureAllocatedSizeIsEnabled()
+    {
+        // Arrange
+        var smallFile = Path.Combine(_temporaryDirectory, "placeholder.bin");
+        var largeFile = Path.Combine(_temporaryDirectory, "local.bin");
+        await File.WriteAllBytesAsync(smallFile, new byte[10]);
+        await File.WriteAllBytesAsync(largeFile, new byte[10]);
+        // Simulate an undownloaded cloud placeholder: it has a logical length but
+        // occupies no blocks on disk, so the allocated reader returns zero for it.
+        var scanner = new DiskScanner(
+            Directory.EnumerateFileSystemEntries,
+            allocatedSizeReader: path => path == smallFile ? 0 : 4096);
+        var options = new ScanOptions { MeasureAllocatedSize = true };
+
+        // Act
+        var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
+
+        // Assert
+        var result = progress[^1];
+        var placeholder = result.Root.Children.Single(item => item.Name == "placeholder.bin");
+        var local = result.Root.Children.Single(item => item.Name == "local.bin");
+        Assert.Multiple(() =>
+        {
+            Assert.That(placeholder.SizeBytes, Is.EqualTo(0));
+            Assert.That(local.SizeBytes, Is.EqualTo(4096));
+            Assert.That(result.Root.SizeBytes, Is.EqualTo(4096));
+            Assert.That(result.BytesScanned, Is.EqualTo(4096));
+        });
+    }
+
+    [Test]
     public void ScanAsyncHonorsCancellation()
     {
         // Arrange

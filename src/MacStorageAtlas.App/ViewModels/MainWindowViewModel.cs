@@ -98,6 +98,11 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private bool _followSymbolicLinks = ScanOptions.Default.FollowSymbolicLinks;
 
+    // App default differs from the portable core default: measure real on-disk
+    // usage so undownloaded cloud placeholders are not counted at full size.
+    [ObservableProperty]
+    private bool _measureAllocatedSize = true;
+
     [ObservableProperty]
     private string? _currentPath;
 
@@ -198,6 +203,8 @@ public partial class MainWindowViewModel : ViewModelBase
     partial void OnIncludeHiddenFilesChanged(bool value) => SaveSettings();
 
     partial void OnFollowSymbolicLinksChanged(bool value) => SaveSettings();
+
+    partial void OnMeasureAllocatedSizeChanged(bool value) => SaveSettings();
 
     partial void OnExpandApplicationBundlesChanged(bool value) => SaveSettings();
 
@@ -340,7 +347,8 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             TreatPackagesAsDirectories = ExpandApplicationBundles,
             IncludeHiddenFiles = IncludeHiddenFiles,
-            FollowSymbolicLinks = FollowSymbolicLinks
+            FollowSymbolicLinks = FollowSymbolicLinks,
+            MeasureAllocatedSize = MeasureAllocatedSize
         };
 
         try
@@ -534,6 +542,7 @@ public partial class MainWindowViewModel : ViewModelBase
             IncludeHiddenFiles = settings.IncludeHiddenFiles;
             FollowSymbolicLinks = settings.FollowSymbolicLinks;
             ExpandApplicationBundles = settings.TreatPackagesAsDirectories;
+            MeasureAllocatedSize = settings.MeasureAllocatedSize;
             RecentLocations = settings.RecentLocations
                 .Where(path => !string.IsNullOrWhiteSpace(path))
                 .Take(AppSettings.MaxRecentLocations)
@@ -557,6 +566,7 @@ public partial class MainWindowViewModel : ViewModelBase
             IncludeHiddenFiles = IncludeHiddenFiles,
             FollowSymbolicLinks = FollowSymbolicLinks,
             TreatPackagesAsDirectories = ExpandApplicationBundles,
+            MeasureAllocatedSize = MeasureAllocatedSize,
             RecentLocations = RecentLocations.ToList()
         });
     }

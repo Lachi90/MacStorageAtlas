@@ -7,15 +7,22 @@ namespace MacStorageAtlas.Core;
 public sealed class DiskScanner : IDiskScanner
 {
     private readonly Func<string, IEnumerable<string>> _enumerateFileSystemEntries;
+    private readonly Func<string, long> _logicalSizeReader;
+    private readonly Func<string, long> _allocatedSizeReader;
 
     public DiskScanner()
         : this(Directory.EnumerateFileSystemEntries)
     {
     }
 
-    internal DiskScanner(Func<string, IEnumerable<string>> enumerateFileSystemEntries)
+    internal DiskScanner(
+        Func<string, IEnumerable<string>> enumerateFileSystemEntries,
+        Func<string, long>? logicalSizeReader = null,
+        Func<string, long>? allocatedSizeReader = null)
     {
         _enumerateFileSystemEntries = enumerateFileSystemEntries;
+        _logicalSizeReader = logicalSizeReader ?? (path => new FileInfo(path).Length);
+        _allocatedSizeReader = allocatedSizeReader ?? NativeFileSize.GetAllocatedSizeBytes;
     }
 
     public async IAsyncEnumerable<ScanProgress> ScanAsync(
@@ -191,7 +198,9 @@ public sealed class DiskScanner : IDiskScanner
                 recoverableError = null;
                 try
                 {
-                    length = new FileInfo(currentEntryPath).Length;
+                    length = options.MeasureAllocatedSize
+                        ? _allocatedSizeReader(currentEntryPath)
+                        : _logicalSizeReader(currentEntryPath);
                 }
                 catch (Exception exception) when (IsRecoverable(exception))
                 {

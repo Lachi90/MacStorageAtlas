@@ -50,6 +50,9 @@
                                     <CheckBox IsChecked="{Binding FollowSymbolicLinks, Mode=TwoWay}"
                                               Content="Follow symbolic links"
                                               ToolTip.Tip="When unchecked, symbolic links are skipped. When checked, links are followed and cycles are detected to avoid scanning the same location twice."/>
+                                    <CheckBox IsChecked="{Binding MeasureAllocatedSize, Mode=TwoWay}"
+                                              Content="Measure space actually used on disk"
+                                              ToolTip.Tip="When checked (default), sizes reflect the blocks actually allocated on disk, so undownloaded cloud placeholders (iCloud, OneDrive, kDrive) count as roughly zero. When unchecked, the full logical file size is used regardless of what is stored locally."/>
                                 </StackPanel>
                             </Flyout>
                         </Button.Flyout>

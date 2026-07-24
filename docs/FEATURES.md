@@ -1101,3 +1101,47 @@ Requirements:
 - Explain project structure.
 - Link to docs/FEATURES.md.
 ```
+
+---
+
+# 29. On-Disk vs. Logical Size
+
+## Purpose
+
+Report the storage a file actually occupies on disk instead of its logical
+length, so undownloaded cloud placeholders (iCloud Drive, OneDrive, kDrive) are
+not counted at full size.
+
+## Acceptance Criteria
+
+- Files can be measured by allocated size (`st_blocks × 512`) or logical length.
+- Allocated (on-disk) measurement is the application default.
+- Scanning never materializes/downloads dataless cloud files (stat only).
+- Scanner respects `ScanOptions.MeasureAllocatedSize`.
+- User can toggle the behavior in scan options.
+
+## Affected Projects
+
+- `MacStorageAtlas.Core`
+- `MacStorageAtlas.App`
+- `MacStorageAtlas.Tests`
+
+## Implementation Notes
+
+Read the allocated size via a native `stat(2)` P/Invoke on macOS (64-bit-inode
+struct layout; `stat$INODE64` entry point on x86_64), falling back to the
+logical length on other platforms or on failure. The core library keeps the
+logical length as its portable default; the app opts into allocated size.
+
+## Codex Prompt
+
+```text
+Implement On-Disk vs. Logical Size.
+
+Requirements:
+- Add ScanOptions.MeasureAllocatedSize.
+- Measure allocated size via native stat (st_blocks * 512) on macOS.
+- Fall back to logical length elsewhere; never download cloud placeholders.
+- Default the app to allocated size; add a UI toggle.
+- Add tests for allocated-size measurement.
+```
