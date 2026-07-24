@@ -57,11 +57,12 @@ so nothing is lost by accident.
 ### ⚙️ Configurable scanning
 
 Fine-tune what gets counted: scan inside `.app` bundles (or treat them as single
-items), include hidden files, and follow symbolic links. By default sizes reflect
-the space files **actually occupy on disk**, so undownloaded cloud placeholders
-(iCloud Drive, OneDrive, kDrive) count as roughly zero — switch to logical file
-size if you prefer. Preferences and recent scan locations are remembered between
-runs.
+items), include hidden files, and follow symbolic links. By default sizes use
+the locally allocated blocks for each visited path, so undownloaded cloud
+placeholders count as roughly zero — switch to logical file length if you
+prefer. Hardlink and APFS-clone storage is not yet deduplicated; see
+[Storage measurement semantics](docs/STORAGE_MEASUREMENT.md). Preferences and
+recent scan locations are remembered between runs.
 
 ![Scan options: application bundles, hidden files, symbolic links, and on-disk size](docs/images/05-options.png)
 
@@ -76,7 +77,7 @@ runs.
 - Inspect files and folders that couldn't be scanned, and copy their paths to
   the clipboard.
 - Configurable scanning: hidden files, symbolic links, `.app` package
-  expansion, and real on-disk vs. logical size measurement.
+  expansion, and allocated vs. logical size measurement.
 - Remembers your scanner preferences and recent scan locations between runs.
 - Modern, native-feeling UI that follows the system light/dark appearance, with
   a responsive treemap and a live scan-progress overlay.
@@ -203,6 +204,7 @@ tests/
 
 - Product backlog and feature specifications: [`docs/FEATURES.md`](docs/FEATURES.md)
 - Market-driven implementation roadmap: [`docs/IMPLEMENTATION_ROADMAP.md`](docs/IMPLEMENTATION_ROADMAP.md)
+- Storage measurement semantics and verification: [`docs/STORAGE_MEASUREMENT.md`](docs/STORAGE_MEASUREMENT.md)
 - OpenSpec feature workflow: [`docs/OPENSPEC_WORKFLOW.md`](docs/OPENSPEC_WORKFLOW.md)
 - macOS packaging and distribution: [`docs/PACKAGING.md`](docs/PACKAGING.md)
 

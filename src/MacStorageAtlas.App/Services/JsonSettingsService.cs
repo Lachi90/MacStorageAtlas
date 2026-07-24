@@ -5,11 +5,6 @@ using MacStorageAtlas.App.Models;
 
 namespace MacStorageAtlas.App.Services;
 
-/// <summary>
-/// Persists <see cref="AppSettings"/> to a JSON file in the user's macOS
-/// application-data directory. Reads recover gracefully from a missing or
-/// malformed file by falling back to default settings.
-/// </summary>
 public sealed class JsonSettingsService : ISettingsService
 {
     private static readonly JsonSerializerOptions SerializerOptions = new()
@@ -48,8 +43,6 @@ public sealed class JsonSettingsService : ISettingsService
                 or UnauthorizedAccessException
                 or JsonException)
         {
-            // A missing, unreadable, or malformed settings file should never stop
-            // the app from starting. Fall back to defaults instead.
             return new AppSettings();
         }
     }
@@ -72,8 +65,6 @@ public sealed class JsonSettingsService : ISettingsService
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException)
         {
-            // Persisting preferences is best-effort; failing to write must not
-            // crash the app.
         }
     }
 

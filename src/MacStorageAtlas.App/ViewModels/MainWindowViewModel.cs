@@ -98,10 +98,18 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private bool _followSymbolicLinks = ScanOptions.Default.FollowSymbolicLinks;
 
-    // App default differs from the portable core default: measure real on-disk
-    // usage so undownloaded cloud placeholders are not counted at full size.
     [ObservableProperty]
     private bool _measureAllocatedSize = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MeasurementBasisLabel))]
+    private StorageMeasurementMode _resultMeasurementMode = StorageMeasurementMode.Allocated;
+
+    public string MeasurementBasisLabel => ResultMeasurementMode switch
+    {
+        StorageMeasurementMode.Allocated => "Allocated size",
+        _ => "Logical size"
+    };
 
     [ObservableProperty]
     private string? _currentPath;
@@ -328,6 +336,9 @@ public partial class MainWindowViewModel : ViewModelBase
             FilesScanned = 0;
             DirectoriesScanned = 0;
             BytesScanned = 0;
+            ResultMeasurementMode = MeasureAllocatedSize
+                ? StorageMeasurementMode.Allocated
+                : StorageMeasurementMode.Logical;
             ScanErrors = [];
             SelectedScanError = null;
             _scanRoot = null;
@@ -353,10 +364,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
-            // Run the scan on a background thread so recursive filesystem IO
-            // never executes on the UI synchronization context. Awaiting each
-            // throttled progress update keeps the UI responsive without letting
-            // progress rendering outrun the scanner.
             await Task.Run(async () =>
             {
                 await foreach (var progress in _diskScanner
@@ -370,8 +377,6 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         catch (OperationCanceledException)
         {
-            // The user stopped the scan. Keep whatever partial results were
-            // gathered so far; cancellation is not a scan error.
         }
         finally
         {
@@ -387,6 +392,7 @@ public partial class MainWindowViewModel : ViewModelBase
         FilesScanned = progress.FilesScanned;
         DirectoriesScanned = progress.DirectoriesScanned;
         BytesScanned = progress.BytesScanned;
+        ResultMeasurementMode = progress.MeasurementMode;
         ScanErrors = progress.Errors;
 
         if (progress.IsCompleted)

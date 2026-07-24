@@ -1001,7 +1001,7 @@ Update this table when work starts or finishes.
 | --- | --- | --- | --- |
 | WP-00 | Complete | `codex/storage-feature-roadmap` | Comparison corrected and verified 2026-07-24; OpenSpec change: `correct-market-comparison` |
 | WP-01 | Planned | `codex/storage-feature-roadmap` | Requires Apple Developer account |
-| WP-02 | Planned | `codex/storage-feature-roadmap` | Begin with measurement spec and benchmark |
+| WP-02 | In progress | `codex/storage-feature-roadmap` | Measurement definitions complete (`define-storage-measurement`); remaining: `deduplicate-hardlinks`, `investigate-apfs-clone-accounting`, `benchmark-and-optimize-scans` |
 | WP-03 | Planned | `codex/storage-feature-roadmap` |  |
 | WP-04 | Planned | `codex/storage-feature-roadmap` | Depends on metadata |
 | WP-05 | Planned | `codex/storage-feature-roadmap` | Low-risk quick win |

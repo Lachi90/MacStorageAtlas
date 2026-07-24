@@ -1,20 +1,10 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!--
-        Design tokens for MacStorageAtlas.
+<ResourceDictionary.ThemeDictionaries>
 
-        Colors are defined per theme variant so the UI adapts to the system
-        light/dark appearance. Spacing, radius and typography tokens are shared.
-        The palette follows a native macOS feel: neutral grays with the system
-        blue accent.
-    -->
+<ResourceDictionary x:Key="Light">
 
-    <ResourceDictionary.ThemeDictionaries>
-
-        <!-- ===================== LIGHT ===================== -->
-        <ResourceDictionary x:Key="Light">
-            <!-- Accent (macOS system blue) -->
             <Color x:Key="SystemAccentColor">#FF007AFF</Color>
             <Color x:Key="SystemAccentColorLight1">#FF3897FF</Color>
             <Color x:Key="SystemAccentColorLight2">#FF66B0FF</Color>
@@ -28,8 +18,7 @@
             <SolidColorBrush x:Key="AccentPressedBrush" Color="#FF0067D6"/>
             <SolidColorBrush x:Key="OnAccentBrush" Color="#FFFFFFFF"/>
 
-            <!-- Surfaces -->
-            <SolidColorBrush x:Key="AppBackgroundBrush" Color="#FFF2F2F7"/>
+<SolidColorBrush x:Key="AppBackgroundBrush" Color="#FFF2F2F7"/>
             <SolidColorBrush x:Key="ChromeBackgroundBrush" Color="#FFFBFBFD"/>
             <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FFFFFFFF"/>
             <SolidColorBrush x:Key="CardBorderBrush" Color="#1A000000"/>
@@ -37,25 +26,21 @@
             <SolidColorBrush x:Key="HoverOverlayBrush" Color="#0D000000"/>
             <SolidColorBrush x:Key="ScrimBrush" Color="#73000000"/>
 
-            <!-- Text -->
-            <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FF1D1D1F"/>
+<SolidColorBrush x:Key="PrimaryTextBrush" Color="#FF1D1D1F"/>
             <SolidColorBrush x:Key="SecondaryTextBrush" Color="#99000000"/>
             <SolidColorBrush x:Key="TertiaryTextBrush" Color="#66000000"/>
 
-            <!-- Semantic -->
-            <SolidColorBrush x:Key="DangerBrush" Color="#FFD93025"/>
+<SolidColorBrush x:Key="DangerBrush" Color="#FFD93025"/>
             <SolidColorBrush x:Key="DangerHoverBrush" Color="#FFE5453B"/>
             <SolidColorBrush x:Key="OnDangerBrush" Color="#FFFFFFFF"/>
 
-            <!-- Treemap-facing tokens (consumed in code-behind) -->
-            <Color x:Key="TreemapStrokeColor">#33000000</Color>
+<Color x:Key="TreemapStrokeColor">#33000000</Color>
             <Color x:Key="TreemapHighlightColor">#FFFFFFFF</Color>
             <Color x:Key="TreemapEmptyColor">#FFFFFFFF</Color>
         </ResourceDictionary>
 
-        <!-- ===================== DARK ===================== -->
-        <ResourceDictionary x:Key="Dark">
-            <!-- Accent (macOS system blue, dark variant) -->
+<ResourceDictionary x:Key="Dark">
+
             <Color x:Key="SystemAccentColor">#FF0A84FF</Color>
             <Color x:Key="SystemAccentColorLight1">#FF3D9BFF</Color>
             <Color x:Key="SystemAccentColorLight2">#FF66B0FF</Color>
@@ -69,8 +54,7 @@
             <SolidColorBrush x:Key="AccentPressedBrush" Color="#FF0A7BEC"/>
             <SolidColorBrush x:Key="OnAccentBrush" Color="#FFFFFFFF"/>
 
-            <!-- Surfaces -->
-            <SolidColorBrush x:Key="AppBackgroundBrush" Color="#FF151517"/>
+<SolidColorBrush x:Key="AppBackgroundBrush" Color="#FF151517"/>
             <SolidColorBrush x:Key="ChromeBackgroundBrush" Color="#FF1E1E21"/>
             <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FF262629"/>
             <SolidColorBrush x:Key="CardBorderBrush" Color="#2EFFFFFF"/>
@@ -78,39 +62,31 @@
             <SolidColorBrush x:Key="HoverOverlayBrush" Color="#14FFFFFF"/>
             <SolidColorBrush x:Key="ScrimBrush" Color="#8C000000"/>
 
-            <!-- Text -->
-            <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FFF5F5F7"/>
+<SolidColorBrush x:Key="PrimaryTextBrush" Color="#FFF5F5F7"/>
             <SolidColorBrush x:Key="SecondaryTextBrush" Color="#99FFFFFF"/>
             <SolidColorBrush x:Key="TertiaryTextBrush" Color="#66FFFFFF"/>
 
-            <!-- Semantic -->
-            <SolidColorBrush x:Key="DangerBrush" Color="#FFFF453A"/>
+<SolidColorBrush x:Key="DangerBrush" Color="#FFFF453A"/>
             <SolidColorBrush x:Key="DangerHoverBrush" Color="#FFFF6961"/>
             <SolidColorBrush x:Key="OnDangerBrush" Color="#FFFFFFFF"/>
 
-            <!-- Treemap-facing tokens (consumed in code-behind) -->
-            <Color x:Key="TreemapStrokeColor">#40000000</Color>
+<Color x:Key="TreemapStrokeColor">#40000000</Color>
             <Color x:Key="TreemapHighlightColor">#FFFFFFFF</Color>
             <Color x:Key="TreemapEmptyColor">#FF2C2C2E</Color>
         </ResourceDictionary>
 
     </ResourceDictionary.ThemeDictionaries>
 
-    <!-- ===================== SHARED TOKENS ===================== -->
-
-    <!-- Spacing scale -->
-    <x:Double x:Key="SpacingXS">4</x:Double>
+<x:Double x:Key="SpacingXS">4</x:Double>
     <x:Double x:Key="SpacingS">8</x:Double>
     <x:Double x:Key="SpacingM">12</x:Double>
     <x:Double x:Key="SpacingL">16</x:Double>
     <x:Double x:Key="SpacingXL">24</x:Double>
 
-    <!-- Corner radii -->
-    <CornerRadius x:Key="CardRadius">10</CornerRadius>
+<CornerRadius x:Key="CardRadius">10</CornerRadius>
     <CornerRadius x:Key="ControlRadius">6</CornerRadius>
 
-    <!-- Typography sizes -->
-    <x:Double x:Key="FontSizeCaption">11</x:Double>
+<x:Double x:Key="FontSizeCaption">11</x:Double>
     <x:Double x:Key="FontSizeBody">13</x:Double>
     <x:Double x:Key="FontSizeSubtitle">15</x:Double>
     <x:Double x:Key="FontSizeTitle">20</x:Double>

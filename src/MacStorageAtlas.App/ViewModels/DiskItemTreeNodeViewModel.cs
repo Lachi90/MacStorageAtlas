@@ -28,10 +28,6 @@ public sealed class DiskItemTreeNodeViewModel
 
     public DiskItem Item { get; }
 
-    /// <summary>
-    /// Whether this node is expanded in the tree view. Bound two-way by the UI
-    /// so the root (and search matches) can start expanded.
-    /// </summary>
     public bool IsExpanded { get; set; }
 
     public string Name => Item.Name;

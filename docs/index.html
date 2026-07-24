@@ -9,7 +9,6 @@
 
   <meta name="google-site-verification" content="8VUmQ0Cg6Dk2vkvYoVgFavq4dSONfYK_zpJeLRgYyxg">
 
-  <!-- Open Graph / social preview -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="MacStorageAtlas — Free Disk Space Analyzer for macOS">
   <meta property="og:description" content="See what's eating your disk. A free, open-source WinDirStat / DaisyDisk alternative for Mac with treemap, folder tree, and safe cleanup.">
@@ -17,7 +16,6 @@
   <meta property="og:image" content="https://lachi90.github.io/MacStorageAtlas/images/01-overview.png">
   <meta name="twitter:card" content="summary_large_image">
 
-  <!-- Structured data helps Google understand this is a software application. -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -71,7 +69,6 @@
     }
     img.shot:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,.28); }
 
-    /* Lightbox */
     #lightbox {
       position: fixed; inset: 0; z-index: 100;
       display: none; align-items: center; justify-content: center;
@@ -237,7 +234,7 @@
         });
       });
       box.addEventListener('click', function (e) {
-        if (e.target === big) return; // clicks on the image itself don't close
+        if (e.target === big) return;
         close();
       });
       document.addEventListener('keydown', function (e) {

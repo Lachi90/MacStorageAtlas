@@ -41,7 +41,10 @@ public sealed class DiskScanner : IDiskScanner
         }
 
         var root = new DiskItem(rootName, fullRootPath, isDirectory: true);
-        var state = new ScanState(root);
+        var measurementMode = options.MeasureAllocatedSize
+            ? StorageMeasurementMode.Allocated
+            : StorageMeasurementMode.Logical;
+        var state = new ScanState(root, measurementMode);
         var visitedDirectories = options.FollowSymbolicLinks
             ? new HashSet<string>(PathComparer)
             : null;
@@ -305,7 +308,9 @@ public sealed class DiskScanner : IDiskScanner
             ? StringComparer.OrdinalIgnoreCase
             : StringComparer.Ordinal;
 
-    private sealed class ScanState(DiskItem root)
+    private sealed class ScanState(
+        DiskItem root,
+        StorageMeasurementMode measurementMode)
     {
         private static readonly TimeSpan MinimumProgressInterval = TimeSpan.FromMilliseconds(150);
         private const long MaximumEntriesBetweenProgress = 4_096;
@@ -368,7 +373,8 @@ public sealed class DiskScanner : IDiskScanner
                 BytesScanned,
                 root,
                 _errorSnapshot,
-                isCompleted);
+                isCompleted,
+                measurementMode);
         }
     }
 }

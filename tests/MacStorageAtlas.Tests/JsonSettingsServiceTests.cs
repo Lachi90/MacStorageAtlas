@@ -28,13 +28,10 @@ public class JsonSettingsServiceTests
     [Test]
     public void LoadReturnsDefaultsWhenNoFileExists()
     {
-        // Arrange
         var service = new JsonSettingsService(_settingsFilePath);
 
-        // Act
         var settings = service.Load();
 
-        // Assert
         Assert.Multiple(() =>
         {
             Assert.That(settings.IncludeHiddenFiles, Is.False);
@@ -47,7 +44,6 @@ public class JsonSettingsServiceTests
     [Test]
     public void SavedSettingsSurviveALoadFromANewService()
     {
-        // Arrange
         var settings = new AppSettings
         {
             IncludeHiddenFiles = true,
@@ -57,10 +53,8 @@ public class JsonSettingsServiceTests
         };
         new JsonSettingsService(_settingsFilePath).Save(settings);
 
-        // Act
         var loaded = new JsonSettingsService(_settingsFilePath).Load();
 
-        // Assert
         Assert.Multiple(() =>
         {
             Assert.That(File.Exists(_settingsFilePath), Is.True);
@@ -74,15 +68,12 @@ public class JsonSettingsServiceTests
     [Test]
     public void LoadRecoversFromAMalformedFile()
     {
-        // Arrange
         Directory.CreateDirectory(_directory);
         File.WriteAllText(_settingsFilePath, "{ this is not valid json");
         var service = new JsonSettingsService(_settingsFilePath);
 
-        // Act
         var settings = service.Load();
 
-        // Assert
         Assert.Multiple(() =>
         {
             Assert.That(settings.TreatPackagesAsDirectories, Is.True);

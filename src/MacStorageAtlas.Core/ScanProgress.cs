@@ -7,4 +7,5 @@ public sealed record ScanProgress(
     long BytesScanned,
     DiskItem Root,
     IReadOnlyList<ScanError> Errors,
-    bool IsCompleted = false);
+    bool IsCompleted = false,
+    StorageMeasurementMode MeasurementMode = StorageMeasurementMode.Logical);

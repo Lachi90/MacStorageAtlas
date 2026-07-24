@@ -1,23 +1,16 @@
 #!/bin/bash
 set -e
 
-# Usage:
-#   ./build-dmg.sh              # Apple Silicon (default)
-#   ./build-dmg.sh arm64        # Apple Silicon
-#   ./build-dmg.sh x64          # Intel
-#   ./build-dmg.sh both         # both, one DMG per architecture
 
 APP_NAME="MacStorageAtlas"
 BUNDLE_ID="de.ltsoftware.macstorageatlas"
 VERSION="0.0.2"
 TARGET_FRAMEWORK="net10.0"
 
-# The project and its built executable (assembly name = project name).
 PROJECT="src/MacStorageAtlas.App"
 EXECUTABLE_NAME="MacStorageAtlas.App"
 ICON_SOURCE="$PROJECT/Assets/MacStorageAtlas.icns"
 
-# Resolve which runtime identifiers to build.
 case "${1:-arm64}" in
   arm64) RUNTIMES=("osx-arm64") ;;
   x64)   RUNTIMES=("osx-x64") ;;
@@ -34,7 +27,6 @@ build_one() {
   local app_bundle="$APP_NAME.app"
   local dmg_dir="dmg-content"
 
-  # Name the DMG per architecture when building more than one.
   local dmg_name
   if [ "${#RUNTIMES[@]}" -gt 1 ]; then
     dmg_name="$APP_NAME-$runtime.dmg"
@@ -109,7 +101,6 @@ EOF
     -format UDZO \
     "$dmg_name"
 
-  # Clean up intermediate artifacts for this architecture.
   rm -rf "$app_bundle" "$dmg_dir"
 
   echo "Done: $dmg_name"

@@ -7,7 +7,6 @@ public class DiskItemSorterTests
     [Test]
     public void SortBySizeDescendingSortsEveryLevelRecursively()
     {
-        // Arrange
         var root = Directory("root", 36);
         var smallDirectory = Directory("small", 6);
         var largeDirectory = Directory("large", 30);
@@ -23,10 +22,8 @@ public class DiskItemSorterTests
         largeDirectory.AddChild(File("largest.bin", 20));
         largeDirectory.AddChild(File("medium.bin", 7));
 
-        // Act
         DiskItemSorter.SortBySizeDescending(root);
 
-        // Assert
         Assert.Multiple(() =>
         {
             Assert.That(root.Children.Select(item => item.SizeBytes),

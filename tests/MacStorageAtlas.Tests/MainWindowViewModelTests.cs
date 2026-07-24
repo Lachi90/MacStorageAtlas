@@ -14,53 +14,58 @@ public class MainWindowViewModelTests
     [Test]
     public void ApplicationNameIdentifiesTheApplication()
     {
-        // Arrange
         var viewModel = new MainWindowViewModel();
 
-        // Act
         var applicationName = viewModel.ApplicationName;
 
-        // Assert
         Assert.That(applicationName, Is.EqualTo("MacStorageAtlas"));
+    }
+
+    [Test]
+    public void ApplicationDefaultsToAllocatedMeasurement()
+    {
+        var viewModel = new MainWindowViewModel();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.MeasureAllocatedSize, Is.True);
+            Assert.That(
+                viewModel.ResultMeasurementMode,
+                Is.EqualTo(StorageMeasurementMode.Allocated));
+            Assert.That(viewModel.MeasurementBasisLabel, Is.EqualTo("Allocated size"));
+        });
     }
 
     [Test]
     public async Task SelectFolderCommandStoresSelectedPath()
     {
-        // Arrange
         var folderPicker = Substitute.For<IFolderPickerService>();
         folderPicker.SelectFolderAsync().Returns("/Users/test/Documents");
         var viewModel = new MainWindowViewModel(folderPicker);
 
-        // Act
         await viewModel.SelectFolderCommand.ExecuteAsync(null);
 
-        // Assert
         Assert.That(viewModel.SelectedFolderPath, Is.EqualTo("/Users/test/Documents"));
     }
 
     [Test]
     public async Task SelectFolderCommandLeavesExistingPathWhenSelectionIsCancelled()
     {
-        // Arrange
         var folderPicker = Substitute.For<IFolderPickerService>();
         folderPicker.SelectFolderAsync().Returns(
             "/Users/test/Documents",
             (string?)null);
         var viewModel = new MainWindowViewModel(folderPicker);
 
-        // Act
         await viewModel.SelectFolderCommand.ExecuteAsync(null);
         await viewModel.SelectFolderCommand.ExecuteAsync(null);
 
-        // Assert
         Assert.That(viewModel.SelectedFolderPath, Is.EqualTo("/Users/test/Documents"));
     }
 
     [Test]
     public async Task ScanFolderCommandReportsProgressWhileScanIsRunning()
     {
-        // Arrange
         var continueScan = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
         var progressApplied = new TaskCompletionSource(
@@ -76,11 +81,9 @@ public class MainWindowViewModelTests
         var viewModel = new MainWindowViewModel(folderPicker, scanner, dispatcher);
         await viewModel.SelectFolderCommand.ExecuteAsync(null);
 
-        // Act
         var scanTask = viewModel.ScanFolderCommand.ExecuteAsync(null);
         await progressApplied.Task;
 
-        // Assert
         Assert.Multiple(() =>
         {
             Assert.That(viewModel.IsScanning, Is.True);
@@ -88,6 +91,10 @@ public class MainWindowViewModelTests
             Assert.That(viewModel.FilesScanned, Is.EqualTo(1));
             Assert.That(viewModel.DirectoriesScanned, Is.EqualTo(2));
             Assert.That(viewModel.BytesScanned, Is.EqualTo(4_096));
+            Assert.That(
+                viewModel.ResultMeasurementMode,
+                Is.EqualTo(StorageMeasurementMode.Allocated));
+            Assert.That(viewModel.MeasurementBasisLabel, Is.EqualTo("Allocated size"));
             Assert.That(viewModel.ScanErrors, Has.Count.EqualTo(1));
             Assert.That(viewModel.ScanErrors[0].Path, Is.EqualTo("/scan/root/restricted"));
             Assert.That(viewModel.ScanErrors[0].ExceptionType, Is.EqualTo(nameof(UnauthorizedAccessException)));
@@ -113,7 +120,6 @@ public class MainWindowViewModelTests
     [Test]
     public async Task StopScanCommandCancelsActiveScanAndKeepsPartialResults()
     {
-        // Arrange
         var progressApplied = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
         var scanner = new StubDiskScanner(
@@ -128,14 +134,12 @@ public class MainWindowViewModelTests
             new RecordingUiDispatcher());
         await viewModel.SelectFolderCommand.ExecuteAsync(null);
 
-        // Act
         var scanTask = viewModel.ScanFolderCommand.ExecuteAsync(null);
         await progressApplied.Task;
         Assert.That(viewModel.StopScanCommand.CanExecute(null), Is.True);
         viewModel.StopScanCommand.Execute(null);
         await scanTask;
 
-        // Assert
         Assert.Multiple(() =>
         {
             Assert.That(viewModel.IsScanning, Is.False);
@@ -143,13 +147,13 @@ public class MainWindowViewModelTests
             Assert.That(viewModel.FilesScanned, Is.EqualTo(3));
             Assert.That(viewModel.BytesScanned, Is.EqualTo(2_048));
             Assert.That(viewModel.CurrentPath, Is.EqualTo("/scan/root/partial.dat"));
+            Assert.That(viewModel.MeasurementBasisLabel, Is.EqualTo("Allocated size"));
         });
     }
 
     [Test]
     public async Task CompletedScanMapsTreeAndStoresSelection()
     {
-        // Arrange
         var root = new DiskItem("root", "/scan/root", isDirectory: true);
         var folder = new DiskItem("folder", "/scan/root/folder", isDirectory: true);
         var file = new DiskItem("file.dat", "/scan/root/folder/file.dat", isDirectory: false)
@@ -170,10 +174,8 @@ public class MainWindowViewModelTests
             new RecordingUiDispatcher());
         await viewModel.SelectFolderCommand.ExecuteAsync(null);
 
-        // Act
         await viewModel.ScanFolderCommand.ExecuteAsync(null);
 
-        // Assert
         var rootNode = viewModel.TreeItems.Single();
         var folderNode = rootNode.Children.Single();
         var fileNode = folderNode.Children.Single();
@@ -197,7 +199,6 @@ public class MainWindowViewModelTests
     [Test]
     public async Task ScanFolderCommandPassesPackageExpansionPreferenceToScanner()
     {
-        // Arrange
         var root = new DiskItem("root", "/scan/root", isDirectory: true);
         var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
         var folderPicker = Substitute.For<IFolderPickerService>();
@@ -209,18 +210,70 @@ public class MainWindowViewModelTests
         await viewModel.SelectFolderCommand.ExecuteAsync(null);
         viewModel.ExpandApplicationBundles = false;
 
-        // Act
         await viewModel.ScanFolderCommand.ExecuteAsync(null);
 
-        // Assert
         Assert.That(scanner.LastOptions, Is.Not.Null);
         Assert.That(scanner.LastOptions!.TreatPackagesAsDirectories, Is.False);
     }
 
     [Test]
+    public async Task LogicalScanUsesReturnedLogicalMeasurementLabel()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(
+            _ => CompletedScanAsync(root, StorageMeasurementMode.Logical));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher())
+        {
+            MeasureAllocatedSize = false
+        };
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(scanner.LastOptions!.MeasureAllocatedSize, Is.False);
+            Assert.That(
+                viewModel.ResultMeasurementMode,
+                Is.EqualTo(StorageMeasurementMode.Logical));
+            Assert.That(viewModel.MeasurementBasisLabel, Is.EqualTo("Logical size"));
+        });
+    }
+
+    [Test]
+    public async Task ChangingNextScanPreferenceDoesNotRelabelCompletedResult()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new StubDiskScanner(
+            _ => CompletedScanAsync(root, StorageMeasurementMode.Allocated));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher());
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        viewModel.MeasureAllocatedSize = false;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                viewModel.ResultMeasurementMode,
+                Is.EqualTo(StorageMeasurementMode.Allocated));
+            Assert.That(viewModel.MeasurementBasisLabel, Is.EqualTo("Allocated size"));
+        });
+    }
+
+    [Test]
     public async Task ScanFolderCommandExpandsApplicationBundlesByDefault()
     {
-        // Arrange
         var root = new DiskItem("root", "/scan/root", isDirectory: true);
         var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
         var folderPicker = Substitute.For<IFolderPickerService>();
@@ -231,10 +284,8 @@ public class MainWindowViewModelTests
             new RecordingUiDispatcher());
         await viewModel.SelectFolderCommand.ExecuteAsync(null);
 
-        // Act
         await viewModel.ScanFolderCommand.ExecuteAsync(null);
 
-        // Assert
         Assert.That(viewModel.ExpandApplicationBundles, Is.True);
         Assert.That(scanner.LastOptions!.TreatPackagesAsDirectories, Is.True);
     }
@@ -242,7 +293,6 @@ public class MainWindowViewModelTests
     [Test]
     public async Task ScanFolderCommandExcludesHiddenFilesByDefault()
     {
-        // Arrange
         var root = new DiskItem("root", "/scan/root", isDirectory: true);
         var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
         var folderPicker = Substitute.For<IFolderPickerService>();
@@ -253,10 +303,8 @@ public class MainWindowViewModelTests
             new RecordingUiDispatcher());
         await viewModel.SelectFolderCommand.ExecuteAsync(null);
 
-        // Act
         await viewModel.ScanFolderCommand.ExecuteAsync(null);
 
-        // Assert
         Assert.That(viewModel.IncludeHiddenFiles, Is.False);
         Assert.That(scanner.LastOptions!.IncludeHiddenFiles, Is.False);
     }
@@ -264,7 +312,6 @@ public class MainWindowViewModelTests
     [Test]
     public async Task ScanFolderCommandPassesHiddenFilePreferenceToScanner()
     {
-        // Arrange
         var root = new DiskItem("root", "/scan/root", isDirectory: true);
         var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
         var folderPicker = Substitute.For<IFolderPickerService>();
@@ -276,10 +323,8 @@ public class MainWindowViewModelTests
         await viewModel.SelectFolderCommand.ExecuteAsync(null);
         viewModel.IncludeHiddenFiles = true;
 
-        // Act
         await viewModel.ScanFolderCommand.ExecuteAsync(null);
 
-        // Assert
         Assert.That(scanner.LastOptions, Is.Not.Null);
         Assert.That(scanner.LastOptions!.IncludeHiddenFiles, Is.True);
     }
@@ -287,7 +332,6 @@ public class MainWindowViewModelTests
     [Test]
     public async Task ScanFolderCommandDoesNotFollowSymbolicLinksByDefault()
     {
-        // Arrange
         var root = new DiskItem("root", "/scan/root", isDirectory: true);
         var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
         var folderPicker = Substitute.For<IFolderPickerService>();
@@ -298,10 +342,8 @@ public class MainWindowViewModelTests
             new RecordingUiDispatcher());
         await viewModel.SelectFolderCommand.ExecuteAsync(null);
 
-        // Act
         await viewModel.ScanFolderCommand.ExecuteAsync(null);
 
-        // Assert
         Assert.That(viewModel.FollowSymbolicLinks, Is.False);
         Assert.That(scanner.LastOptions!.FollowSymbolicLinks, Is.False);
     }
@@ -309,7 +351,6 @@ public class MainWindowViewModelTests
     [Test]
     public async Task ScanFolderCommandPassesSymbolicLinkPreferenceToScanner()
     {
-        // Arrange
         var root = new DiskItem("root", "/scan/root", isDirectory: true);
         var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
         var folderPicker = Substitute.For<IFolderPickerService>();
@@ -321,10 +362,8 @@ public class MainWindowViewModelTests
         await viewModel.SelectFolderCommand.ExecuteAsync(null);
         viewModel.FollowSymbolicLinks = true;
 
-        // Act
         await viewModel.ScanFolderCommand.ExecuteAsync(null);
 
-        // Assert
         Assert.That(scanner.LastOptions, Is.Not.Null);
         Assert.That(scanner.LastOptions!.FollowSymbolicLinks, Is.True);
     }
@@ -332,7 +371,6 @@ public class MainWindowViewModelTests
     [Test]
     public void TreemapSelectionExposesSelectedItemDetails()
     {
-        // Arrange
         var item = new DiskItem("archive.zip", "/scan/root/archive.zip", isDirectory: false)
         {
             SizeBytes = 1_536
@@ -340,10 +378,8 @@ public class MainWindowViewModelTests
         var rectangle = new TreemapRect(new TreemapItem(item), 0, 0, 100, 50);
         var viewModel = new MainWindowViewModel();
 
-        // Act
         viewModel.SelectedTreemapRectangle = rectangle;
 
-        // Assert
         Assert.Multiple(() =>
         {
             Assert.That(viewModel.SelectedTreemapItem, Is.SameAs(item));
@@ -357,17 +393,14 @@ public class MainWindowViewModelTests
     [Test]
     public void ClearingTreemapSelectionClearsSelectedItemDetails()
     {
-        // Arrange
         var item = new DiskItem("file.dat", "/scan/root/file.dat", isDirectory: false);
         var viewModel = new MainWindowViewModel
         {
             SelectedTreemapRectangle = new TreemapRect(new TreemapItem(item), 0, 0, 100, 50)
         };
 
-        // Act
         viewModel.SelectedTreemapRectangle = null;
 
-        // Assert
         Assert.Multiple(() =>
         {
             Assert.That(viewModel.SelectedTreemapItem, Is.Null);
@@ -535,7 +568,6 @@ public class MainWindowViewModelTests
     [Test]
     public async Task RescanCommandRunsAnotherScanForTheSelectedFolder()
     {
-        // Arrange
         var root = new DiskItem("root", "/scan/root", isDirectory: true);
         var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
         var folderPicker = Substitute.For<IFolderPickerService>();
@@ -547,11 +579,9 @@ public class MainWindowViewModelTests
         await viewModel.SelectFolderCommand.ExecuteAsync(null);
         await viewModel.ScanFolderCommand.ExecuteAsync(null);
 
-        // Act
         Assert.That(viewModel.RescanCommand.CanExecute(null), Is.True);
         await viewModel.RescanCommand.ExecuteAsync(null);
 
-        // Assert
         Assert.That(scanner.ScanCount, Is.EqualTo(2));
     }
 
@@ -766,7 +796,9 @@ public class MainWindowViewModelTests
             trashService,
             confirmationService);
 
-    private static async IAsyncEnumerable<ScanProgress> CompletedScanAsync(DiskItem root)
+    private static async IAsyncEnumerable<ScanProgress> CompletedScanAsync(
+        DiskItem root,
+        StorageMeasurementMode measurementMode = StorageMeasurementMode.Allocated)
     {
         await Task.Yield();
         yield return new ScanProgress(
@@ -776,7 +808,8 @@ public class MainWindowViewModelTests
             BytesScanned: root.SizeBytes,
             root,
             Errors: [],
-            IsCompleted: true);
+            IsCompleted: true,
+            MeasurementMode: measurementMode);
     }
 
     private static async IAsyncEnumerable<ScanProgress> ProgressUntilReleasedAsync(
@@ -797,7 +830,8 @@ public class MainWindowViewModelTests
                     "/scan/root/restricted",
                     "Access denied.",
                     nameof(UnauthorizedAccessException))
-            ]);
+            ],
+            MeasurementMode: StorageMeasurementMode.Allocated);
 
         progressApplied.SetResult();
         await continueScan.WaitAsync(cancellationToken);
@@ -814,7 +848,8 @@ public class MainWindowViewModelTests
             DirectoriesScanned: 1,
             BytesScanned: 2_048,
             root,
-            Errors: []);
+            Errors: [],
+            MeasurementMode: StorageMeasurementMode.Allocated);
 
         progressApplied.SetResult();
         await Task.Delay(Timeout.Infinite, cancellationToken);

@@ -10,9 +10,6 @@ using MacStorageAtlas.Rendering;
 
 namespace MacStorageAtlas.App.Controls;
 
-/// <summary>
-/// Renders a precomputed treemap without creating a control for each rectangle.
-/// </summary>
 public sealed class TreemapControl : Control
 {
     public static readonly StyledProperty<IReadOnlyList<TreemapRect>?> RectanglesProperty =
@@ -42,8 +39,6 @@ public sealed class TreemapControl : Control
 
     public TreemapControl()
     {
-        // Rebuild theme-derived pens and the cached block palette whenever the
-        // effective light/dark variant changes so the treemap matches the app.
         ActualThemeVariantChanged += (_, _) =>
         {
             _borderPen = null;
@@ -53,8 +48,6 @@ public sealed class TreemapControl : Control
             InvalidateVisual();
         };
 
-        // The layout is precomputed in an abstract coordinate space and scaled
-        // to fit; repaint whenever the control is resized so it stays filled.
         SizeChanged += (_, _) => InvalidateVisual();
     }
 
@@ -225,7 +218,6 @@ public sealed class TreemapControl : Control
             return brush;
         }
 
-        // A stable path hash keeps colors consistent across layout recalculations.
         uint hash = 2166136261;
         foreach (var character in key)
         {
@@ -271,11 +263,6 @@ public sealed class TreemapControl : Control
         && rectangle.Width > 0
         && rectangle.Height > 0;
 
-    /// <summary>
-    /// The layout is produced in an abstract coordinate space (see
-    /// <c>MainWindowViewModel</c>). We scale it to the control's actual size so
-    /// the treemap always fills its container and adapts when resized.
-    /// </summary>
     private (double ScaleX, double ScaleY) GetScale(IReadOnlyList<TreemapRect> rectangles)
     {
         double maxRight = 0;

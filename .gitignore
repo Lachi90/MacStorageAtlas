@@ -10,7 +10,6 @@ TestResults/
 coverage/
 .claude/settings.local.json
 
-# macOS packaging artifacts (build-dmg.sh)
 *.dmg
 *.app/
 dmg-content/

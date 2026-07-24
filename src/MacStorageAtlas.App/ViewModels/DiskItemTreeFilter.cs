@@ -36,7 +36,6 @@ public static class DiskItemTreeFilter
             return null;
         }
 
-        // Expand nodes on the path to a match so results are visible immediately.
         return new DiskItemTreeNodeViewModel(item, children) { IsExpanded = children.Length > 0 };
     }
 

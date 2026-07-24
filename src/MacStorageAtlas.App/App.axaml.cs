@@ -46,11 +46,6 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    /// <summary>
-    /// Applies the branding artwork as the macOS Dock icon at runtime. This is
-    /// needed when running as a bare executable (e.g. <c>dotnet run</c>); a
-    /// packaged <c>.app</c> bundle would use the icon from its Info.plist.
-    /// </summary>
     private static void ApplyDockIcon()
     {
         if (!OperatingSystem.IsMacOS())
@@ -66,12 +61,10 @@ public partial class App : Application
             stream.CopyTo(memory);
             var bytes = memory.ToArray();
 
-            // Defer until the run loop is active so NSApplication is ready.
             Dispatcher.UIThread.Post(() => MacDockIcon.TrySet(bytes));
         }
         catch
         {
-            // Cosmetic only — ignore if the asset can't be loaded.
         }
     }
 }

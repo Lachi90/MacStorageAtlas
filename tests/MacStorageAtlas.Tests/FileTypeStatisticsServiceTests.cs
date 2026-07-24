@@ -7,7 +7,6 @@ public class FileTypeStatisticsServiceTests
     [Test]
     public void CalculateGroupsExtensionsCaseInsensitivelyAndHandlesExtensionlessFiles()
     {
-        // Arrange
         var root = Directory("root");
         var nested = Directory("nested");
         root.AddChild(File("first.TXT", 10));
@@ -16,10 +15,8 @@ public class FileTypeStatisticsServiceTests
         nested.AddChild(File("second.txt", 30));
         nested.AddChild(File("archive.zip", 40));
 
-        // Act
         var summaries = new FileTypeStatisticsService().Calculate(root);
 
-        // Assert
         Assert.Multiple(() =>
         {
             Assert.That(summaries.Select(summary => summary.Extension),
@@ -35,7 +32,6 @@ public class FileTypeStatisticsServiceTests
     [Test]
     public void CalculateAggregatesFileSizesAcrossTheTree()
     {
-        // Arrange
         var root = Directory("root");
         var nested = Directory("nested");
         root.AddChild(File("photo.jpg", 1_024));
@@ -43,10 +39,8 @@ public class FileTypeStatisticsServiceTests
         nested.AddChild(File("thumbnail.JPG", 512));
         nested.AddChild(File("data.bin", 2_048));
 
-        // Act
         var summaries = new FileTypeStatisticsService().Calculate(root);
 
-        // Assert
         Assert.Multiple(() =>
         {
             Assert.That(summaries.Single(summary => summary.Extension == ".jpg").TotalSizeBytes,

@@ -9,7 +9,6 @@ public class LargeFilesServiceTests
     [Test]
     public void GetLargestFilesReturnsFilesOrderedBySizeDescending()
     {
-        // Arrange
         var root = new DiskItem("root", "/root", isDirectory: true);
         var nested = new DiskItem("nested", "/root/nested", isDirectory: true);
         var small = File("small.bin", "/root/small.bin", 10);
@@ -20,10 +19,8 @@ public class LargeFilesServiceTests
         nested.AddChild(medium);
         root.AddChild(nested);
 
-        // Act
         var largest = _service.GetLargestFiles(root);
 
-        // Assert
         Assert.Multiple(() =>
         {
             Assert.That(largest.Select(file => file.Name),
@@ -35,45 +32,36 @@ public class LargeFilesServiceTests
     [Test]
     public void GetLargestFilesHonorsTheRequestedLimit()
     {
-        // Arrange
         var root = new DiskItem("root", "/root", isDirectory: true);
         root.AddChild(File("a", "/root/a", 30));
         root.AddChild(File("b", "/root/b", 20));
         root.AddChild(File("c", "/root/c", 10));
 
-        // Act
         var largest = _service.GetLargestFiles(root, limit: 2);
 
-        // Assert
         Assert.That(largest.Select(file => file.Name), Is.EqualTo(new[] { "a", "b" }));
     }
 
     [Test]
     public void GetLargestFilesBreaksSizeTiesByPath()
     {
-        // Arrange
         var root = new DiskItem("root", "/root", isDirectory: true);
         root.AddChild(File("z", "/root/z", 50));
         root.AddChild(File("a", "/root/a", 50));
 
-        // Act
         var largest = _service.GetLargestFiles(root);
 
-        // Assert
         Assert.That(largest.Select(file => file.Path), Is.EqualTo(new[] { "/root/a", "/root/z" }));
     }
 
     [Test]
     public void GetLargestFilesReturnsEmptyForADirectoryWithoutFiles()
     {
-        // Arrange
         var root = new DiskItem("root", "/root", isDirectory: true);
         root.AddChild(new DiskItem("empty", "/root/empty", isDirectory: true));
 
-        // Act
         var largest = _service.GetLargestFiles(root);
 
-        // Assert
         Assert.That(largest, Is.Empty);
     }
 
