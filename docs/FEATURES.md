@@ -4,6 +4,11 @@ MacStorageAtlas is a macOS disk usage analyzer inspired by WinDirStat-style tool
 
 The app helps users understand what consumes storage on their Mac by scanning folders, visualizing disk usage, and showing large files, folders, file types, and scan errors.
 
+> The market-driven implementation sequence for future work is maintained in
+> [`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md). This file documents
+> the original feature specifications and remains the reference for already
+> implemented baseline behavior.
+
 ## Architecture
 
 ```text
