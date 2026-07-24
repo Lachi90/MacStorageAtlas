@@ -65,7 +65,28 @@
     .btn-secondary { background: var(--card); color: var(--fg); }
     section { padding: 32px 0; }
     h2 { font-size: 1.5rem; margin: 0 0 16px; }
-    img.shot { width: 100%; border-radius: 12px; border: 1px solid var(--border); margin: 12px 0; }
+    img.shot {
+      width: 100%; border-radius: 12px; border: 1px solid var(--border); margin: 12px 0;
+      cursor: zoom-in; transition: transform .15s ease, box-shadow .15s ease;
+    }
+    img.shot:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,.28); }
+
+    /* Lightbox */
+    #lightbox {
+      position: fixed; inset: 0; z-index: 100;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,.9); padding: 24px; cursor: zoom-out;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox img {
+      max-width: 100%; max-height: 100%; border-radius: 10px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5); cursor: default;
+    }
+    #lightbox .close {
+      position: absolute; top: 16px; right: 20px; font-size: 2rem; line-height: 1;
+      color: #fff; background: none; border: none; cursor: pointer; opacity: .8;
+    }
+    #lightbox .close:hover { opacity: 1; }
     .grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
     .feature { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
     .feature h3 { margin: 0 0 8px; font-size: 1.1rem; }
@@ -187,5 +208,42 @@
       Built with .NET 10 and Avalonia
     </div>
   </footer>
+
+  <div id="lightbox" role="dialog" aria-modal="true" aria-label="Screenshot preview">
+    <button class="close" aria-label="Close preview">&times;</button>
+    <img alt="">
+  </div>
+
+  <script>
+    (function () {
+      var box = document.getElementById('lightbox');
+      var big = box.querySelector('img');
+      function open(src, alt) {
+        big.src = src; big.alt = alt || '';
+        box.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      }
+      function close() {
+        box.classList.remove('open');
+        document.body.style.overflow = '';
+        big.src = '';
+      }
+      document.querySelectorAll('img.shot').forEach(function (img) {
+        img.setAttribute('role', 'button');
+        img.setAttribute('tabindex', '0');
+        img.addEventListener('click', function () { open(img.src, img.alt); });
+        img.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(img.src, img.alt); }
+        });
+      });
+      box.addEventListener('click', function (e) {
+        if (e.target === big) return; // clicks on the image itself don't close
+        close();
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && box.classList.contains('open')) close();
+      });
+    })();
+  </script>
 </body>
 </html>
