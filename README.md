@@ -60,7 +60,7 @@ the space files **actually occupy on disk**, so undownloaded cloud placeholders
 size if you prefer. Preferences and recent scan locations are remembered between
 runs.
 
-![Scan options: application bundles, hidden files, symbolic links](docs/images/05-options.png)
+![Scan options: application bundles, hidden files, symbolic links, and on-disk size](docs/images/05-options.png)
 
 ## Features
 
