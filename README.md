@@ -95,14 +95,33 @@ Looking for a **free DaisyDisk alternative** or a **WinDirStat for Mac**?
 MacStorageAtlas focuses on the essentials — a fast scan, a treemap, and safe
 cleanup — without a subscription or a price tag.
 
-| | MacStorageAtlas | DaisyDisk | GrandPerspective | WinDirStat |
+| Capability | MacStorageAtlas | [DaisyDisk][daisydisk] | [GrandPerspective][grandperspective] | [WinDirStat][windirstat] |
 | --- | --- | --- | --- | --- |
-| Platform | macOS (arm64 + x64) | macOS | macOS | Windows |
-| Price | Free & open source | Paid | Free | Free |
-| Treemap view | ✅ | ✅ | ✅ | ✅ |
-| Folder tree | ✅ | — | — | ✅ |
-| File-type breakdown | ✅ | — | — | ✅ |
-| Real on-disk size (cloud-aware) | ✅ | — | — | — |
+| Platform | macOS (Apple Silicon + Intel) | [macOS (Apple Silicon + Intel)][daisydisk-pricing] | [macOS (Apple Silicon + Intel)][grandperspective] | [Windows][windirstat] |
+| Distribution | [Free, MIT-licensed open source](LICENSE) | [$9.99 one-time commercial license][daisydisk-pricing] | [Free GPL build; $2.99 App Store build][grandperspective] | [Free, GPLv2 open source][windirstat] |
+| Main analysis views | [Folder tree, rectangular treemap, file-type statistics](#highlights) | [Sunburst disk map and sidebar list][daisydisk-map] | [Rectangular treemap][grandperspective] | [Directory/file lists, treemap, and extension statistics][windirstat] |
+| File-size measurement | [Logical length or allocated blocks per visited path](src/MacStorageAtlas.Core/NativeFileSize.cs) | [Physical size; hardlinks and full APFS clones are counted once][daisydisk-hardlinks] | [Logical, physical, or file-count sizing][grandperspective-sizes]; [hardlinks counted once per view][grandperspective-hardlinks] | [Logical or physical sizing with hardlink deduplication][windirstat-source] |
+
+**Storage-measurement note:** these products do not use one interchangeable
+definition of “real size.” MacStorageAtlas allocated-size mode sums filesystem
+blocks for each visited path. It handles sparse files and local cloud
+placeholders, but it does not yet deduplicate hardlinks or APFS clone storage;
+that work is tracked in [WP-02](docs/IMPLEMENTATION_ROADMAP.md#wp-02---hardlinkapfs-correctness-and-scan-benchmarks).
+DaisyDisk documents full APFS-clone detection on macOS 14 Sonoma and later.
+
+Comparison last verified against the linked first-party sources: **2026-07-24**.
+Prices and capabilities can change; follow the links for current product
+details.
+
+[daisydisk]: https://daisydiskapp.com/
+[daisydisk-pricing]: https://daisydiskapp.com/support/pricing/
+[daisydisk-map]: https://daisydiskapp.com/guide/4/en/UnderstandingSunburst/
+[daisydisk-hardlinks]: https://daisydiskapp.com/guide/4/en/HardLinks
+[grandperspective]: https://grandperspectiv.sourceforge.net/
+[grandperspective-sizes]: https://grandperspectiv.sourceforge.net/HelpDocumentation/FileSizes.html
+[grandperspective-hardlinks]: https://grandperspectiv.sourceforge.net/HelpDocumentation/HardLinks.html
+[windirstat]: https://windirstat.net/
+[windirstat-source]: https://github.com/windirstat/windirstat
 
 ## Prerequisites
 

@@ -999,7 +999,7 @@ Update this table when work starts or finishes.
 
 | ID | Status | Owner/branch | Notes |
 | --- | --- | --- | --- |
-| WP-00 | Ready | `codex/storage-feature-roadmap` | OpenSpec change: `correct-market-comparison` |
+| WP-00 | Complete | `codex/storage-feature-roadmap` | Comparison corrected and verified 2026-07-24; OpenSpec change: `correct-market-comparison` |
 | WP-01 | Planned | `codex/storage-feature-roadmap` | Requires Apple Developer account |
 | WP-02 | Planned | `codex/storage-feature-roadmap` | Begin with measurement spec and benchmark |
 | WP-03 | Planned | `codex/storage-feature-roadmap` |  |
