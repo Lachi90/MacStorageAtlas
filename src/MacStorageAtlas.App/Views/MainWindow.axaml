@@ -48,9 +48,18 @@
                                     <CheckBox IsChecked="{Binding FollowSymbolicLinks, Mode=TwoWay}"
                                               Content="Follow symbolic links"
                                               ToolTip.Tip="When unchecked, symbolic links are skipped. When checked, links are followed and cycles are detected to avoid scanning the same location twice."/>
-                                    <CheckBox IsChecked="{Binding MeasureAllocatedSize, Mode=TwoWay}"
-                                              Content="Measure allocated size per file path"
-                                              ToolTip.Tip="When checked (default), sizes use locally allocated blocks per visited path, so undownloaded cloud placeholders count as roughly zero. Hardlinks and APFS clones may still be counted more than once. When unchecked, sizes use logical file length."/>
+                                    <TextBlock Classes="label" Text="Size measurement"/>
+                                    <ComboBox ItemsSource="{Binding MeasurementModes}"
+                                              SelectedItem="{Binding MeasurementMode, Mode=TwoWay}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="core:StorageMeasurementMode">
+                                                <TextBlock Text="{Binding Converter={x:Static conv:StorageMeasurementModeLabelConverter.Instance}}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <TextBlock Classes="caption"
+                                               TextWrapping="Wrap"
+                                               Text="Hardlink-aware allocated size is the default. It counts repeated file identities once but does not deduplicate APFS clone extents."/>
                                 </StackPanel>
                             </Flyout>
                         </Button.Flyout>
@@ -271,18 +280,25 @@
                                 <ScrollViewer Margin="0,12,0,0">
                                     <StackPanel Spacing="10">
                                         <TextBlock Classes="subtle"
-                                                   Text="Select a block in the treemap to see its details."
-                                                   IsVisible="{Binding !HasSelectedTreemapItem}"/>
+                                                   Text="Select an item in the tree, treemap, or largest-files list to see its details."
+                                                   IsVisible="{Binding !HasSelectedItem}"/>
                                         <Grid ColumnDefinitions="Auto,*"
-                                              RowDefinitions="Auto,Auto,Auto"
+                                              RowDefinitions="Auto,Auto,Auto,Auto,Auto"
                                               ColumnSpacing="16" RowSpacing="8"
-                                              IsVisible="{Binding HasSelectedTreemapItem}">
+                                              IsVisible="{Binding HasSelectedItem}">
                                             <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Name"/>
-                                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedTreemapItem.Name}" TextWrapping="Wrap"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedItem.Name}" TextWrapping="Wrap"/>
                                             <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Path"/>
-                                            <TextBlock Grid.Row="1" Grid.Column="1" Classes="subtle" Text="{Binding SelectedTreemapItem.Path}" TextWrapping="Wrap"/>
-                                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Size"/>
-                                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedTreemapItemFormattedSize}"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Classes="subtle" Text="{Binding SelectedItem.Path}" TextWrapping="Wrap"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Measured"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedItemMeasuredSize}"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Counted"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedItemCountedSize}"/>
+                                            <TextBlock Grid.Row="4" Grid.ColumnSpan="2"
+                                                       Classes="caption"
+                                                       Text="This path shares storage with another included path; its allocation is counted elsewhere."
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding SelectedItemIsCountedElsewhere}"/>
                                         </Grid>
                                     </StackPanel>
                                 </ScrollViewer>
@@ -330,7 +346,7 @@
                                                     </StackPanel>
                                                     <TextBlock Grid.Column="1"
                                                                VerticalAlignment="Center"
-                                                               Text="{Binding SizeBytes, Converter={x:Static conv:ByteSizeConverter.Instance}}"/>
+                                                               Text="{Binding MeasuredSizeBytes, Converter={x:Static conv:ByteSizeConverter.Instance}}"/>
                                                 </Grid>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>

@@ -140,8 +140,8 @@
         <div class="feature"><h3>⚡ Live progress</h3><p>Async scanning streams paths, file/folder counts, and bytes as it runs. Hundreds of thousands of files stay responsive — cancel anytime.</p></div>
         <div class="feature"><h3>📊 By file type & largest files</h3><p>Dedicated tabs for which file types take the most room and the single biggest files on disk, with counts and full paths.</p></div>
         <div class="feature"><h3>🧹 Safe cleanup</h3><p>Reveal any item in Finder or move it to the Trash after a confirmation — nothing is permanently deleted by accident.</p></div>
-        <div class="feature"><h3>☁️ Cloud-aware on-disk size</h3><p>Measures the space files actually occupy, so undownloaded iCloud/OneDrive/kDrive placeholders count as roughly zero.</p></div>
-        <div class="feature"><h3>⚙️ Configurable scanning</h3><p>Toggle hidden files, symbolic links, and <code>.app</code> bundle expansion. Preferences and recent locations are remembered.</p></div>
+        <div class="feature"><h3>☁️ Hardlink-aware on-disk size</h3><p>Measures locally allocated blocks, counts repeated hardlink identities once, and leaves undownloaded cloud placeholders at roughly zero.</p></div>
+        <div class="feature"><h3>⚙️ Configurable scanning</h3><p>Choose hardlink-aware, per-path allocated, or logical size, and toggle hidden files, symbolic links, and <code>.app</code> bundle expansion.</p></div>
       </div>
     </section>
 
@@ -157,6 +157,7 @@
             <tr><td>Folder tree</td><td>✅</td><td>—</td><td>—</td><td>✅</td></tr>
             <tr><td>File-type breakdown</td><td>✅</td><td>—</td><td>—</td><td>✅</td></tr>
             <tr><td>Real on-disk size (cloud-aware)</td><td>✅</td><td>—</td><td>—</td><td>—</td></tr>
+            <tr><td>Hardlinks counted once</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
           </tbody>
         </table>
       </div>

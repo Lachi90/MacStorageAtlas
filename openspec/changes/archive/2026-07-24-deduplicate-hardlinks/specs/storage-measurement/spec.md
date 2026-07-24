@@ -1,10 +1,84 @@
-## Purpose
+## ADDED Requirements
 
-Define the size basis and scope of every storage number reported by
-MacStorageAtlas so users can interpret scan totals without mistaking
-per-path allocated bytes for unique physical storage or volume capacity.
+### Requirement: Hardlink-aware allocated measurement counts file identities once
 
-## Requirements
+In hardlink-aware allocated mode, the scanner SHALL count the allocated bytes
+of each successfully measured filesystem file identity once within the active
+scan scope. File and directory byte totals, progress totals, and completed
+result totals MUST use those counted contributions.
+
+#### Scenario: Two included paths are hardlinks
+
+- **GIVEN** two included paths are hardlinks to the same file
+- **WHEN** they are scanned in hardlink-aware allocated mode
+- **THEN** the scan file count includes both paths
+- **AND** exactly one allocation contributes to the scan byte total
+- **AND** directory and completed result totals remain additive
+
+#### Scenario: Equal identity numbers occur on different volumes
+
+- **GIVEN** two included paths refer to different files on different volumes
+- **WHEN** they are scanned in hardlink-aware allocated mode
+- **THEN** each file contributes its allocated bytes
+- **AND** the files are not treated as the same filesystem identity
+
+#### Scenario: Another hardlink is outside the scan scope
+
+- **GIVEN** an included file has another hardlink outside the active scan scope
+- **WHEN** the included path is scanned in hardlink-aware allocated mode
+- **THEN** the included path contributes its allocated bytes once
+- **AND** the external path does not appear in the result or suppress the
+  included contribution
+
+### Requirement: Repeated file paths remain interpretable
+
+Hardlink-aware results SHALL retain every included path in the result tree and
+MUST distinguish the allocation measured for a path from the bytes that path
+contributes to the scan total. A path whose contribution is counted through
+another included path SHALL be identified as sharing storage.
+
+#### Scenario: User browses an additional hardlink
+
+- **GIVEN** an included hardlink contributes no additional bytes because the
+  same file identity was already counted
+- **WHEN** the user finds that path in the tree or by search
+- **THEN** the path remains selectable and browsable
+- **AND** its item details show its measured allocated bytes
+- **AND** its item details identify that its contribution is counted elsewhere
+
+#### Scenario: Derived storage views contain hardlinks
+
+- **GIVEN** a completed hardlink-aware result contains repeated file identities
+- **WHEN** the application builds the treemap, file-type totals, or
+  largest-file ranking
+- **THEN** their byte weights and totals use counted contributions
+- **AND** repeated paths do not create additional apparent storage consumption
+
+### Requirement: Hardlink-aware results remain honest after Trash
+
+After a successful Trash operation changes a hardlink-aware result, the
+application MUST refresh accounting from the filesystem before presenting an
+updated result as complete. A failed or cancelled Trash operation MUST leave
+the existing result unchanged.
+
+#### Scenario: Counted hardlink is moved to Trash
+
+- **GIVEN** two included paths share one counted allocation
+- **AND** the path currently representing that allocation is selected
+- **WHEN** the user confirms and successfully moves that path to Trash
+- **THEN** the application refreshes the remaining scan scope
+- **AND** a remaining included link contributes the allocation
+- **AND** the refreshed result is not reduced as though the underlying storage
+  had disappeared
+
+#### Scenario: Trash operation fails
+
+- **GIVEN** a hardlink-aware result is displayed
+- **WHEN** moving a selected item to Trash fails
+- **THEN** the existing result and its accounting remain displayed unchanged
+- **AND** the application reports the failure
+
+## MODIFIED Requirements
 
 ### Requirement: Storage terms have canonical meanings
 
@@ -93,27 +167,6 @@ measurement while all three modes remain selectable.
 - **THEN** the preference becomes hardlink-aware allocated measurement
 - **AND** unrelated saved scan options and recent locations are preserved
 
-### Requirement: Logical measurement reports included file lengths
-
-In logical mode, the scanner SHALL report each successfully measured file's
-logical length and SHALL aggregate directory and progress totals from those
-same included values.
-
-#### Scenario: Logical scan contains nested files
-
-- **GIVEN** a scan scope contains successfully measured files in nested
-  directories
-- **WHEN** the scan runs in logical mode
-- **THEN** each file reports its logical length
-- **AND** every directory total equals the sum of its included descendants
-- **AND** the progress byte total uses the same logical values
-
-#### Scenario: Logical scan contains a sparse file
-
-- **GIVEN** a sparse file has a logical length greater than its local allocation
-- **WHEN** the file is scanned in logical mode
-- **THEN** the reported file size is its logical length
-
 ### Requirement: Allocated measurement reports local per-path allocation
 
 On supported macOS targets, per-path allocated and hardlink-aware allocated
@@ -140,7 +193,7 @@ by filesystem identity.
 
 - **GIVEN** two included paths are hardlinks to the same file
 - **WHEN** they are scanned in per-path allocated mode
-- **THEN** each path retains its attributed allocated size
+- **THEN** each path contributes its attributed allocated size
 - **AND** the result identifies its aggregate as per-path rather than
   hardlink-aware
 
@@ -151,60 +204,6 @@ by filesystem identity.
 - **WHEN** they are scanned in hardlink-aware allocated mode
 - **THEN** each identity contributes its attributed allocated bytes
 - **AND** the result discloses that APFS clone extents are not deduplicated
-
-### Requirement: Hardlink-aware allocated measurement counts file identities once
-
-In hardlink-aware allocated mode, the scanner SHALL count the allocated bytes
-of each successfully measured filesystem file identity once within the active
-scan scope. File and directory byte totals, progress totals, and completed
-result totals MUST use those counted contributions.
-
-#### Scenario: Two included paths are hardlinks
-
-- **GIVEN** two included paths are hardlinks to the same file
-- **WHEN** they are scanned in hardlink-aware allocated mode
-- **THEN** the scan file count includes both paths
-- **AND** exactly one allocation contributes to the scan byte total
-- **AND** directory and completed result totals remain additive
-
-#### Scenario: Equal identity numbers occur on different volumes
-
-- **GIVEN** two included paths refer to different files on different volumes
-- **WHEN** they are scanned in hardlink-aware allocated mode
-- **THEN** each file contributes its allocated bytes
-- **AND** the files are not treated as the same filesystem identity
-
-#### Scenario: Another hardlink is outside the scan scope
-
-- **GIVEN** an included file has another hardlink outside the active scan scope
-- **WHEN** the included path is scanned in hardlink-aware allocated mode
-- **THEN** the included path contributes its allocated bytes once
-- **AND** the external path does not appear in the result or suppress the
-  included contribution
-
-### Requirement: Repeated file paths remain interpretable
-
-Hardlink-aware results SHALL retain every included path in the result tree and
-MUST distinguish the allocation measured for a path from the bytes that path
-contributes to the scan total. A path whose contribution is counted through
-another included path SHALL be identified as sharing storage.
-
-#### Scenario: User browses an additional hardlink
-
-- **GIVEN** an included hardlink contributes no additional bytes because the
-  same file identity was already counted
-- **WHEN** the user finds that path in the tree or by search
-- **THEN** the path remains selectable and browsable
-- **AND** its item details show its measured allocated bytes
-- **AND** its item details identify that its contribution is counted elsewhere
-
-#### Scenario: Derived storage views contain hardlinks
-
-- **GIVEN** a completed hardlink-aware result contains repeated file identities
-- **WHEN** the application builds the treemap, file-type totals, or
-  largest-file ranking
-- **THEN** their byte weights and totals use counted contributions
-- **AND** repeated paths do not create additional apparent storage consumption
 
 ### Requirement: Scan-scope options determine which bytes are aggregated
 
@@ -240,30 +239,6 @@ including descendants hidden by collapsed package presentation.
   measurement and accounting mode
 - **AND** hardlinks spanning the package boundary contribute only once in
   hardlink-aware allocated mode
-
-### Requirement: Hardlink-aware results remain honest after Trash
-
-After a successful Trash operation changes a hardlink-aware result, the
-application MUST refresh accounting from the filesystem before presenting an
-updated result as complete. A failed or cancelled Trash operation MUST leave
-the existing result unchanged.
-
-#### Scenario: Counted hardlink is moved to Trash
-
-- **GIVEN** two included paths share one counted allocation
-- **AND** the path currently representing that allocation is selected
-- **WHEN** the user confirms and successfully moves that path to Trash
-- **THEN** the application refreshes the remaining scan scope
-- **AND** a remaining included link contributes the allocation
-- **AND** the refreshed result is not reduced as though the underlying storage
-  had disappeared
-
-#### Scenario: Trash operation fails
-
-- **GIVEN** a hardlink-aware result is displayed
-- **WHEN** moving a selected item to Trash fails
-- **THEN** the existing result and its accounting remain displayed unchanged
-- **AND** the application reports the failure
 
 ### Requirement: Incomplete scans preserve honest totals
 

@@ -52,6 +52,30 @@ public class FileTypeStatisticsServiceTests
         });
     }
 
+    [Test]
+    public void CalculateCountsSharedPathButDoesNotDuplicateItsStorageWeight()
+    {
+        var root = Directory("root");
+        root.AddChild(File("counted.bin", 4096));
+        root.AddChild(new DiskItem(
+            "shared.bin",
+            "/shared.bin",
+            isDirectory: false)
+        {
+            SizeBytes = 0,
+            MeasuredSizeBytes = 4096,
+            IsSizeCountedElsewhere = true
+        });
+
+        var summary = new FileTypeStatisticsService().Calculate(root).Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(summary.FileCount, Is.EqualTo(2));
+            Assert.That(summary.TotalSizeBytes, Is.EqualTo(4096));
+        });
+    }
+
     private static DiskItem Directory(string name) =>
         new(name, $"/{name}", isDirectory: true);
 

@@ -1119,24 +1119,31 @@ not counted at full size.
 
 ## Acceptance Criteria
 
-- Files can be measured by allocated size (`st_blocks × 512`) or logical length.
-- Allocated (on-disk) measurement is the application default.
+- Files can be measured by logical length, allocated size per path
+  (`st_blocks × 512`), or hardlink-aware allocated size.
+- Hardlink-aware allocated measurement is the application default.
+- Device-and-inode identities are counted once within the selected scan scope.
+- Every included hardlink path remains browsable and retains its measured
+  allocation.
 - Scanning never materializes/downloads dataless cloud files (stat only).
-- Scanner respects `ScanOptions.MeasureAllocatedSize`.
-- User can toggle the behavior in scan options.
+- Scanner respects `ScanOptions.MeasurementMode`.
+- User can select all three behaviors in scan options.
+- APFS clone extents remain counted separately.
 
 ## Affected Projects
 
 - `MacStorageAtlas.Core`
+- `MacStorageAtlas.Platform.Mac`
 - `MacStorageAtlas.App`
 - `MacStorageAtlas.Tests`
 
 ## Implementation Notes
 
-Read the allocated size via a native `stat(2)` P/Invoke on macOS (64-bit-inode
-struct layout; `stat$INODE64` entry point on x86_64), falling back to the
-logical length on other platforms or on failure. The core library keeps the
-logical length as its portable default; the app opts into allocated size.
+Platform.Mac reads allocated size, device, inode, and link count through one
+native `stat(2)` call on macOS, retaining the 64-bit-inode struct layout and
+`stat$INODE64` entry point on x86_64. Core owns scan-scoped identity accounting
+and treats unavailable allocated metadata as a recoverable scan error rather
+than silently substituting logical length.
 
 ## Codex Prompt
 
@@ -1144,9 +1151,11 @@ logical length as its portable default; the app opts into allocated size.
 Implement On-Disk vs. Logical Size.
 
 Requirements:
-- Add ScanOptions.MeasureAllocatedSize.
-- Measure allocated size via native stat (st_blocks * 512) on macOS.
-- Fall back to logical length elsewhere; never download cloud placeholders.
-- Default the app to allocated size; add a UI toggle.
-- Add tests for allocated-size measurement.
+- Add explicit logical, per-path allocated, and hardlink-aware allocated modes.
+- Read allocated size and device/inode identity through one macOS stat call.
+- Count each included identity once in hardlink-aware mode while retaining all
+  paths.
+- Never download cloud placeholders or silently mix measurement bases.
+- Default the app to hardlink-aware allocated size; expose all three choices.
+- Add unit and macOS integration tests for identity-aware measurement.
 ```

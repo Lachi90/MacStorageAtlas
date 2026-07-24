@@ -3,6 +3,8 @@ namespace MacStorageAtlas.Core;
 public sealed class DiskItem
 {
     private readonly List<DiskItem> _children = [];
+    private long _measuredSizeBytes;
+    private bool _hasMeasuredSize;
 
     public DiskItem(string name, string path, bool isDirectory)
     {
@@ -22,6 +24,18 @@ public sealed class DiskItem
 
     public long SizeBytes { get; internal set; }
 
+    public long MeasuredSizeBytes
+    {
+        get => _hasMeasuredSize ? _measuredSizeBytes : SizeBytes;
+        internal set
+        {
+            _measuredSizeBytes = value;
+            _hasMeasuredSize = true;
+        }
+    }
+
+    public bool IsSizeCountedElsewhere { get; internal set; }
+
     public IReadOnlyList<DiskItem> Children => _children;
 
     internal void AddChild(DiskItem child) => _children.Add(child);
@@ -34,6 +48,9 @@ public sealed class DiskItem
         if (childIndex >= 0)
         {
             _children.RemoveAt(childIndex);
+            MeasuredSizeBytes = Math.Max(
+                0,
+                MeasuredSizeBytes - descendant.MeasuredSizeBytes);
             SizeBytes = Math.Max(0, SizeBytes - descendant.SizeBytes);
             return true;
         }
@@ -42,6 +59,9 @@ public sealed class DiskItem
         {
             if (child.RemoveDescendant(descendant))
             {
+                MeasuredSizeBytes = Math.Max(
+                    0,
+                    MeasuredSizeBytes - descendant.MeasuredSizeBytes);
                 SizeBytes = Math.Max(0, SizeBytes - descendant.SizeBytes);
                 return true;
             }

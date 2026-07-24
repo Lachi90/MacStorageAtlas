@@ -8,21 +8,30 @@ public sealed class DiskScanner : IDiskScanner
 {
     private readonly Func<string, IEnumerable<string>> _enumerateFileSystemEntries;
     private readonly Func<string, long> _logicalSizeReader;
-    private readonly Func<string, long> _allocatedSizeReader;
+    private readonly Func<string, AllocatedFileMetadata> _allocatedMetadataReader;
 
     public DiskScanner()
         : this(Directory.EnumerateFileSystemEntries)
     {
     }
 
+    public DiskScanner(IAllocatedFileMetadataReader allocatedMetadataReader)
+        : this(
+            Directory.EnumerateFileSystemEntries,
+            allocatedMetadataReader:
+                (allocatedMetadataReader
+                    ?? throw new ArgumentNullException(nameof(allocatedMetadataReader))).Read)
+    {
+    }
+
     internal DiskScanner(
         Func<string, IEnumerable<string>> enumerateFileSystemEntries,
         Func<string, long>? logicalSizeReader = null,
-        Func<string, long>? allocatedSizeReader = null)
+        Func<string, AllocatedFileMetadata>? allocatedMetadataReader = null)
     {
         _enumerateFileSystemEntries = enumerateFileSystemEntries;
         _logicalSizeReader = logicalSizeReader ?? (path => new FileInfo(path).Length);
-        _allocatedSizeReader = allocatedSizeReader ?? NativeFileSize.GetAllocatedSizeBytes;
+        _allocatedMetadataReader = allocatedMetadataReader ?? MissingAllocatedMetadata;
     }
 
     public async IAsyncEnumerable<ScanProgress> ScanAsync(
@@ -41,10 +50,19 @@ public sealed class DiskScanner : IDiskScanner
         }
 
         var root = new DiskItem(rootName, fullRootPath, isDirectory: true);
-        var measurementMode = options.MeasureAllocatedSize
-            ? StorageMeasurementMode.Allocated
-            : StorageMeasurementMode.Logical;
-        var state = new ScanState(root, measurementMode);
+        var measurementMode = options.MeasurementMode;
+        if (!Enum.IsDefined(measurementMode))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(options),
+                measurementMode,
+                "The storage measurement mode is not supported.");
+        }
+
+        var state = new ScanState(
+            root,
+            measurementMode,
+            options.FollowSymbolicLinks);
         var visitedDirectories = options.FollowSymbolicLinks
             ? new HashSet<string>(PathComparer)
             : null;
@@ -193,17 +211,31 @@ public sealed class DiskScanner : IDiskScanner
                         yield return progress;
                     }
 
+                    directory.MeasuredSizeBytes += child.MeasuredSizeBytes;
                     directory.SizeBytes += child.SizeBytes;
                     continue;
                 }
 
-                long length = 0;
+                long measuredSize = 0;
+                long countedSize = 0;
+                var isSizeCountedElsewhere = false;
                 recoverableError = null;
                 try
                 {
-                    length = options.MeasureAllocatedSize
-                        ? _allocatedSizeReader(currentEntryPath)
-                        : _logicalSizeReader(currentEntryPath);
+                    if (options.MeasurementMode == StorageMeasurementMode.Logical)
+                    {
+                        measuredSize = _logicalSizeReader(currentEntryPath);
+                        countedSize = measuredSize;
+                    }
+                    else
+                    {
+                        var metadata = _allocatedMetadataReader(currentEntryPath);
+                        measuredSize = metadata.AllocatedSizeBytes;
+                        isSizeCountedElsewhere =
+                            options.MeasurementMode == StorageMeasurementMode.HardlinkAwareAllocated
+                            && state.IsIdentityCounted(metadata);
+                        countedSize = isSizeCountedElsewhere ? 0 : measuredSize;
+                    }
                 }
                 catch (Exception exception) when (IsRecoverable(exception))
                 {
@@ -219,16 +251,19 @@ public sealed class DiskScanner : IDiskScanner
 
                 var file = new DiskItem(Path.GetFileName(currentEntryPath), currentEntryPath, isDirectory: false)
                 {
-                    SizeBytes = length
+                    SizeBytes = countedSize,
+                    MeasuredSizeBytes = measuredSize,
+                    IsSizeCountedElsewhere = isSizeCountedElsewhere
                 };
                 if (includeChildren)
                 {
                     directory.AddChild(file);
                 }
 
-                directory.SizeBytes += length;
+                directory.MeasuredSizeBytes += measuredSize;
+                directory.SizeBytes += countedSize;
                 state.FilesScanned++;
-                state.BytesScanned += length;
+                state.BytesScanned += countedSize;
                 var fileProgress = state.TryProgress(currentEntryPath);
                 if (fileProgress is not null)
                 {
@@ -303,6 +338,10 @@ public sealed class DiskScanner : IDiskScanner
     private static bool IsRecoverable(Exception exception) =>
         exception is UnauthorizedAccessException or IOException;
 
+    private static AllocatedFileMetadata MissingAllocatedMetadata(string path) =>
+        throw new IOException(
+            $"Allocated metadata is unavailable for '{path}' on this scanner.");
+
     private static StringComparer PathComparer =>
         OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
             ? StringComparer.OrdinalIgnoreCase
@@ -310,12 +349,17 @@ public sealed class DiskScanner : IDiskScanner
 
     private sealed class ScanState(
         DiskItem root,
-        StorageMeasurementMode measurementMode)
+        StorageMeasurementMode measurementMode,
+        bool followSymbolicLinks)
     {
         private static readonly TimeSpan MinimumProgressInterval = TimeSpan.FromMilliseconds(150);
         private const long MaximumEntriesBetweenProgress = 4_096;
 
         private readonly List<ScanError> _errors = [];
+        private readonly HashSet<FileIdentity>? _countedFileIdentities =
+            measurementMode == StorageMeasurementMode.HardlinkAwareAllocated
+                ? []
+                : null;
         private IReadOnlyList<ScanError> _errorSnapshot = [];
         private long _entriesSinceLastProgress;
         private long _lastProgressTimestamp = Stopwatch.GetTimestamp();
@@ -327,6 +371,21 @@ public sealed class DiskScanner : IDiskScanner
         public long DirectoriesScanned { get; set; }
 
         public long BytesScanned { get; set; }
+
+        public bool IsIdentityCounted(AllocatedFileMetadata metadata)
+        {
+            if (_countedFileIdentities is null)
+            {
+                return false;
+            }
+
+            if (!followSymbolicLinks && metadata.LinkCount <= 1)
+            {
+                return false;
+            }
+
+            return !_countedFileIdentities.Add(metadata.Identity);
+        }
 
         public void AddError(string path, Exception exception)
         {

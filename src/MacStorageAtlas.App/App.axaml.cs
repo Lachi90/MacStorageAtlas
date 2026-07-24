@@ -30,7 +30,7 @@ public partial class App : Application
             var mainWindow = new MainWindow();
             mainWindow.DataContext = new MainWindowViewModel(
                 new AvaloniaFolderPickerService(mainWindow.StorageProvider),
-                new DiskScanner(),
+                new DiskScanner(new MacFileMetadataReader()),
                 new AvaloniaUiDispatcher(),
                 new MacFileRevealService(),
                 new MacTrashService(),

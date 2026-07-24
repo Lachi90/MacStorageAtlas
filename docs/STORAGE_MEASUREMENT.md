@@ -2,7 +2,8 @@
 
 MacStorageAtlas reports the size of the entries it successfully visits. Those
 scan totals are not interchangeable with macOS volume-capacity numbers, and
-allocated totals are not yet unique physical-storage totals.
+even hardlink-aware allocated totals are not yet unique physical-storage
+totals.
 
 ## File-size terms
 
@@ -12,10 +13,13 @@ allocated totals are not yet unique physical-storage totals.
 - **Allocated file size** is the local filesystem allocation attributed to one
   visited file path. On macOS, MacStorageAtlas reads `st_blocks × 512` from file
   metadata.
+- **Hardlink-aware allocated size** counts allocated storage once for each
+  filesystem file identity in the scan scope. It recognizes identities by
+  device and inode, but it does not deduplicate shared extents belonging to
+  distinct APFS clone identities.
 - **Unique allocated size** counts storage once across file identities and
   shared physical extents in a stated scan scope. MacStorageAtlas does not yet
-  report this value: hardlinks and APFS clones can cause allocated bytes to be
-  counted for more than one path.
+  report this value because APFS clone extents are not deduplicated.
 
 Logical and allocated measurement read metadata only. They do not read file
 contents, contact a cloud provider, or request that an undownloaded placeholder
@@ -44,55 +48,78 @@ used space.
 One measurement basis is captured when a scan starts and is retained with every
 progress update and the completed result:
 
-- In logical mode, each included file contributes its logical length.
-- In allocated mode, each included path contributes its locally allocated
-  bytes. The App uses this mode by default.
+- In logical mode, each included path contributes its logical length.
+- In allocated-per-path mode, each included path contributes its locally
+  allocated bytes.
+- In hardlink-aware allocated mode, the first successfully measured path for a
+  file identity contributes its locally allocated bytes and later included
+  paths contribute no additional bytes. The App uses this mode by default.
 - A directory contributes the sum of its successfully measured descendants
   using the same basis.
 - Hidden entries and symbolic links contribute only when their corresponding
-  scan options include them.
+  scan options include them. When symbolic links are followed, repeated target
+  identities are also counted once in hardlink-aware mode.
 - A collapsed `.app` package still includes the measured total of its
-  descendants; only its presentation is collapsed.
+  descendants; only its presentation is collapsed. Hardlinks spanning a
+  package boundary participate in the same scan-wide accounting.
 - A metadata or access failure is listed as a scan error and contributes no
-  invented value. Allocated mode does not silently substitute logical length
-  when macOS allocation metadata is unavailable.
+  invented value. Allocated modes do not silently substitute logical length
+  when macOS allocation or identity metadata is unavailable.
 - A cancelled scan is incomplete. Any retained progress total contains only
   entries measured before cancellation.
 
-The allocated reader in portable Core falls back to logical length on
-unsupported development platforms. Released MacStorageAtlas targets use the
-macOS allocation reader.
+Every included path remains available in the folder tree and search. An
+additional hardlink shows its measured allocation together with a shared
+storage indication, while treemaps and derived byte totals use only its counted
+contribution.
+
+The macOS metadata reader lives in Platform.Mac and supplies allocated bytes,
+device, inode, and link count in one `stat(2)` call. Portable Core does not
+invent allocated metadata when no platform reader is available.
 
 ## Reproducible macOS fixtures
 
-The following commands create one ordinary 1 MiB file and one sparse file with
-a 1 GiB logical length:
+The following commands create one ordinary 1 MiB file, a hardlink to it, and
+one sparse file with a 1 GiB logical length:
 
 ```shell
 fixture_dir=$(mktemp -d /tmp/MacStorageAtlas-measurement.XXXXXX)
 mkfile 1m "$fixture_dir/normal.bin"
 mkfile -n 1g "$fixture_dir/sparse.bin"
+ln "$fixture_dir/normal.bin" "$fixture_dir/normal-link.bin"
 
-stat -f 'logical=%z bytes, allocated-blocks=%b' "$fixture_dir/normal.bin"
-stat -f 'logical=%z bytes, allocated-blocks=%b' "$fixture_dir/sparse.bin"
-du -k "$fixture_dir/normal.bin" "$fixture_dir/sparse.bin"
+stat -f '%N device=%d inode=%i links=%l logical=%z blocks=%b' \
+  "$fixture_dir/normal.bin" \
+  "$fixture_dir/normal-link.bin" \
+  "$fixture_dir/sparse.bin"
+du -k \
+  "$fixture_dir/normal.bin" \
+  "$fixture_dir/normal-link.bin" \
+  "$fixture_dir/sparse.bin"
+du -k -l \
+  "$fixture_dir/normal.bin" \
+  "$fixture_dir/normal-link.bin" \
+  "$fixture_dir/sparse.bin"
 ```
 
 `stat` reports allocated blocks in 512-byte units, so multiply `%b` by 512 to
-compare it with MacStorageAtlas allocated bytes. `du -k` normally reports the
-same allocation rounded to KiB, but flags and platform variants can change its
-scope or units.
+compare it with MacStorageAtlas allocated bytes. On macOS, ordinary `du`
+deduplicates the repeated hardlink identity while `du -l` counts each path.
+Flags and platform variants can change aggregate scope or units.
 
 Verified on 2026-07-24 using arm64 macOS 26.5.2 on APFS:
 
-| Fixture | Logical bytes | Allocated bytes | `du -k` |
-| --- | ---: | ---: | ---: |
-| `normal.bin` | 1,048,576 | 1,048,576 | 1,024 |
-| `sparse.bin` | 1,073,741,824 | 16,384 | 16 |
+| Fixture | Logical bytes | Allocated bytes | Link count | Ordinary `du -k` |
+| --- | ---: | ---: | ---: | ---: |
+| `normal.bin` | 1,048,576 | 1,048,576 | 2 | 1,024 |
+| `normal-link.bin` | 1,048,576 | 1,048,576 | 2 | Deduplicated |
+| `sparse.bin` | 1,073,741,824 | 16,384 | 1 | 16 |
 
 The exact sparse allocation can vary by filesystem and macOS version. The
 architecture-independent observation is that logical mode reports 1 GiB while
-allocated mode reports only the blocks locally committed to the sparse file.
+either allocated mode reports only the blocks locally committed to the sparse
+file. The two normal paths have the same device and inode: per-path allocated
+mode counts 2 MiB, while hardlink-aware allocated mode counts 1 MiB.
 
 Remove the fixture directory after inspection:
 
@@ -111,6 +138,12 @@ show logical and on-disk values separately. Aggregate tools can also deduplicate
 hardlinks or shared storage differently.
 
 Equal content does not prove shared physical storage. Until the dedicated
-hardlink and APFS-clone changes are implemented, MacStorageAtlas makes no claim
-that its allocated total is the number of unique bytes that deleting a path
-would reclaim.
+APFS-clone change is implemented, MacStorageAtlas makes no claim that a
+hardlink-aware total is unique physical storage.
+
+Hardlink accounting is scoped to included paths. A link outside the selected
+scope does not suppress the first included contribution and can keep the
+underlying storage alive after an included link is moved to Trash. For that
+reason, scan totals are not promises of reclaimable bytes. After a successful
+Trash operation on a hardlink-aware result, the App rescans with the original
+options so a remaining included link can become the counted representative.

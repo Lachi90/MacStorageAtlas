@@ -10,5 +10,5 @@ public sealed record ScanOptions
 
     public bool TreatPackagesAsDirectories { get; init; } = true;
 
-    public bool MeasureAllocatedSize { get; init; }
+    public StorageMeasurementMode MeasurementMode { get; init; }
 }

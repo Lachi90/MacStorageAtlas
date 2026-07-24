@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MacStorageAtlas.App.Converters;
 using MacStorageAtlas.App.Models;
 using MacStorageAtlas.App.Services;
 using MacStorageAtlas.Core;
@@ -32,13 +33,14 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly Dictionary<DiskItem, IReadOnlyList<TreemapRect>> _treemapLayoutCache =
         new(ReferenceEqualityComparer.Instance);
     private DiskItem? _scanRoot;
+    private ScanOptions? _resultScanOptions;
     private CancellationTokenSource? _scanCancellation;
     private bool _isApplyingSettings;
 
     public MainWindowViewModel()
         : this(
             new NullFolderPickerService(),
-            new DiskScanner(),
+            new DiskScanner(new MacFileMetadataReader()),
             new AvaloniaUiDispatcher(),
             new MacFileRevealService(),
             new MacTrashService(),
@@ -47,7 +49,10 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     public MainWindowViewModel(IFolderPickerService folderPickerService)
-        : this(folderPickerService, new DiskScanner(), new AvaloniaUiDispatcher())
+        : this(
+            folderPickerService,
+            new DiskScanner(new MacFileMetadataReader()),
+            new AvaloniaUiDispatcher())
     {
     }
 
@@ -83,6 +88,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public string ApplicationName { get; } = "MacStorageAtlas";
 
+    public IReadOnlyList<StorageMeasurementMode> MeasurementModes { get; } =
+    [
+        StorageMeasurementMode.HardlinkAwareAllocated,
+        StorageMeasurementMode.Allocated,
+        StorageMeasurementMode.Logical
+    ];
+
     [ObservableProperty]
     private string? _selectedFolderPath;
 
@@ -99,17 +111,16 @@ public partial class MainWindowViewModel : ViewModelBase
     private bool _followSymbolicLinks = ScanOptions.Default.FollowSymbolicLinks;
 
     [ObservableProperty]
-    private bool _measureAllocatedSize = true;
+    private StorageMeasurementMode _measurementMode =
+        StorageMeasurementMode.HardlinkAwareAllocated;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(MeasurementBasisLabel))]
-    private StorageMeasurementMode _resultMeasurementMode = StorageMeasurementMode.Allocated;
+    private StorageMeasurementMode _resultMeasurementMode =
+        StorageMeasurementMode.HardlinkAwareAllocated;
 
-    public string MeasurementBasisLabel => ResultMeasurementMode switch
-    {
-        StorageMeasurementMode.Allocated => "Allocated size",
-        _ => "Logical size"
-    };
+    public string MeasurementBasisLabel =>
+        StorageMeasurementModeLabelConverter.Label(ResultMeasurementMode);
 
     [ObservableProperty]
     private string? _currentPath;
@@ -167,8 +178,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedTreemapItem))]
-    [NotifyPropertyChangedFor(nameof(SelectedTreemapItemFormattedSize))]
-    [NotifyPropertyChangedFor(nameof(HasSelectedTreemapItem))]
     private TreemapRect? _selectedTreemapRectangle;
 
     public DiskItem? SelectedTreemapItem => SelectedTreemapRectangle?.Item.Item;
@@ -176,11 +185,18 @@ public partial class MainWindowViewModel : ViewModelBase
     public DiskItem? SelectedItem =>
         SelectedTreeItem?.Item ?? SelectedTreemapItem ?? SelectedLargeFile;
 
-    public string SelectedTreemapItemFormattedSize => SelectedTreemapItem is null
+    public string SelectedItemMeasuredSize => SelectedItem is null
         ? string.Empty
-        : FileSizeFormatter.Format(SelectedTreemapItem.SizeBytes);
+        : FileSizeFormatter.Format(SelectedItem.MeasuredSizeBytes);
 
-    public bool HasSelectedTreemapItem => SelectedTreemapItem is not null;
+    public string SelectedItemCountedSize => SelectedItem is null
+        ? string.Empty
+        : FileSizeFormatter.Format(SelectedItem.SizeBytes);
+
+    public bool HasSelectedItem => SelectedItem is not null;
+
+    public bool SelectedItemIsCountedElsewhere =>
+        SelectedItem?.IsSizeCountedElsewhere == true;
 
     [RelayCommand]
     private async Task SelectFolderAsync()
@@ -212,7 +228,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     partial void OnFollowSymbolicLinksChanged(bool value) => SaveSettings();
 
-    partial void OnMeasureAllocatedSizeChanged(bool value) => SaveSettings();
+    partial void OnMeasurementModeChanged(StorageMeasurementMode value) => SaveSettings();
 
     partial void OnExpandApplicationBundlesChanged(bool value) => SaveSettings();
 
@@ -277,7 +293,21 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             await _trashService.MoveToTrashAsync(item.Path);
-            RemoveTrashedItem(item);
+            if (ReferenceEquals(_scanRoot, item))
+            {
+                RemoveTrashedItem(item);
+            }
+            else if (ResultMeasurementMode
+                     == StorageMeasurementMode.HardlinkAwareAllocated
+                     && _resultScanOptions is { } resultOptions
+                     && _scanRoot is { } root)
+            {
+                await RunScanAsync(root.Path, resultOptions, addRecentLocation: false);
+            }
+            else
+            {
+                RemoveTrashedItem(item);
+            }
         }
         catch (System.Exception exception)
         {
@@ -324,10 +354,29 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
+        var options = new ScanOptions
+        {
+            TreatPackagesAsDirectories = ExpandApplicationBundles,
+            IncludeHiddenFiles = IncludeHiddenFiles,
+            FollowSymbolicLinks = FollowSymbolicLinks,
+            MeasurementMode = MeasurementMode
+        };
+
+        await RunScanAsync(rootPath, options, addRecentLocation: true);
+    }
+
+    private async Task RunScanAsync(
+        string rootPath,
+        ScanOptions options,
+        bool addRecentLocation)
+    {
         var cancellation = new CancellationTokenSource();
         _scanCancellation = cancellation;
 
-        AddRecentLocation(rootPath);
+        if (addRecentLocation)
+        {
+            AddRecentLocation(rootPath);
+        }
 
         await _uiDispatcher.InvokeAsync(() =>
         {
@@ -336,12 +385,11 @@ public partial class MainWindowViewModel : ViewModelBase
             FilesScanned = 0;
             DirectoriesScanned = 0;
             BytesScanned = 0;
-            ResultMeasurementMode = MeasureAllocatedSize
-                ? StorageMeasurementMode.Allocated
-                : StorageMeasurementMode.Logical;
+            ResultMeasurementMode = options.MeasurementMode;
             ScanErrors = [];
             SelectedScanError = null;
             _scanRoot = null;
+            _resultScanOptions = null;
             _treemapLayoutCache.Clear();
             TreeItems = [];
             SelectedTreeItem = null;
@@ -354,14 +402,6 @@ public partial class MainWindowViewModel : ViewModelBase
             RecentLocationStatusMessage = null;
         });
 
-        var options = new ScanOptions
-        {
-            TreatPackagesAsDirectories = ExpandApplicationBundles,
-            IncludeHiddenFiles = IncludeHiddenFiles,
-            FollowSymbolicLinks = FollowSymbolicLinks,
-            MeasureAllocatedSize = MeasureAllocatedSize
-        };
-
         try
         {
             await Task.Run(async () =>
@@ -370,7 +410,8 @@ public partial class MainWindowViewModel : ViewModelBase
                                    .ScanAsync(rootPath, options, cancellation.Token)
                                    .ConfigureAwait(false))
                 {
-                    await _uiDispatcher.InvokeAsync(() => ApplyProgress(progress))
+                    await _uiDispatcher.InvokeAsync(
+                            () => ApplyProgress(progress, options))
                         .ConfigureAwait(false);
                 }
             }).ConfigureAwait(false);
@@ -386,7 +427,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private void ApplyProgress(ScanProgress progress)
+    private void ApplyProgress(ScanProgress progress, ScanOptions options)
     {
         CurrentPath = progress.CurrentPath;
         FilesScanned = progress.FilesScanned;
@@ -398,6 +439,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (progress.IsCompleted)
         {
             _scanRoot = progress.Root;
+            _resultScanOptions = options;
             ApplySearch();
             SelectedTreeItem = null;
             SelectedTreemapRectangle = null;
@@ -410,7 +452,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     partial void OnSelectedTreeItemChanged(DiskItemTreeNodeViewModel? value)
     {
-        OnPropertyChanged(nameof(SelectedItem));
+        NotifySelectedItemPropertiesChanged();
         RevealInFinderCommand.NotifyCanExecuteChanged();
         MoveToTrashCommand.NotifyCanExecuteChanged();
         RevealStatusMessage = null;
@@ -426,7 +468,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     partial void OnSelectedTreemapRectangleChanged(TreemapRect? value)
     {
-        OnPropertyChanged(nameof(SelectedItem));
+        NotifySelectedItemPropertiesChanged();
         RevealInFinderCommand.NotifyCanExecuteChanged();
         MoveToTrashCommand.NotifyCanExecuteChanged();
         RevealStatusMessage = null;
@@ -441,7 +483,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     partial void OnSelectedLargeFileChanged(DiskItem? value)
     {
-        OnPropertyChanged(nameof(SelectedItem));
+        NotifySelectedItemPropertiesChanged();
         RevealInFinderCommand.NotifyCanExecuteChanged();
         MoveToTrashCommand.NotifyCanExecuteChanged();
         RevealStatusMessage = null;
@@ -455,6 +497,15 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     partial void OnSearchTextChanged(string value) => ApplySearch();
+
+    private void NotifySelectedItemPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(SelectedItem));
+        OnPropertyChanged(nameof(SelectedItemMeasuredSize));
+        OnPropertyChanged(nameof(SelectedItemCountedSize));
+        OnPropertyChanged(nameof(HasSelectedItem));
+        OnPropertyChanged(nameof(SelectedItemIsCountedElsewhere));
+    }
 
     private void ApplySearch()
     {
@@ -491,6 +542,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (ReferenceEquals(_scanRoot, item))
         {
             _scanRoot = null;
+            _resultScanOptions = null;
             _treemapLayoutCache.Clear();
             TreeItems = [];
             TreemapRectangles = [];
@@ -548,7 +600,7 @@ public partial class MainWindowViewModel : ViewModelBase
             IncludeHiddenFiles = settings.IncludeHiddenFiles;
             FollowSymbolicLinks = settings.FollowSymbolicLinks;
             ExpandApplicationBundles = settings.TreatPackagesAsDirectories;
-            MeasureAllocatedSize = settings.MeasureAllocatedSize;
+            MeasurementMode = settings.EffectiveMeasurementMode;
             RecentLocations = settings.RecentLocations
                 .Where(path => !string.IsNullOrWhiteSpace(path))
                 .Take(AppSettings.MaxRecentLocations)
@@ -572,7 +624,7 @@ public partial class MainWindowViewModel : ViewModelBase
             IncludeHiddenFiles = IncludeHiddenFiles,
             FollowSymbolicLinks = FollowSymbolicLinks,
             TreatPackagesAsDirectories = ExpandApplicationBundles,
-            MeasureAllocatedSize = MeasureAllocatedSize,
+            MeasurementMode = MeasurementMode,
             RecentLocations = RecentLocations.ToList()
         });
     }

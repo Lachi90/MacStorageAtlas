@@ -277,11 +277,12 @@ targets.
 ### Phase B: hardlink deduplication
 
 - Add a macOS file-identity reader based on device and inode.
-- Track file identities only when unique allocated-size mode is active.
+- Track file identities only when hardlink-aware allocated mode is active.
 - Count the allocated bytes for a hardlinked file once.
 - Retain every path in the result tree, but mark additional links as sharing
   storage.
-- Make shared-size semantics visible in item details and exports.
+- Make shared-size semantics visible in item details and preserve them for
+  future exports.
 
 ### Phase C: APFS clone investigation and implementation
 
@@ -306,7 +307,7 @@ targets.
 
 ### Acceptance criteria
 
-- Hardlinks are counted once in unique allocated-size mode.
+- Hardlinks are counted once in hardlink-aware allocated mode.
 - All hardlink paths remain browsable.
 - Sparse files use allocated rather than logical size when configured.
 - Cancellation still preserves a consistent partial result.
@@ -1001,7 +1002,7 @@ Update this table when work starts or finishes.
 | --- | --- | --- | --- |
 | WP-00 | Complete | `codex/storage-feature-roadmap` | Comparison corrected and verified 2026-07-24; OpenSpec change: `correct-market-comparison` |
 | WP-01 | Planned | `codex/storage-feature-roadmap` | Requires Apple Developer account |
-| WP-02 | In progress | `codex/storage-feature-roadmap` | Measurement definitions complete (`define-storage-measurement`); remaining: `deduplicate-hardlinks`, `investigate-apfs-clone-accounting`, `benchmark-and-optimize-scans` |
+| WP-02 | In progress | `codex/storage-feature-roadmap` | Measurement definitions (`define-storage-measurement`) and hardlink-aware accounting (`deduplicate-hardlinks`) complete; remaining: `investigate-apfs-clone-accounting`, `benchmark-and-optimize-scans` |
 | WP-03 | Planned | `codex/storage-feature-roadmap` |  |
 | WP-04 | Planned | `codex/storage-feature-roadmap` | Depends on metadata |
 | WP-05 | Planned | `codex/storage-feature-roadmap` | Low-risk quick win |

@@ -1,7 +1,9 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using MacStorageAtlas.App.Models;
+using MacStorageAtlas.Core;
 
 namespace MacStorageAtlas.App.Services;
 
@@ -12,11 +14,65 @@ public sealed class JsonSettingsService : ISettingsService
         WriteIndented = true
     };
 
+    static JsonSettingsService()
+    {
+        SerializerOptions.Converters.Add(
+            new NullableStorageMeasurementModeJsonConverter());
+    }
+
     private readonly string _settingsFilePath;
 
     public JsonSettingsService()
         : this(GetDefaultSettingsFilePath())
     {
+    }
+
+    private sealed class NullableStorageMeasurementModeJsonConverter
+        : JsonConverter<StorageMeasurementMode?>
+    {
+        public override StorageMeasurementMode? Read(
+            ref Utf8JsonReader reader,
+            Type typeToConvert,
+            JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.Null)
+            {
+                return null;
+            }
+
+            if (reader.TokenType == JsonTokenType.String
+                && Enum.TryParse<StorageMeasurementMode>(
+                    reader.GetString(),
+                    ignoreCase: true,
+                    out var namedMode)
+                && Enum.IsDefined(namedMode))
+            {
+                return namedMode;
+            }
+
+            if (reader.TokenType == JsonTokenType.Number
+                && reader.TryGetInt32(out var numericMode)
+                && Enum.IsDefined((StorageMeasurementMode)numericMode))
+            {
+                return (StorageMeasurementMode)numericMode;
+            }
+
+            return null;
+        }
+
+        public override void Write(
+            Utf8JsonWriter writer,
+            StorageMeasurementMode? value,
+            JsonSerializerOptions options)
+        {
+            if (value is null)
+            {
+                writer.WriteNullValue();
+                return;
+            }
+
+            writer.WriteStringValue(value.Value.ToString());
+        }
     }
 
     public JsonSettingsService(string settingsFilePath)

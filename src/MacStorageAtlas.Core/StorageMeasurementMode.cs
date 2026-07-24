@@ -4,5 +4,7 @@ public enum StorageMeasurementMode
 {
     Logical,
 
-    Allocated
+    Allocated,
+
+    HardlinkAwareAllocated
 }

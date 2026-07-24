@@ -65,6 +65,32 @@ public class LargeFilesServiceTests
         Assert.That(largest, Is.Empty);
     }
 
+    [Test]
+    public void GetLargestFilesRanksSharedPathByItsCountedContribution()
+    {
+        var root = new DiskItem("root", "/root", isDirectory: true);
+        var counted = File("counted.bin", "/root/counted.bin", 4096);
+        var shared = new DiskItem(
+            "shared.bin",
+            "/root/shared.bin",
+            isDirectory: false)
+        {
+            SizeBytes = 0,
+            MeasuredSizeBytes = 4096,
+            IsSizeCountedElsewhere = true
+        };
+        root.AddChild(shared);
+        root.AddChild(counted);
+
+        var largest = _service.GetLargestFiles(root);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(largest, Is.EqualTo(new[] { counted, shared }));
+            Assert.That(shared.MeasuredSizeBytes, Is.EqualTo(4096));
+        });
+    }
+
     private static DiskItem File(string name, string path, long size) =>
         new(name, path, isDirectory: false) { SizeBytes = size };
 }

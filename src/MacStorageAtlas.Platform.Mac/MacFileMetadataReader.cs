@@ -1,36 +1,22 @@
 using System.ComponentModel;
-using System.IO;
 using System.Runtime.InteropServices;
+using MacStorageAtlas.Core;
 
-namespace MacStorageAtlas.Core;
+namespace MacStorageAtlas.Platform.Mac;
 
-internal static class NativeFileSize
+public sealed class MacFileMetadataReader : IAllocatedFileMetadataReader
 {
     private const long BlockSizeBytes = 512;
 
-    public static long GetAllocatedSizeBytes(string path)
+    public AllocatedFileMetadata Read(string path)
     {
-        if (OperatingSystem.IsMacOS())
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        if (!OperatingSystem.IsMacOS())
         {
-            if (TryGetAllocatedSizeMac(path, out var allocated, out var errorCode))
-            {
-                return allocated;
-            }
-
-            throw new IOException(
-                $"Could not read allocated size metadata for '{path}'.",
-                new Win32Exception(errorCode));
+            throw new PlatformNotSupportedException(
+                "Allocated file metadata is available only on macOS.");
         }
-
-        return new FileInfo(path).Length;
-    }
-
-    private static bool TryGetAllocatedSizeMac(
-        string path,
-        out long allocatedBytes,
-        out int errorCode)
-    {
-        allocatedBytes = 0;
 
         var result = RuntimeInformation.ProcessArchitecture == Architecture.X64
             ? stat_x64(path, out var buffer)
@@ -38,13 +24,16 @@ internal static class NativeFileSize
 
         if (result != 0)
         {
-            errorCode = Marshal.GetLastPInvokeError();
-            return false;
+            var errorCode = Marshal.GetLastPInvokeError();
+            throw new IOException(
+                $"Could not read allocated file metadata for '{path}'.",
+                new Win32Exception(errorCode));
         }
 
-        errorCode = 0;
-        allocatedBytes = buffer.st_blocks * BlockSizeBytes;
-        return true;
+        return new AllocatedFileMetadata(
+            buffer.st_blocks * BlockSizeBytes,
+            new FileIdentity(unchecked((uint)buffer.st_dev), buffer.st_ino),
+            buffer.st_nlink);
     }
 
     [DllImport("libc", EntryPoint = "stat", SetLastError = true)]

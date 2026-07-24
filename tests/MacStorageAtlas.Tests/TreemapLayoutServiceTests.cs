@@ -111,6 +111,32 @@ public class TreemapLayoutServiceTests
         Assert.That(rectangles, Is.Empty);
     }
 
+    [Test]
+    public void LayoutOmitsSharedItemWithZeroCountedContribution()
+    {
+        var counted = new DiskItem("counted", "/counted", isDirectory: false)
+        {
+            SizeBytes = 4096,
+            MeasuredSizeBytes = 4096
+        };
+        var shared = new DiskItem("shared", "/shared", isDirectory: false)
+        {
+            SizeBytes = 0,
+            MeasuredSizeBytes = 4096,
+            IsSizeCountedElsewhere = true
+        };
+
+        var rectangles = _service.Layout(
+            [new TreemapItem(counted), new TreemapItem(shared)],
+            new TreemapBounds(0, 0, 100, 100));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rectangles, Has.Count.EqualTo(1));
+            Assert.That(rectangles.Single().Item.Item, Is.SameAs(counted));
+        });
+    }
+
     private static TreemapItem Item(string name, long size) =>
         new(new DiskItem(name, $"/{name}", isDirectory: false), size);
 }
