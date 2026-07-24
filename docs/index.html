@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MacStorageAtlas — Free Disk Space Analyzer for macOS (WinDirStat / DaisyDisk Alternative)</title>
+  <meta name="description" content="MacStorageAtlas is a free, open-source disk space analyzer for macOS. See what is using your disk space with a treemap, folder tree, file-type breakdown, and largest-files list. A native WinDirStat, DaisyDisk, and GrandPerspective alternative for Apple Silicon and Intel Macs.">
+  <link rel="canonical" href="https://lachi90.github.io/MacStorageAtlas/">
+
+  <!-- Replace CONTENT with the token Google Search Console gives you, then request indexing. -->
+  <!-- <meta name="google-site-verification" content="REPLACE_WITH_YOUR_TOKEN"> -->
+
+  <!-- Open Graph / social preview -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="MacStorageAtlas — Free Disk Space Analyzer for macOS">
+  <meta property="og:description" content="See what's eating your disk. A free, open-source WinDirStat / DaisyDisk alternative for Mac with treemap, folder tree, and safe cleanup.">
+  <meta property="og:url" content="https://lachi90.github.io/MacStorageAtlas/">
+  <meta property="og:image" content="https://lachi90.github.io/MacStorageAtlas/images/01-overview.png">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- Structured data helps Google understand this is a software application. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "MacStorageAtlas",
+    "applicationCategory": "UtilitiesApplication",
+    "operatingSystem": "macOS",
+    "description": "Free, open-source disk space analyzer for macOS. Treemap, folder tree, file-type breakdown, and largest-files list. A WinDirStat / DaisyDisk / GrandPerspective alternative for Apple Silicon and Intel Macs.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "url": "https://lachi90.github.io/MacStorageAtlas/",
+    "downloadUrl": "https://github.com/Lachi90/MacStorageAtlas/releases",
+    "license": "https://github.com/Lachi90/MacStorageAtlas/blob/main/LICENSE",
+    "isAccessibleForFree": true
+  }
+  </script>
+
+  <style>
+    :root {
+      --bg: #ffffff; --fg: #1a1a1a; --muted: #5a5a6a;
+      --card: #f5f5f8; --border: #e2e2ea; --accent: #512BD4; --accent-fg: #ffffff;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f0f14; --fg: #ececf0; --muted: #9a9aac;
+        --card: #1a1a22; --border: #2a2a36; --accent: #8B5CF6; --accent-fg: #ffffff;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--fg);
+      font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+    header { text-align: center; padding: 64px 20px 40px; }
+    h1 { font-size: 2.4rem; margin: 0 0 12px; letter-spacing: -0.02em; }
+    .tagline { font-size: 1.25rem; color: var(--muted); max-width: 640px; margin: 0 auto 28px; }
+    .badges { margin: 16px 0 28px; }
+    .badges img { height: 20px; margin: 0 3px; vertical-align: middle; }
+    .cta { display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    .btn {
+      display: inline-block; padding: 12px 22px; border-radius: 10px;
+      font-weight: 600; text-decoration: none; border: 1px solid var(--border);
+    }
+    .btn-primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; }
+    .btn-secondary { background: var(--card); color: var(--fg); }
+    section { padding: 32px 0; }
+    h2 { font-size: 1.5rem; margin: 0 0 16px; }
+    img.shot { width: 100%; border-radius: 12px; border: 1px solid var(--border); margin: 12px 0; }
+    .grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .feature { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .feature h3 { margin: 0 0 8px; font-size: 1.1rem; }
+    .feature p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+    .table-scroll { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; min-width: 560px; }
+    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: center; }
+    th:first-child, td:first-child { text-align: left; }
+    thead { background: var(--card); }
+    .note { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; color: var(--muted); font-size: 0.92rem; }
+    code { background: var(--card); padding: 2px 6px; border-radius: 5px; font-size: 0.9em; }
+    footer { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 0.9rem; border-top: 1px solid var(--border); margin-top: 40px; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>MacStorageAtlas</h1>
+      <p class="tagline">See what's eating your disk — at a glance. A free, open-source
+      disk space analyzer for macOS.</p>
+      <div class="badges">
+        <img src="https://img.shields.io/badge/platform-macOS-black?logo=apple" alt="Platform: macOS">
+        <img src="https://img.shields.io/badge/arch-arm64%20%2B%20x64-informational" alt="Apple Silicon and Intel">
+        <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
+      </div>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/Lachi90/MacStorageAtlas/releases">Download for Mac</a>
+        <a class="btn btn-secondary" href="https://github.com/Lachi90/MacStorageAtlas">View on GitHub</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section>
+      <p><strong>MacStorageAtlas</strong> is a native <strong>disk usage analyzer for
+      macOS</strong> — a free <strong>WinDirStat, DaisyDisk, and GrandPerspective
+      alternative</strong> for Apple Silicon and Intel Macs. Wondering
+      <em>what is using my disk space on Mac</em>? Scan any folder or volume and see
+      the results as a sortable folder tree and an interactive treemap, so you can find
+      the space hogs and free up gigabytes in seconds.</p>
+      <img class="shot" src="images/01-overview.png" alt="MacStorageAtlas folder tree and interactive treemap of a scanned folder">
+    </section>
+
+    <section>
+      <h2>Features</h2>
+      <div class="grid">
+        <div class="feature"><h3>🗺️ Tree + treemap</h3><p>Two synchronized views: a folder tree sorted by size and a proportional treemap where the biggest blocks are the biggest consumers.</p></div>
+        <div class="feature"><h3>⚡ Live progress</h3><p>Async scanning streams paths, file/folder counts, and bytes as it runs. Hundreds of thousands of files stay responsive — cancel anytime.</p></div>
+        <div class="feature"><h3>📊 By file type & largest files</h3><p>Dedicated tabs for which file types take the most room and the single biggest files on disk, with counts and full paths.</p></div>
+        <div class="feature"><h3>🧹 Safe cleanup</h3><p>Reveal any item in Finder or move it to the Trash after a confirmation — nothing is permanently deleted by accident.</p></div>
+        <div class="feature"><h3>☁️ Cloud-aware on-disk size</h3><p>Measures the space files actually occupy, so undownloaded iCloud/OneDrive/kDrive placeholders count as roughly zero.</p></div>
+        <div class="feature"><h3>⚙️ Configurable scanning</h3><p>Toggle hidden files, symbolic links, and <code>.app</code> bundle expansion. Preferences and recent locations are remembered.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>How it compares</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th></th><th>MacStorageAtlas</th><th>DaisyDisk</th><th>GrandPerspective</th><th>WinDirStat</th></tr></thead>
+          <tbody>
+            <tr><td>Platform</td><td>macOS (arm64 + x64)</td><td>macOS</td><td>macOS</td><td>Windows</td></tr>
+            <tr><td>Price</td><td>Free &amp; open source</td><td>Paid</td><td>Free</td><td>Free</td></tr>
+            <tr><td>Treemap view</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+            <tr><td>Folder tree</td><td>✅</td><td>—</td><td>—</td><td>✅</td></tr>
+            <tr><td>File-type breakdown</td><td>✅</td><td>—</td><td>—</td><td>✅</td></tr>
+            <tr><td>Real on-disk size (cloud-aware)</td><td>✅</td><td>—</td><td>—</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Screenshots</h2>
+      <img class="shot" src="images/02-selected-item.png" alt="Selected treemap block with item name, path, and size">
+      <img class="shot" src="images/03-file-types.png" alt="Storage grouped by file extension">
+      <img class="shot" src="images/04-largest-files.png" alt="List of the largest files with full paths">
+    </section>
+
+    <section>
+      <div class="note">
+        <strong>Note:</strong> builds are not code-signed or notarized (no paid Apple
+        Developer account), so Gatekeeper blocks the app on first launch. Right-click the
+        app in <code>/Applications</code> → <strong>Open</strong>, or run
+        <code>xattr -dr com.apple.quarantine /Applications/MacStorageAtlas.app</code>.
+        Only do this for builds you trust.
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      Free &amp; open source under the MIT License ·
+      <a href="https://github.com/Lachi90/MacStorageAtlas">GitHub</a> ·
+      Built with .NET 10 and Avalonia
+    </div>
+  </footer>
+</body>
+</html>

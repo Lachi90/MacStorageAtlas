@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lachi90.github.io/MacStorageAtlas/sitemap.xml

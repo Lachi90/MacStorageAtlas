@@ -9,10 +9,13 @@
 ![UI: Avalonia](https://img.shields.io/badge/UI-Avalonia-8B5CF6)
 ![Arch: Apple Silicon + Intel](https://img.shields.io/badge/arch-arm64%20%2B%20x64-informational)
 
-**MacStorageAtlas** is a macOS disk usage analyzer inspired by WinDirStat-style
-tools. It helps you understand what consumes storage on your Mac by scanning
-folders and volumes, then visualizing the results as a sortable folder tree, a
-proportional treemap, file-type statistics, and a list of the largest files.
+**MacStorageAtlas** is a free, open-source **disk space analyzer for macOS** — a
+native **WinDirStat, DaisyDisk, and GrandPerspective alternative** for Apple
+Silicon and Intel Macs. If you're wondering *what is using my disk space on Mac*
+and want to *free up storage*, it scans folders and volumes and visualizes the
+results as a sortable folder tree, a proportional treemap, file-type statistics,
+and a list of the largest files — so you can find the space hogs and reclaim
+gigabytes in seconds.
 
 ![Folder tree and interactive treemap of a scanned folder](docs/images/01-overview.png)
 
@@ -85,6 +88,21 @@ runs.
 > Branding artwork lives under `src/MacStorageAtlas.App/Assets/`: `app.ico` (window
 > icon), `icon.png` (1024×1024 master), and `MacStorageAtlas.icns` for macOS app
 > bundling.
+
+## How it compares
+
+Looking for a **free DaisyDisk alternative** or a **WinDirStat for Mac**?
+MacStorageAtlas focuses on the essentials — a fast scan, a treemap, and safe
+cleanup — without a subscription or a price tag.
+
+| | MacStorageAtlas | DaisyDisk | GrandPerspective | WinDirStat |
+| --- | --- | --- | --- | --- |
+| Platform | macOS (arm64 + x64) | macOS | macOS | Windows |
+| Price | Free & open source | Paid | Free | Free |
+| Treemap view | ✅ | ✅ | ✅ | ✅ |
+| Folder tree | ✅ | — | — | ✅ |
+| File-type breakdown | ✅ | — | — | ✅ |
+| Real on-disk size (cloud-aware) | ✅ | — | — | — |
 
 ## Prerequisites
 
@@ -166,3 +184,15 @@ tests/
 
 - Product backlog and feature specifications: [`docs/FEATURES.md`](docs/FEATURES.md)
 - macOS packaging and distribution: [`docs/PACKAGING.md`](docs/PACKAGING.md)
+
+## License
+
+Released under the [MIT License](LICENSE).
+
+---
+
+<sub>Keywords: macOS disk usage analyzer · disk space analyzer for Mac · what is
+using my disk space on Mac · free up disk space macOS · WinDirStat for Mac ·
+DaisyDisk alternative · GrandPerspective alternative · treemap disk visualizer ·
+find largest files Mac · Apple Silicon disk cleanup · open source Mac storage
+tool.</sub>
