@@ -70,6 +70,11 @@
     .feature { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
     .feature h3 { margin: 0 0 8px; font-size: 1.1rem; }
     .feature p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+    .shots-2up { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 640px) { .shots-2up { grid-template-columns: 1fr; } }
+    figure { margin: 0; }
+    figure .shot { margin: 0; }
+    figcaption { color: var(--muted); font-size: 0.85rem; text-align: center; margin-top: 8px; }
     .table-scroll { overflow-x: auto; }
     table { border-collapse: collapse; width: 100%; min-width: 560px; }
     th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: center; }
@@ -140,10 +145,28 @@
     </section>
 
     <section>
-      <h2>Screenshots</h2>
-      <img class="shot" src="images/02-selected-item.png" alt="Selected treemap block with item name, path, and size">
-      <img class="shot" src="images/03-file-types.png" alt="Storage grouped by file extension">
-      <img class="shot" src="images/04-largest-files.png" alt="List of the largest files with full paths">
+      <h2>Live progress on huge volumes</h2>
+      <p>Scanning is fully async and streams the current path, file and folder
+      counts, and bytes scanned as it runs — hundreds of thousands of files stay
+      responsive, and a single click cancels while partial results stay visible.</p>
+      <img class="shot" src="images/06-scanning.png" alt="MacStorageAtlas live scan progress overlay showing current path, file and folder counts, and bytes scanned">
+    </section>
+
+    <section>
+      <h2>Answer the two questions that matter</h2>
+      <p>The same scan, two tabs: <em>which kinds of files take up the most room?</em>
+      and <em>what are the single biggest files on disk?</em> — each with counts,
+      sizes, and full paths.</p>
+      <div class="shots-2up">
+        <figure>
+          <img class="shot" src="images/03-file-types.png" alt="Storage grouped by file extension, with file counts and sizes">
+          <figcaption>Breakdown by file type</figcaption>
+        </figure>
+        <figure>
+          <img class="shot" src="images/04-largest-files.png" alt="List of the largest files on disk with full paths">
+          <figcaption>The single largest files on disk</figcaption>
+        </figure>
+      </div>
     </section>
 
     <section>
