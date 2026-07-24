@@ -54,8 +54,11 @@ so nothing is lost by accident.
 ### ⚙️ Configurable scanning
 
 Fine-tune what gets counted: scan inside `.app` bundles (or treat them as single
-items), include hidden files, and follow symbolic links. Preferences and recent
-scan locations are remembered between runs.
+items), include hidden files, and follow symbolic links. By default sizes reflect
+the space files **actually occupy on disk**, so undownloaded cloud placeholders
+(iCloud Drive, OneDrive, kDrive) count as roughly zero — switch to logical file
+size if you prefer. Preferences and recent scan locations are remembered between
+runs.
 
 ![Scan options: application bundles, hidden files, symbolic links](docs/images/05-options.png)
 
@@ -69,8 +72,8 @@ scan locations are remembered between runs.
 - Reveal items in Finder or move them safely to the Trash.
 - Inspect files and folders that couldn't be scanned, and copy their paths to
   the clipboard.
-- Configurable scanning: hidden files, symbolic links, and `.app` package
-  expansion.
+- Configurable scanning: hidden files, symbolic links, `.app` package
+  expansion, and real on-disk vs. logical size measurement.
 - Remembers your scanner preferences and recent scan locations between runs.
 - Modern, native-feeling UI that follows the system light/dark appearance, with
   a responsive treemap and a live scan-progress overlay.
