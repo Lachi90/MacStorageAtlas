@@ -9,7 +9,7 @@ set -e
 
 APP_NAME="MacStorageAtlas"
 BUNDLE_ID="de.ltsoftware.macstorageatlas"
-VERSION="1.1.0"
+VERSION="0.0.2"
 TARGET_FRAMEWORK="net10.0"
 
 # The project and its built executable (assembly name = project name).
