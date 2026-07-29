@@ -480,7 +480,7 @@ public class DiskScannerTests
     }
 
     [TestCase(StorageMeasurementMode.Allocated)]
-    [TestCase(StorageMeasurementMode.HardlinkAwareAllocated)]
+    [TestCase(StorageMeasurementMode.SharedAwareAllocated)]
     public async Task ScanAsyncReportsFailedAllocatedReadAndKeepsSuccessfulSibling(
         StorageMeasurementMode measurementMode)
     {
@@ -555,7 +555,7 @@ public class DiskScannerTests
     }
 
     [Test]
-    public async Task ScanAsyncCountsRepeatedIdentityOnceInHardlinkAwareMode()
+    public async Task ScanAsyncCountsRepeatedIdentityOnceInSharedAwareMode()
     {
         var firstFile = Path.Combine(_temporaryDirectory, "first.bin");
         var secondFile = Path.Combine(_temporaryDirectory, "second.bin");
@@ -568,7 +568,7 @@ public class DiskScannerTests
             allocatedMetadataReader: _ => Metadata(4096, fileId: 5, linkCount: 2));
         var options = new ScanOptions
         {
-            MeasurementMode = StorageMeasurementMode.HardlinkAwareAllocated
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated
         };
 
         var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
@@ -590,7 +590,7 @@ public class DiskScannerTests
             Assert.That(second.IsSizeCountedElsewhere, Is.True);
             Assert.That(
                 progress.Select(item => item.MeasurementMode),
-                Is.All.EqualTo(StorageMeasurementMode.HardlinkAwareAllocated));
+                Is.All.EqualTo(StorageMeasurementMode.SharedAwareAllocated));
         });
     }
 
@@ -610,7 +610,7 @@ public class DiskScannerTests
             allocatedMetadataReader: _ => Metadata(4096, fileId: 7, linkCount: 2));
         var options = new ScanOptions
         {
-            MeasurementMode = StorageMeasurementMode.HardlinkAwareAllocated
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated
         };
 
         var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
@@ -620,6 +620,7 @@ public class DiskScannerTests
         {
             Assert.That(root.SizeBytes, Is.EqualTo(4096));
             Assert.That(root.MeasuredSizeBytes, Is.EqualTo(8192));
+            Assert.That(root.SharedSizeBytes, Is.EqualTo(4096));
             Assert.That(root.Children.Sum(item => item.SizeBytes), Is.EqualTo(root.SizeBytes));
             Assert.That(
                 root.Children.Sum(item => item.MeasuredSizeBytes),
@@ -645,7 +646,7 @@ public class DiskScannerTests
                 : Metadata(8192, fileId: 9, linkCount: 2, deviceId: 2));
         var options = new ScanOptions
         {
-            MeasurementMode = StorageMeasurementMode.HardlinkAwareAllocated
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated
         };
 
         var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
@@ -669,7 +670,7 @@ public class DiskScannerTests
             allocatedMetadataReader: _ => Metadata(4096, fileId: 11, linkCount: 2));
         var options = new ScanOptions
         {
-            MeasurementMode = StorageMeasurementMode.HardlinkAwareAllocated
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated
         };
 
         var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
@@ -684,7 +685,7 @@ public class DiskScannerTests
     }
 
     [Test]
-    public async Task ScanAsyncMarksRepeatedZeroByteIdentityAsCountedElsewhere()
+    public async Task ScanAsyncKeepsRepeatedZeroByteIdentityInvariant()
     {
         var firstFile = Path.Combine(_temporaryDirectory, "first.bin");
         var secondFile = Path.Combine(_temporaryDirectory, "second.bin");
@@ -697,7 +698,7 @@ public class DiskScannerTests
             allocatedMetadataReader: _ => Metadata(0, fileId: 13, linkCount: 2));
         var options = new ScanOptions
         {
-            MeasurementMode = StorageMeasurementMode.HardlinkAwareAllocated
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated
         };
 
         var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
@@ -706,13 +707,13 @@ public class DiskScannerTests
         Assert.Multiple(() =>
         {
             Assert.That(items, Has.Count.EqualTo(2));
-            Assert.That(items.Count(item => item.IsSizeCountedElsewhere), Is.EqualTo(1));
+            Assert.That(items.Sum(item => item.SharedSizeBytes), Is.Zero);
             Assert.That(progress[^1].BytesScanned, Is.Zero);
         });
     }
 
     [Test]
-    public async Task ScanAsyncCountsFollowedFileAliasOnceInHardlinkAwareMode()
+    public async Task ScanAsyncCountsFollowedFileAliasOnceInSharedAwareMode()
     {
         var targetFile = Path.Combine(_temporaryDirectory, "target.bin");
         var linkFile = Path.Combine(_temporaryDirectory, "link.bin");
@@ -726,7 +727,7 @@ public class DiskScannerTests
         var options = new ScanOptions
         {
             FollowSymbolicLinks = true,
-            MeasurementMode = StorageMeasurementMode.HardlinkAwareAllocated
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated
         };
 
         var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
@@ -744,7 +745,7 @@ public class DiskScannerTests
     }
 
     [Test]
-    public async Task ScanAsyncDoesNotRetainSingleLinkIdentityWhenLinksAreNotFollowed()
+    public async Task ScanAsyncCountsEveryFilesystemIdentityOnceRegardlessOfLinkCount()
     {
         var firstFile = Path.Combine(_temporaryDirectory, "first.bin");
         var secondFile = Path.Combine(_temporaryDirectory, "second.bin");
@@ -755,17 +756,17 @@ public class DiskScannerTests
             allocatedMetadataReader: _ => Metadata(4096, fileId: 21));
         var options = new ScanOptions
         {
-            MeasurementMode = StorageMeasurementMode.HardlinkAwareAllocated
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated
         };
 
         var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
 
         Assert.Multiple(() =>
         {
-            Assert.That(progress[^1].BytesScanned, Is.EqualTo(8192));
+            Assert.That(progress[^1].BytesScanned, Is.EqualTo(4096));
             Assert.That(
-                progress[^1].Root.Children,
-                Has.None.Matches<DiskItem>(item => item.IsSizeCountedElsewhere));
+                progress[^1].Root.Children.Count(item => item.IsSizeCountedElsewhere),
+                Is.EqualTo(1));
         });
     }
 
@@ -783,7 +784,7 @@ public class DiskScannerTests
             allocatedMetadataReader: _ => Metadata(4096, fileId: 23, linkCount: 2));
         var options = new ScanOptions
         {
-            MeasurementMode = StorageMeasurementMode.HardlinkAwareAllocated,
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated,
             TreatPackagesAsDirectories = false
         };
 
@@ -823,7 +824,7 @@ public class DiskScannerTests
             allocatedMetadataReader: _ => Metadata(4096, fileId: 17, linkCount: 2));
         var options = new ScanOptions
         {
-            MeasurementMode = StorageMeasurementMode.HardlinkAwareAllocated,
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated,
             TreatPackagesAsDirectories = false
         };
 
@@ -867,7 +868,7 @@ public class DiskScannerTests
             });
         var options = new ScanOptions
         {
-            MeasurementMode = StorageMeasurementMode.HardlinkAwareAllocated
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated
         };
 
         var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
@@ -883,8 +884,238 @@ public class DiskScannerTests
         });
     }
 
+    [Test]
+    public async Task ScanAsyncCountsVerifiedFullCloneDataOnceAndNonDataPerIdentity()
+    {
+        var firstFile = Path.Combine(_temporaryDirectory, "first.bin");
+        var secondFile = Path.Combine(_temporaryDirectory, "second.bin");
+        await File.WriteAllBytesAsync(firstFile, new byte[10]);
+        await File.WriteAllBytesAsync(secondFile, new byte[10]);
+        var scanner = new DiskScanner(
+            path => path == _temporaryDirectory
+                ? [firstFile, secondFile]
+                : Directory.EnumerateFileSystemEntries(path),
+            allocatedMetadataReader: path => Metadata(
+                allocatedSizeBytes: 5120,
+                fileId: path == firstFile ? 31UL : 32UL,
+                dataAllocatedSizeBytes: 4096,
+                sharedDataStreamId: 73,
+                cloneAccountingCoverage: CloneAccountingCoverage.Available));
+        var options = new ScanOptions
+        {
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated
+        };
+
+        var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
+
+        var result = progress[^1];
+        var first = result.Root.Children.Single(item => item.Path == firstFile);
+        var second = result.Root.Children.Single(item => item.Path == secondFile);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.BytesScanned, Is.EqualTo(6144));
+            Assert.That(result.Root.SizeBytes, Is.EqualTo(6144));
+            Assert.That(result.Root.MeasuredSizeBytes, Is.EqualTo(10_240));
+            Assert.That(result.Root.SharedSizeBytes, Is.EqualTo(4096));
+            Assert.That(first.SizeBytes, Is.EqualTo(5120));
+            Assert.That(first.SharedSizeBytes, Is.Zero);
+            Assert.That(second.SizeBytes, Is.EqualTo(1024));
+            Assert.That(second.SharedSizeBytes, Is.EqualTo(4096));
+            Assert.That(
+                second.MeasuredSizeBytes,
+                Is.EqualTo(second.SizeBytes + second.SharedSizeBytes));
+            Assert.That(
+                progress
+                    .Where(item => item.FilesScanned > 0)
+                    .Select(item => item.CloneAccountingCoverage),
+                Is.All.EqualTo(CloneAccountingCoverage.Available));
+        });
+    }
+
+    [Test]
+    public async Task ScanAsyncCountsCloneOutsideScopeInFull()
+    {
+        var file = Path.Combine(_temporaryDirectory, "included.bin");
+        await File.WriteAllBytesAsync(file, new byte[10]);
+        var scanner = new DiskScanner(
+            Directory.EnumerateFileSystemEntries,
+            allocatedMetadataReader: _ => Metadata(
+                allocatedSizeBytes: 4096,
+                fileId: 35,
+                dataAllocatedSizeBytes: 4096,
+                sharedDataStreamId: 79,
+                cloneAccountingCoverage: CloneAccountingCoverage.Available));
+        var options = new ScanOptions
+        {
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated
+        };
+
+        var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(progress[^1].BytesScanned, Is.EqualTo(4096));
+            Assert.That(progress[^1].Root.Children.Single().SharedSizeBytes, Is.Zero);
+            Assert.That(
+                progress[^1].CloneAccountingCoverage,
+                Is.EqualTo(CloneAccountingCoverage.Available));
+        });
+    }
+
+    [Test]
+    public async Task ScanAsyncDoesNotMergeEqualCloneNumbersAcrossVolumes()
+    {
+        var firstFile = Path.Combine(_temporaryDirectory, "first.bin");
+        var secondFile = Path.Combine(_temporaryDirectory, "second.bin");
+        await File.WriteAllBytesAsync(firstFile, new byte[10]);
+        await File.WriteAllBytesAsync(secondFile, new byte[10]);
+        var scanner = new DiskScanner(
+            Directory.EnumerateFileSystemEntries,
+            allocatedMetadataReader: path => Metadata(
+                allocatedSizeBytes: 4096,
+                fileId: path == firstFile ? 41UL : 42UL,
+                deviceId: path == firstFile ? 1UL : 2UL,
+                dataAllocatedSizeBytes: 4096,
+                sharedDataStreamId: 83,
+                sharedDataVolumeId: path == firstFile ? 1UL : 2UL,
+                cloneAccountingCoverage: CloneAccountingCoverage.Available));
+        var options = new ScanOptions
+        {
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated
+        };
+
+        var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(progress[^1].BytesScanned, Is.EqualTo(8192));
+            Assert.That(progress[^1].Root.SharedSizeBytes, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task ScanAsyncProducesSameRootTotalForEitherCloneTraversalOrder()
+    {
+        var firstFile = Path.Combine(_temporaryDirectory, "first.bin");
+        var secondFile = Path.Combine(_temporaryDirectory, "second.bin");
+        await File.WriteAllBytesAsync(firstFile, new byte[10]);
+        await File.WriteAllBytesAsync(secondFile, new byte[10]);
+        var options = new ScanOptions
+        {
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated
+        };
+
+        async Task<long> ScanInOrderAsync(string[] paths)
+        {
+            var scanner = new DiskScanner(
+                path => path == _temporaryDirectory
+                    ? paths
+                    : Directory.EnumerateFileSystemEntries(path),
+                allocatedMetadataReader: path => Metadata(
+                    allocatedSizeBytes: path == firstFile ? 5120 : 6144,
+                    fileId: path == firstFile ? 47UL : 48UL,
+                    dataAllocatedSizeBytes: 4096,
+                    sharedDataStreamId: 89,
+                    cloneAccountingCoverage: CloneAccountingCoverage.Available));
+            var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
+            return progress[^1].BytesScanned;
+        }
+
+        var forwardTotal = await ScanInOrderAsync([firstFile, secondFile]);
+        var reverseTotal = await ScanInOrderAsync([secondFile, firstFile]);
+
+        Assert.That(forwardTotal, Is.EqualTo(reverseTotal).And.EqualTo(7168));
+    }
+
+    [Test]
+    public async Task ScanAsyncFailsClosedForInconsistentCloneAllocation()
+    {
+        var firstFile = Path.Combine(_temporaryDirectory, "first.bin");
+        var secondFile = Path.Combine(_temporaryDirectory, "second.bin");
+        await File.WriteAllBytesAsync(firstFile, new byte[10]);
+        await File.WriteAllBytesAsync(secondFile, new byte[10]);
+        var scanner = new DiskScanner(
+            Directory.EnumerateFileSystemEntries,
+            allocatedMetadataReader: path => Metadata(
+                allocatedSizeBytes: 8192,
+                fileId: path == firstFile ? 51UL : 52UL,
+                dataAllocatedSizeBytes: path == firstFile ? 4096 : 8192,
+                sharedDataStreamId: 97,
+                cloneAccountingCoverage: CloneAccountingCoverage.Available));
+        var options = new ScanOptions
+        {
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated
+        };
+
+        var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(progress[^1].BytesScanned, Is.EqualTo(16_384));
+            Assert.That(progress[^1].Root.SharedSizeBytes, Is.Zero);
+            Assert.That(
+                progress[^1].CloneAccountingCoverage,
+                Is.EqualTo(CloneAccountingCoverage.Partial));
+        });
+    }
+
+    [Test]
+    public async Task ScanAsyncFailsClosedWhenOptionalCloneMetadataIsMissing()
+    {
+        var file = Path.Combine(_temporaryDirectory, "file.bin");
+        await File.WriteAllBytesAsync(file, new byte[10]);
+        var scanner = new DiskScanner(
+            Directory.EnumerateFileSystemEntries,
+            allocatedMetadataReader: _ => Metadata(
+                allocatedSizeBytes: 4096,
+                cloneAccountingCoverage: CloneAccountingCoverage.Partial));
+        var options = new ScanOptions
+        {
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated
+        };
+
+        var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(progress[^1].BytesScanned, Is.EqualTo(4096));
+            Assert.That(progress[^1].Root.SharedSizeBytes, Is.Zero);
+            Assert.That(
+                progress[^1].CloneAccountingCoverage,
+                Is.EqualTo(CloneAccountingCoverage.Partial));
+        });
+    }
+
+    [Test]
+    public async Task ScanAsyncReportsPartialCoverageAcrossMixedEntries()
+    {
+        var firstFile = Path.Combine(_temporaryDirectory, "first.bin");
+        var secondFile = Path.Combine(_temporaryDirectory, "second.bin");
+        await File.WriteAllBytesAsync(firstFile, new byte[10]);
+        await File.WriteAllBytesAsync(secondFile, new byte[10]);
+        var scanner = new DiskScanner(
+            Directory.EnumerateFileSystemEntries,
+            allocatedMetadataReader: path => Metadata(
+                allocatedSizeBytes: 4096,
+                fileId: path == firstFile ? 61UL : 62UL,
+                dataAllocatedSizeBytes: path == firstFile ? 4096 : null,
+                cloneAccountingCoverage: path == firstFile
+                    ? CloneAccountingCoverage.Available
+                    : CloneAccountingCoverage.Unavailable));
+        var options = new ScanOptions
+        {
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated
+        };
+
+        var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
+
+        Assert.That(
+            progress[^1].CloneAccountingCoverage,
+            Is.EqualTo(CloneAccountingCoverage.Partial));
+    }
+
     [TestCase(StorageMeasurementMode.Allocated)]
-    [TestCase(StorageMeasurementMode.HardlinkAwareAllocated)]
+    [TestCase(StorageMeasurementMode.SharedAwareAllocated)]
     public async Task ScanAsyncCancellationPreservesConsistentAllocatedPartialProgress(
         StorageMeasurementMode measurementMode)
     {
@@ -962,9 +1193,19 @@ public class DiskScannerTests
         long allocatedSizeBytes,
         ulong fileId = 1,
         uint linkCount = 1,
-        ulong deviceId = 1) =>
+        ulong deviceId = 1,
+        long? dataAllocatedSizeBytes = null,
+        ulong? sharedDataStreamId = null,
+        ulong sharedDataVolumeId = 1,
+        CloneAccountingCoverage cloneAccountingCoverage =
+            CloneAccountingCoverage.Unavailable) =>
         new(
             allocatedSizeBytes,
             new FileIdentity(deviceId, fileId),
-            linkCount);
+            linkCount,
+            dataAllocatedSizeBytes,
+            sharedDataStreamId is { } dataStreamId
+                ? new SharedDataIdentity(sharedDataVolumeId, dataStreamId)
+                : null,
+            cloneAccountingCoverage);
 }

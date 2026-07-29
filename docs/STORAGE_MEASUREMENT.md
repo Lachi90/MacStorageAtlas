@@ -1,9 +1,8 @@
 # Storage measurement semantics
 
-MacStorageAtlas reports the size of the entries it successfully visits. Those
-scan totals are not interchangeable with macOS volume-capacity numbers, and
-even hardlink-aware allocated totals are not yet unique physical-storage
-totals.
+MacStorageAtlas reports the size of entries it successfully visits. Scan totals
+are not interchangeable with macOS volume-capacity numbers, unique physical
+storage, or the bytes that deleting one path would reclaim.
 
 ## File-size terms
 
@@ -11,18 +10,19 @@ totals.
   compressed storage, and cloud content that is not present locally can make
   this much larger than the storage currently allocated on the Mac.
 - **Allocated file size** is the local filesystem allocation attributed to one
-  visited file path. On macOS, MacStorageAtlas reads `st_blocks × 512` from file
-  metadata.
-- **Hardlink-aware allocated size** counts allocated storage once for each
-  filesystem file identity in the scan scope. It recognizes identities by
-  device and inode, but it does not deduplicate shared extents belonging to
-  distinct APFS clone identities.
-- **Unique allocated size** counts storage once across file identities and
-  shared physical extents in a stated scan scope. MacStorageAtlas does not yet
-  report this value because APFS clone extents are not deduplicated.
+  visited file path.
+- **Shared-aware allocated size** counts each filesystem file identity once in
+  the scan scope. Where supported metadata verifies distinct identities as full
+  clones of one data stream, it also counts that data allocation once.
+  Allocation outside the verified data stream continues to count for each
+  identity.
+- **Unique allocated size** would count allocation once across every file
+  identity and shared physical extent in a stated scope. MacStorageAtlas does
+  not report this value.
 
-Logical and allocated measurement read metadata only. They do not read file
-contents, contact a cloud provider, or request that an undownloaded placeholder
+Logical and allocated measurement use metadata only. Scanning does not compare
+contents, hash files, open data forks for clone inspection, enumerate physical
+extents, contact a cloud provider, or request that an undownloaded placeholder
 be materialized.
 
 ## Volume-capacity terms
@@ -36,8 +36,7 @@ These terms describe a filesystem or APFS volume, not the sum of a scan tree:
 - **Available space** is capacity currently available for allocation. It can
   differ from free space because of reservations and reclaimable storage.
 - **Purgeable space** is used capacity that macOS reports as reclaimable without
-  deleting user-designated files. It can change as macOS manages caches and
-  snapshots.
+  deleting user-designated files.
 
 MacStorageAtlas does not currently display volume capacity, used, available, or
 purgeable values. A folder or volume scan total must not be labeled as volume
@@ -45,69 +44,105 @@ used space.
 
 ## What contributes to a scan total
 
-One measurement basis is captured when a scan starts and is retained with every
+One measurement basis is captured when a scan starts and retained with every
 progress update and the completed result:
 
 - In logical mode, each included path contributes its logical length.
-- In allocated-per-path mode, each included path contributes its locally
-  allocated bytes.
-- In hardlink-aware allocated mode, the first successfully measured path for a
-  file identity contributes its locally allocated bytes and later included
-  paths contribute no additional bytes. The App uses this mode by default.
-- A directory contributes the sum of its successfully measured descendants
-  using the same basis.
-- Hidden entries and symbolic links contribute only when their corresponding
-  scan options include them. When symbolic links are followed, repeated target
-  identities are also counted once in hardlink-aware mode.
-- A collapsed `.app` package still includes the measured total of its
-  descendants; only its presentation is collapsed. Hardlinks spanning a
-  package boundary participate in the same scan-wide accounting.
-- A metadata or access failure is listed as a scan error and contributes no
-  invented value. Allocated modes do not silently substitute logical length
-  when macOS allocation or identity metadata is unavailable.
-- A cancelled scan is incomplete. Any retained progress total contains only
-  entries measured before cancellation.
+- In allocated-per-path mode, each included path contributes its total local
+  allocation.
+- In shared-aware allocated mode, the first included path for a filesystem
+  identity contributes its total local allocation. Repeated hardlinks and
+  followed symbolic-link aliases contribute zero.
+- The first included identity in a verified full-clone group contributes its
+  full total. Each later full clone contributes its total allocation minus its
+  verified shared data allocation.
+- Non-data allocation, including resource-fork allocation, continues to
+  contribute once for every distinct filesystem identity.
+- Clone reference count classifies full-clone metadata; it never divides bytes.
+- A full clone outside the selected scope does not suppress the first included
+  contribution.
+- Divergent clones that share only some physical extents contribute their full
+  per-identity allocation.
+- Missing, malformed, or inconsistent optional clone metadata fails closed:
+  the affected identity contributes normally and coverage becomes partial.
+- A directory contributes the additive measured, counted, and shared totals of
+  its successfully measured descendants.
+- Hidden entries and symbolic links contribute only when their scan options
+  include them.
+- A collapsed `.app` package still includes its descendants in accounting;
+  only its presentation is collapsed.
+- A required allocation or identity failure is listed as a scan error and
+  contributes no invented or logical fallback value.
+- A cancelled scan is incomplete and contains only entries measured before
+  cancellation.
 
-Every included path remains available in the folder tree and search. An
-additional hardlink shows its measured allocation together with a shared
-storage indication, while treemaps and derived byte totals use only its counted
-contribution.
+Every included path remains browsable. Item details distinguish its measured
+allocation, counted contribution, and shared bytes. Treemaps, file-type totals,
+largest-file ordering, progress, and directory totals use counted
+contributions.
 
-The macOS metadata reader lives in Platform.Mac and supplies allocated bytes,
-device, inode, and link count in one `stat(2)` call. Portable Core does not
-invent allocated metadata when no platform reader is available.
+## Clone-accounting coverage
+
+Shared-aware progress and completed results capture the coverage observed so
+far:
+
+- **Available** means every relevant observed allocated entry exposed the
+  capability and complete clone metadata.
+- **Unavailable** means none of the observed volumes exposed supported clone
+  mapping. Hardlink accounting remains active.
+- **Partial** means capable and incapable volumes were mixed, an optional
+  metadata read degraded, or clone-group metadata was inconsistent.
+
+Platform.Mac probes and caches `VOL_CAP_FMT_CLONE_MAPPING` by mounted-volume
+identity. On a capable volume it uses one public `getattrlist(2)` read for
+total allocation, data allocation, device, file identifier, link count, clone
+identifier, clone reference count, returned attributes, and sharing flags. The
+reader validates returned masks and buffer lengths before exposing an opaque
+shared-data identity to Core.
+
+macOS 11 through 13 and unsupported filesystems retain the `stat(2)` fallback
+for total allocation and filesystem identity, so shared-aware mode still counts
+hardlinks correctly while reporting clone accounting as unavailable. Optional
+clone failures retain required allocation through the same fallback and report
+partial coverage. Apple Silicon uses the native entry points; Intel preserves
+the 64-bit-inode ABI entry points.
 
 ## Reproducible macOS fixtures
 
-The following commands create one ordinary 1 MiB file, a hardlink to it, and
-one sparse file with a 1 GiB logical length:
+The integration suite creates isolated temporary fixtures for an ordinary file,
+a full clone, a clone made divergent by a small write, a hardlink, a sparse
+file, and a full clone with independent resource-fork allocation. It gates
+clone assertions on macOS and the advertised mounted-volume capability, ignores
+unsupported environments with a reason, and removes its temporary directory.
+
+The same shapes can be inspected manually on a capable APFS volume:
 
 ```shell
 fixture_dir=$(mktemp -d /tmp/MacStorageAtlas-measurement.XXXXXX)
-mkfile 1m "$fixture_dir/normal.bin"
+mkfile 1m "$fixture_dir/original.bin"
+mkfile 1m "$fixture_dir/ordinary.bin"
+cp -c "$fixture_dir/original.bin" "$fixture_dir/full-clone.bin"
+cp -c "$fixture_dir/original.bin" "$fixture_dir/divergent-clone.bin"
+printf '\1' | dd of="$fixture_dir/divergent-clone.bin" bs=1 seek=4096 conv=notrunc
+ln "$fixture_dir/original.bin" "$fixture_dir/original-link.bin"
 mkfile -n 1g "$fixture_dir/sparse.bin"
-ln "$fixture_dir/normal.bin" "$fixture_dir/normal-link.bin"
+mkfile 1m "$fixture_dir/fork-source.bin"
+cp -c "$fixture_dir/fork-source.bin" "$fixture_dir/fork-clone.bin"
+mkfile 8k "$fixture_dir/fork-clone.bin/..namedfork/rsrc"
 
 stat -f '%N device=%d inode=%i links=%l logical=%z blocks=%b' \
-  "$fixture_dir/normal.bin" \
-  "$fixture_dir/normal-link.bin" \
-  "$fixture_dir/sparse.bin"
-du -k \
-  "$fixture_dir/normal.bin" \
-  "$fixture_dir/normal-link.bin" \
-  "$fixture_dir/sparse.bin"
-du -k -l \
-  "$fixture_dir/normal.bin" \
-  "$fixture_dir/normal-link.bin" \
-  "$fixture_dir/sparse.bin"
+  "$fixture_dir"/*.bin
+du -k "$fixture_dir"/*.bin
+du -k -l "$fixture_dir"/*.bin
 ```
 
-`stat` reports allocated blocks in 512-byte units, so multiply `%b` by 512 to
-compare it with MacStorageAtlas allocated bytes. On macOS, ordinary `du`
-deduplicates the repeated hardlink identity while `du -l` counts each path.
-Flags and platform variants can change aggregate scope or units.
+`stat` reports allocated blocks in 512-byte units. Multiply `%b` by 512 to
+compare it with allocated bytes. Ordinary `du` deduplicates repeated hardlink
+identities while `du -l` counts each path; aggregate tools may handle clone
+sharing differently.
 
-Verified on 2026-07-24 using arm64 macOS 26.5.2 on APFS:
+The baseline hardlink and sparse fixture was verified on 2026-07-24 using
+arm64 macOS 26.5.2 on APFS:
 
 | Fixture | Logical bytes | Allocated bytes | Link count | Ordinary `du -k` |
 | --- | ---: | ---: | ---: | ---: |
@@ -115,13 +150,13 @@ Verified on 2026-07-24 using arm64 macOS 26.5.2 on APFS:
 | `normal-link.bin` | 1,048,576 | 1,048,576 | 2 | Deduplicated |
 | `sparse.bin` | 1,073,741,824 | 16,384 | 1 | 16 |
 
-The exact sparse allocation can vary by filesystem and macOS version. The
-architecture-independent observation is that logical mode reports 1 GiB while
-either allocated mode reports only the blocks locally committed to the sparse
-file. The two normal paths have the same device and inode: per-path allocated
-mode counts 2 MiB, while hardlink-aware allocated mode counts 1 MiB.
+Exact sparse and non-data allocation can vary by filesystem and macOS version.
+The stable observations are that allocated modes do not substitute logical
+length, hardlinks share one filesystem identity, verified full-clone data is
+counted once only within the included scope, and divergent clone extents are
+not deduplicated.
 
-Remove the fixture directory after inspection:
+Remove the manual fixture after inspection:
 
 ```shell
 case "$fixture_dir" in
@@ -130,20 +165,15 @@ case "$fixture_dir" in
 esac
 ```
 
-## Comparing other tools
+## Comparing other tools and cleanup
 
-Finder, `du`, and `stat` are useful comparison points only when the path, scope,
-units, symlink behavior, and measurement basis match. Finder can round values or
-show logical and on-disk values separately. Aggregate tools can also deduplicate
-hardlinks or shared storage differently.
+Finder, `du`, and `stat` are useful comparison points only when path, scope,
+units, symlink behavior, and measurement basis match. Equal content does not
+prove shared physical storage, and a shared-aware total is not a promise of
+unique physical or reclaimable bytes.
 
-Equal content does not prove shared physical storage. Until the dedicated
-APFS-clone change is implemented, MacStorageAtlas makes no claim that a
-hardlink-aware total is unique physical storage.
-
-Hardlink accounting is scoped to included paths. A link outside the selected
-scope does not suppress the first included contribution and can keep the
-underlying storage alive after an included link is moved to Trash. For that
-reason, scan totals are not promises of reclaimable bytes. After a successful
-Trash operation on a hardlink-aware result, the App rescans with the original
-options so a remaining included link can become the counted representative.
+A hardlink or clone outside the selected scope can keep storage alive after an
+included path is moved to Trash. After a successful Trash operation on a
+shared-aware result, the App rescans with the captured options so another
+included path can become the counted representative. Failed or cancelled Trash
+operations leave the existing result unchanged.

@@ -58,14 +58,13 @@ so nothing is lost by accident.
 
 Fine-tune what gets counted: scan inside `.app` bundles (or treat them as single
 items), include hidden files, and follow symbolic links. By default sizes use
-locally allocated blocks and count repeated hardlink identities once, so
-undownloaded cloud placeholders count as roughly zero without overstating
-hardlinked files. You can instead choose allocated size per path or logical
-file length. APFS clone extents are not yet deduplicated; see [Storage
-measurement semantics](docs/STORAGE_MEASUREMENT.md). Preferences and recent
-scan locations are remembered between runs.
-
-![Scan options with application bundles, hidden files, symbolic links, and three size measurement modes](docs/images/05-options.png)
+shared-aware allocated measurement: repeated hardlink identities count once,
+and verified full-clone data counts once on capable volumes. Independently
+allocated non-data storage and divergent clone extents remain per identity.
+You can instead choose allocated size per path or logical file length. See
+[Storage measurement semantics](docs/STORAGE_MEASUREMENT.md) for capability
+coverage and scope. Preferences and recent scan locations are remembered
+between runs.
 
 ## Features
 
@@ -78,7 +77,7 @@ scan locations are remembered between runs.
 - Inspect files and folders that couldn't be scanned, and copy their paths to
   the clipboard.
 - Configurable scanning: hidden files, symbolic links, `.app` package
-  expansion, and logical, per-path allocated, or hardlink-aware allocated size
+  expansion, and logical, per-path allocated, or shared-aware allocated size
   measurement.
 - Remembers your scanner preferences and recent scan locations between runs.
 - Modern, native-feeling UI that follows the system light/dark appearance, with
@@ -103,17 +102,17 @@ cleanup — without a subscription or a price tag.
 | Platform | macOS (Apple Silicon + Intel) | [macOS (Apple Silicon + Intel)][daisydisk-pricing] | [macOS (Apple Silicon + Intel)][grandperspective] | [Windows][windirstat] |
 | Distribution | [Free, MIT-licensed open source](LICENSE) | [$9.99 one-time commercial license][daisydisk-pricing] | [Free GPL build; $2.99 App Store build][grandperspective] | [Free, GPLv2 open source][windirstat] |
 | Main analysis views | [Folder tree, rectangular treemap, file-type statistics](#highlights) | [Sunburst disk map and sidebar list][daisydisk-map] | [Rectangular treemap][grandperspective] | [Directory/file lists, treemap, and extension statistics][windirstat] |
-| File-size measurement | [Logical length, allocated blocks per path, or hardlink-aware allocated blocks](src/MacStorageAtlas.Platform.Mac/MacFileMetadataReader.cs) | [Physical size; hardlinks and full APFS clones are counted once][daisydisk-hardlinks] | [Logical, physical, or file-count sizing][grandperspective-sizes]; [hardlinks counted once per view][grandperspective-hardlinks] | [Logical or physical sizing with hardlink deduplication][windirstat-source] |
+| File-size measurement | [Logical length, allocated blocks per path, or shared-aware allocated blocks](src/MacStorageAtlas.Platform.Mac/MacFileMetadataReader.cs); hardlinks and verified full-clone data count once where capability coverage permits | [Physical size; hardlinks and full APFS clones are counted once][daisydisk-hardlinks] | [Logical, physical, or file-count sizing][grandperspective-sizes]; [hardlinks counted once per view][grandperspective-hardlinks] | [Logical or physical sizing with hardlink deduplication][windirstat-source] |
 
 **Storage-measurement note:** these products do not use one interchangeable
 definition of “real size.” MacStorageAtlas handles sparse files and local cloud
-placeholders and, by default, counts one allocation per filesystem identity.
-Its optional per-path mode counts every visited path. Neither allocated mode
-deduplicates shared APFS clone extents; that work remains tracked in
-[WP-02](docs/IMPLEMENTATION_ROADMAP.md#wp-02---hardlinkapfs-correctness-and-scan-benchmarks).
-DaisyDisk documents full APFS-clone detection on macOS 14 Sonoma and later.
+placeholders and, by default, counts hardlinks once plus verified full-clone
+data once on capable volumes. It does not deduplicate divergent clone extents
+and does not claim unique physical or reclaimable storage. The optional
+per-path mode counts every visited path. DaisyDisk documents full APFS-clone
+detection on macOS 14 Sonoma and later.
 
-Comparison last verified against the linked first-party sources: **2026-07-24**.
+Comparison last verified against the linked first-party sources: **2026-07-25**.
 Prices and capabilities can change; follow the links for current product
 details.
 

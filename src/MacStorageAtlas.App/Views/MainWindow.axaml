@@ -59,7 +59,7 @@
                                     </ComboBox>
                                     <TextBlock Classes="caption"
                                                TextWrapping="Wrap"
-                                               Text="Hardlink-aware allocated size is the default. It counts repeated file identities once but does not deduplicate APFS clone extents."/>
+                                               Text="Shared-aware allocated size is the default. It counts hardlinks once and verified full-clone data once where supported; divergent clone extents remain per file."/>
                                 </StackPanel>
                             </Flyout>
                         </Button.Flyout>
@@ -155,6 +155,9 @@
                     <TextBlock Classes="caption">
                         <Run Text="{Binding MeasurementBasisLabel}"/><Run Text=": "/><Run Text="{Binding BytesScanned, Mode=OneWay, Converter={x:Static conv:ByteSizeConverter.Instance}}"/>
                     </TextBlock>
+                    <TextBlock Classes="caption"
+                               Text="{Binding CloneAccountingCoverageLabel}"
+                               IsVisible="{Binding ResultMeasurementMode, Converter={x:Static conv:SharedAwareMeasurementModeConverter.Instance}}"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -283,7 +286,7 @@
                                                    Text="Select an item in the tree, treemap, or largest-files list to see its details."
                                                    IsVisible="{Binding !HasSelectedItem}"/>
                                         <Grid ColumnDefinitions="Auto,*"
-                                              RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                                              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
                                               ColumnSpacing="16" RowSpacing="8"
                                               IsVisible="{Binding HasSelectedItem}">
                                             <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Name"/>
@@ -294,9 +297,11 @@
                                             <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedItemMeasuredSize}"/>
                                             <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Counted"/>
                                             <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedItemCountedSize}"/>
-                                            <TextBlock Grid.Row="4" Grid.ColumnSpan="2"
+                                            <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="Shared"/>
+                                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedItemSharedSize}"/>
+                                            <TextBlock Grid.Row="5" Grid.ColumnSpan="2"
                                                        Classes="caption"
-                                                       Text="This path shares storage with another included path; its allocation is counted elsewhere."
+                                                       Text="This path shares storage with another included path. Counted bytes remain attributed to this path; shared bytes are represented elsewhere."
                                                        TextWrapping="Wrap"
                                                        IsVisible="{Binding SelectedItemIsCountedElsewhere}"/>
                                         </Grid>

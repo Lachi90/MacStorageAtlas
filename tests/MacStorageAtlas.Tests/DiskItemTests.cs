@@ -21,7 +21,8 @@ public class DiskItemTests
         var root = new DiskItem("root", "/root", isDirectory: true)
         {
             SizeBytes = 4096,
-            MeasuredSizeBytes = 8192
+            MeasuredSizeBytes = 8192,
+            SharedSizeBytes = 4096
         };
         var counted = new DiskItem(
             "counted.bin",
@@ -38,7 +39,7 @@ public class DiskItemTests
         {
             SizeBytes = 0,
             MeasuredSizeBytes = 4096,
-            IsSizeCountedElsewhere = true
+            SharedSizeBytes = 4096
         };
         root.AddChild(counted);
         root.AddChild(shared);
@@ -50,7 +51,27 @@ public class DiskItemTests
             Assert.That(removed, Is.True);
             Assert.That(root.SizeBytes, Is.EqualTo(4096));
             Assert.That(root.MeasuredSizeBytes, Is.EqualTo(4096));
+            Assert.That(root.SharedSizeBytes, Is.Zero);
             Assert.That(root.Children, Is.EqualTo(new[] { counted }));
+        });
+    }
+
+    [Test]
+    public void SharedBytesSupplementCountedContribution()
+    {
+        var item = new DiskItem("clone.bin", "/clone.bin", isDirectory: false)
+        {
+            SizeBytes = 1024,
+            MeasuredSizeBytes = 5120,
+            SharedSizeBytes = 4096
+        };
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(item.IsSizeCountedElsewhere, Is.True);
+            Assert.That(
+                item.MeasuredSizeBytes,
+                Is.EqualTo(item.SizeBytes + item.SharedSizeBytes));
         });
     }
 }

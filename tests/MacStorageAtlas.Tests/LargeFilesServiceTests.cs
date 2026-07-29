@@ -77,7 +77,7 @@ public class LargeFilesServiceTests
         {
             SizeBytes = 0,
             MeasuredSizeBytes = 4096,
-            IsSizeCountedElsewhere = true
+            SharedSizeBytes = 4096
         };
         root.AddChild(shared);
         root.AddChild(counted);
@@ -89,6 +89,28 @@ public class LargeFilesServiceTests
             Assert.That(largest, Is.EqualTo(new[] { counted, shared }));
             Assert.That(shared.MeasuredSizeBytes, Is.EqualTo(4096));
         });
+    }
+
+    [Test]
+    public void GetLargestFilesRanksPartiallySharedCloneByCountedContribution()
+    {
+        var root = new DiskItem("root", "/root", isDirectory: true);
+        var ordinary = File("ordinary.bin", "/root/ordinary.bin", 2048);
+        var clone = new DiskItem(
+            "clone.bin",
+            "/root/clone.bin",
+            isDirectory: false)
+        {
+            SizeBytes = 1024,
+            MeasuredSizeBytes = 5120,
+            SharedSizeBytes = 4096
+        };
+        root.AddChild(clone);
+        root.AddChild(ordinary);
+
+        var largest = _service.GetLargestFiles(root);
+
+        Assert.That(largest, Is.EqualTo(new[] { ordinary, clone }));
     }
 
     private static DiskItem File(string name, string path, long size) =>

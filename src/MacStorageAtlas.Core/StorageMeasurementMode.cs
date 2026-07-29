@@ -6,5 +6,5 @@ public enum StorageMeasurementMode
 
     Allocated,
 
-    HardlinkAwareAllocated
+    SharedAwareAllocated
 }

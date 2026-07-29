@@ -40,7 +40,7 @@ public class JsonSettingsServiceTests
             Assert.That(settings.TreatPackagesAsDirectories, Is.True);
             Assert.That(
                 settings.EffectiveMeasurementMode,
-                Is.EqualTo(StorageMeasurementMode.HardlinkAwareAllocated));
+                Is.EqualTo(StorageMeasurementMode.SharedAwareAllocated));
             Assert.That(settings.RecentLocations, Is.Empty);
         });
     }
@@ -79,7 +79,7 @@ public class JsonSettingsServiceTests
         });
     }
 
-    [TestCase(true, StorageMeasurementMode.HardlinkAwareAllocated)]
+    [TestCase(true, StorageMeasurementMode.SharedAwareAllocated)]
     [TestCase(false, StorageMeasurementMode.Logical)]
     public void LoadMigratesLegacyAllocatedPreferenceAndPreservesOtherSettings(
         bool measureAllocatedSize,
@@ -112,7 +112,7 @@ public class JsonSettingsServiceTests
 
     [TestCase(StorageMeasurementMode.Logical)]
     [TestCase(StorageMeasurementMode.Allocated)]
-    [TestCase(StorageMeasurementMode.HardlinkAwareAllocated)]
+    [TestCase(StorageMeasurementMode.SharedAwareAllocated)]
     public void LoadReadsNamedMeasurementModes(StorageMeasurementMode measurementMode)
     {
         Directory.CreateDirectory(_directory);
@@ -127,6 +127,53 @@ public class JsonSettingsServiceTests
         var settings = new JsonSettingsService(_settingsFilePath).Load();
 
         Assert.That(settings.EffectiveMeasurementMode, Is.EqualTo(measurementMode));
+    }
+
+    [Test]
+    public void LoadMigratesHardlinkAwareModeNameAndPreservesOtherSettings()
+    {
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(
+            _settingsFilePath,
+            """
+            {
+              "IncludeHiddenFiles": true,
+              "FollowSymbolicLinks": true,
+              "TreatPackagesAsDirectories": false,
+              "MeasurementMode": "HardlinkAwareAllocated",
+              "RecentLocations": ["/Users/test/Legacy"]
+            }
+            """);
+
+        var settings = new JsonSettingsService(_settingsFilePath).Load();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                settings.EffectiveMeasurementMode,
+                Is.EqualTo(StorageMeasurementMode.SharedAwareAllocated));
+            Assert.That(settings.IncludeHiddenFiles, Is.True);
+            Assert.That(settings.FollowSymbolicLinks, Is.True);
+            Assert.That(settings.TreatPackagesAsDirectories, Is.False);
+            Assert.That(
+                settings.RecentLocations,
+                Is.EqualTo(new[] { "/Users/test/Legacy" }));
+        });
+    }
+
+    [Test]
+    public void SaveWritesSharedAwareModeName()
+    {
+        var settings = new AppSettings
+        {
+            MeasurementMode = StorageMeasurementMode.SharedAwareAllocated
+        };
+
+        new JsonSettingsService(_settingsFilePath).Save(settings);
+
+        Assert.That(
+            File.ReadAllText(_settingsFilePath),
+            Does.Contain("\"MeasurementMode\": \"SharedAwareAllocated\""));
     }
 
     [Test]
@@ -149,7 +196,7 @@ public class JsonSettingsServiceTests
         {
             Assert.That(
                 settings.EffectiveMeasurementMode,
-                Is.EqualTo(StorageMeasurementMode.HardlinkAwareAllocated));
+                Is.EqualTo(StorageMeasurementMode.SharedAwareAllocated));
             Assert.That(settings.IncludeHiddenFiles, Is.True);
             Assert.That(settings.RecentLocations, Is.EqualTo(new[] { "/Users/test/Kept" }));
         });

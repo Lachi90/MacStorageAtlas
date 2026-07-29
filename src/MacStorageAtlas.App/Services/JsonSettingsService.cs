@@ -41,10 +41,19 @@ public sealed class JsonSettingsService : ISettingsService
             }
 
             if (reader.TokenType == JsonTokenType.String
-                && Enum.TryParse<StorageMeasurementMode>(
+                && string.Equals(
+                    reader.GetString(),
+                    "HardlinkAwareAllocated",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return StorageMeasurementMode.SharedAwareAllocated;
+            }
+
+            if (reader.TokenType == JsonTokenType.String
+                && Enum.TryParse(
                     reader.GetString(),
                     ignoreCase: true,
-                    out var namedMode)
+                    out StorageMeasurementMode namedMode)
                 && Enum.IsDefined(namedMode))
             {
                 return namedMode;

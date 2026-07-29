@@ -1,5 +1,6 @@
 using System.IO;
 using System.Runtime.CompilerServices;
+using MacStorageAtlas.App.Converters;
 using MacStorageAtlas.App.Models;
 using MacStorageAtlas.App.Services;
 using MacStorageAtlas.App.ViewModels;
@@ -22,7 +23,7 @@ public class MainWindowViewModelTests
     }
 
     [Test]
-    public void ApplicationDefaultsToHardlinkAwareAllocatedMeasurement()
+    public void ApplicationDefaultsToSharedAwareAllocatedMeasurement()
     {
         var viewModel = new MainWindowViewModel();
 
@@ -30,13 +31,71 @@ public class MainWindowViewModelTests
         {
             Assert.That(
                 viewModel.MeasurementMode,
-                Is.EqualTo(StorageMeasurementMode.HardlinkAwareAllocated));
+                Is.EqualTo(StorageMeasurementMode.SharedAwareAllocated));
             Assert.That(
                 viewModel.ResultMeasurementMode,
-                Is.EqualTo(StorageMeasurementMode.HardlinkAwareAllocated));
+                Is.EqualTo(StorageMeasurementMode.SharedAwareAllocated));
             Assert.That(
                 viewModel.MeasurementBasisLabel,
-                Is.EqualTo("Allocated size, hardlinks counted once"));
+                Is.EqualTo("Shared-aware allocated size"));
+            Assert.That(
+                viewModel.CloneAccountingCoverageLabel,
+                Is.EqualTo("Verified full-clone accounting unavailable"));
+        });
+    }
+
+    [TestCase(
+        CloneAccountingCoverage.Available,
+        "Verified full-clone accounting available")]
+    [TestCase(
+        CloneAccountingCoverage.Unavailable,
+        "Verified full-clone accounting unavailable")]
+    [TestCase(
+        CloneAccountingCoverage.Partial,
+        "Verified full-clone accounting partial")]
+    public async Task CompletedResultCapturesCloneAccountingCoverage(
+        CloneAccountingCoverage coverage,
+        string expectedLabel)
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new StubDiskScanner(
+            _ => CompletedScanAsync(
+                root,
+                cloneAccountingCoverage: coverage));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher());
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.ResultCloneAccountingCoverage, Is.EqualTo(coverage));
+            Assert.That(viewModel.CloneAccountingCoverageLabel, Is.EqualTo(expectedLabel));
+        });
+    }
+
+    [Test]
+    public void MeasurementConverterUsesCanonicalLabels()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                StorageMeasurementModeLabelConverter.Label(
+                    StorageMeasurementMode.SharedAwareAllocated),
+                Is.EqualTo("Shared-aware allocated size"));
+            Assert.That(
+                StorageMeasurementModeLabelConverter.Label(
+                    StorageMeasurementMode.Allocated),
+                Is.EqualTo("Allocated size per path"));
+            Assert.That(
+                StorageMeasurementModeLabelConverter.Label(
+                    StorageMeasurementMode.Logical),
+                Is.EqualTo("Logical size"));
         });
     }
 
@@ -97,10 +156,10 @@ public class MainWindowViewModelTests
             Assert.That(viewModel.BytesScanned, Is.EqualTo(4_096));
             Assert.That(
                 viewModel.ResultMeasurementMode,
-                Is.EqualTo(StorageMeasurementMode.HardlinkAwareAllocated));
+                Is.EqualTo(StorageMeasurementMode.SharedAwareAllocated));
             Assert.That(
                 viewModel.MeasurementBasisLabel,
-                Is.EqualTo("Allocated size, hardlinks counted once"));
+                Is.EqualTo("Shared-aware allocated size"));
             Assert.That(viewModel.ScanErrors, Has.Count.EqualTo(1));
             Assert.That(viewModel.ScanErrors[0].Path, Is.EqualTo("/scan/root/restricted"));
             Assert.That(viewModel.ScanErrors[0].ExceptionType, Is.EqualTo(nameof(UnauthorizedAccessException)));
@@ -155,7 +214,7 @@ public class MainWindowViewModelTests
             Assert.That(viewModel.CurrentPath, Is.EqualTo("/scan/root/partial.dat"));
             Assert.That(
                 viewModel.MeasurementBasisLabel,
-                Is.EqualTo("Allocated size, hardlinks counted once"));
+                Is.EqualTo("Shared-aware allocated size"));
         });
     }
 
@@ -447,7 +506,7 @@ public class MainWindowViewModelTests
         {
             SizeBytes = 0,
             MeasuredSizeBytes = 4096,
-            IsSizeCountedElsewhere = true
+            SharedSizeBytes = 4096
         };
         root.AddChild(counted);
         root.AddChild(shared);
@@ -467,10 +526,13 @@ public class MainWindowViewModelTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(sharedNode.FormattedSize, Is.EqualTo("4.0 KB shared"));
+            Assert.That(
+                sharedNode.FormattedSize,
+                Is.EqualTo("0 B counted, 4.0 KB shared"));
             Assert.That(viewModel.SelectedItem, Is.SameAs(shared));
             Assert.That(viewModel.SelectedItemMeasuredSize, Is.EqualTo("4.0 KB"));
             Assert.That(viewModel.SelectedItemCountedSize, Is.EqualTo("0 B"));
+            Assert.That(viewModel.SelectedItemSharedSize, Is.EqualTo("4.0 KB"));
             Assert.That(viewModel.SelectedItemIsCountedElsewhere, Is.True);
             Assert.That(viewModel.TreemapRectangles, Has.Count.EqualTo(0));
             Assert.That(
@@ -482,6 +544,34 @@ public class MainWindowViewModelTests
             Assert.That(viewModel.LargeFiles, Has.Count.EqualTo(2));
             Assert.That(viewModel.LargeFiles[0], Is.SameAs(counted));
             Assert.That(viewModel.LargeFiles[1], Is.SameAs(shared));
+        });
+    }
+
+    [Test]
+    public void PartiallySharedTreeItemRetainsPositiveCountedWeight()
+    {
+        var item = new DiskItem(
+            "clone.bin",
+            "/scan/root/clone.bin",
+            isDirectory: false)
+        {
+            SizeBytes = 1024,
+            MeasuredSizeBytes = 5120,
+            SharedSizeBytes = 4096
+        };
+
+        var node = new DiskItemTreeNodeViewModel(item);
+        var layout = new TreemapLayoutService().Layout(
+            [new TreemapItem(item)],
+            new TreemapBounds(0, 0, 100, 50));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                node.FormattedSize,
+                Is.EqualTo("1.0 KB counted, 4.0 KB shared"));
+            Assert.That(layout, Has.Count.EqualTo(1));
+            Assert.That(layout[0].Item.SizeBytes, Is.EqualTo(1024));
         });
     }
 
@@ -615,7 +705,7 @@ public class MainWindowViewModelTests
     public async Task MoveToTrashCommandRefreshesHardlinkAwareResult(
         int selectedChildIndex)
     {
-        var originalRoot = HardlinkAwareRoot();
+        var originalRoot = SharedAwareRoot();
         var refreshedRoot = new DiskItem("root", "/scan/root", isDirectory: true)
         {
             SizeBytes = 4096,
@@ -666,7 +756,7 @@ public class MainWindowViewModelTests
             Assert.That(scanner.ScanCount, Is.EqualTo(2));
             Assert.That(
                 scanner.LastOptions!.MeasurementMode,
-                Is.EqualTo(StorageMeasurementMode.HardlinkAwareAllocated));
+                Is.EqualTo(StorageMeasurementMode.SharedAwareAllocated));
             Assert.That(scanner.LastOptions.IncludeHiddenFiles, Is.True);
             Assert.That(scanner.LastOptions.FollowSymbolicLinks, Is.True);
             Assert.That(scanner.LastOptions.TreatPackagesAsDirectories, Is.False);
@@ -679,7 +769,7 @@ public class MainWindowViewModelTests
     [Test]
     public async Task MoveToTrashCommandRefreshesWhenRemainingLinkIsInCollapsedPackage()
     {
-        var originalRoot = HardlinkAwareRoot();
+        var originalRoot = SharedAwareRoot();
         var refreshedRoot = new DiskItem("root", "/scan/root", isDirectory: true)
         {
             SizeBytes = 4096,
@@ -731,7 +821,7 @@ public class MainWindowViewModelTests
     [Test]
     public async Task MoveToTrashCommandClearsHardlinkAwareResultWhenRootIsMoved()
     {
-        var root = HardlinkAwareRoot();
+        var root = SharedAwareRoot();
         var scanner = new CapturingDiskScanner((_, _, _) => CompletedScanAsync(root));
         var trashService = Substitute.For<ITrashService>();
         var confirmation = Substitute.For<ITrashConfirmationService>();
@@ -764,7 +854,7 @@ public class MainWindowViewModelTests
     [Test]
     public async Task CancellingPostTrashRefreshDoesNotRestoreStaleCompletedResult()
     {
-        var originalRoot = HardlinkAwareRoot();
+        var originalRoot = SharedAwareRoot();
         var progressApplied = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
         var scanner = new CapturingDiskScanner(
@@ -1076,12 +1166,13 @@ public class MainWindowViewModelTests
             trashService,
             confirmationService);
 
-    private static DiskItem HardlinkAwareRoot()
+    private static DiskItem SharedAwareRoot()
     {
         var root = new DiskItem("root", "/scan/root", isDirectory: true)
         {
             SizeBytes = 4096,
-            MeasuredSizeBytes = 8192
+            MeasuredSizeBytes = 8192,
+            SharedSizeBytes = 4096
         };
         root.AddChild(new DiskItem(
             "counted.bin",
@@ -1098,7 +1189,7 @@ public class MainWindowViewModelTests
         {
             SizeBytes = 0,
             MeasuredSizeBytes = 4096,
-            IsSizeCountedElsewhere = true
+            SharedSizeBytes = 4096
         });
         return root;
     }
@@ -1106,7 +1197,9 @@ public class MainWindowViewModelTests
     private static async IAsyncEnumerable<ScanProgress> CompletedScanAsync(
         DiskItem root,
         StorageMeasurementMode measurementMode =
-            StorageMeasurementMode.HardlinkAwareAllocated)
+            StorageMeasurementMode.SharedAwareAllocated,
+        CloneAccountingCoverage cloneAccountingCoverage =
+            CloneAccountingCoverage.Unavailable)
     {
         await Task.Yield();
         yield return new ScanProgress(
@@ -1117,7 +1210,8 @@ public class MainWindowViewModelTests
             root,
             Errors: [],
             IsCompleted: true,
-            MeasurementMode: measurementMode);
+            MeasurementMode: measurementMode,
+            CloneAccountingCoverage: cloneAccountingCoverage);
     }
 
     private static async IAsyncEnumerable<ScanProgress> ProgressUntilReleasedAsync(
@@ -1139,7 +1233,7 @@ public class MainWindowViewModelTests
                     "Access denied.",
                     nameof(UnauthorizedAccessException))
             ],
-            MeasurementMode: StorageMeasurementMode.HardlinkAwareAllocated);
+            MeasurementMode: StorageMeasurementMode.SharedAwareAllocated);
 
         progressApplied.SetResult();
         await continueScan.WaitAsync(cancellationToken);
@@ -1157,7 +1251,7 @@ public class MainWindowViewModelTests
             BytesScanned: 2_048,
             root,
             Errors: [],
-            MeasurementMode: StorageMeasurementMode.HardlinkAwareAllocated);
+            MeasurementMode: StorageMeasurementMode.SharedAwareAllocated);
 
         progressApplied.SetResult();
         await Task.Delay(Timeout.Infinite, cancellationToken);

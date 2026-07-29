@@ -1,11 +1,4 @@
-## Purpose
-
-Define the size basis and scope of every storage number reported by
-MacStorageAtlas so users can interpret scan totals without mistaking
-per-path or shared-aware allocated bytes for unique physical storage or volume
-capacity.
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Verified full-clone data is counted once
 
@@ -96,6 +89,8 @@ capability or metadata coverage was mixed or degraded.
 - **AND** scanning continues without substituting an optimistic shared
   contribution
 - **AND** the result identifies clone-accounting coverage as partial
+
+## MODIFIED Requirements
 
 ### Requirement: Storage terms have canonical meanings
 
@@ -194,27 +189,6 @@ shared-aware allocated measurement while all three modes remain selectable.
 - **THEN** the preference becomes shared-aware allocated measurement
 - **AND** unrelated saved scan options and recent locations are preserved
 
-### Requirement: Logical measurement reports included file lengths
-
-In logical mode, the scanner SHALL report each successfully measured file's
-logical length and SHALL aggregate directory and progress totals from those
-same included values.
-
-#### Scenario: Logical scan contains nested files
-
-- **GIVEN** a scan scope contains successfully measured files in nested
-  directories
-- **WHEN** the scan runs in logical mode
-- **THEN** each file reports its logical length
-- **AND** every directory total equals the sum of its included descendants
-- **AND** the progress byte total uses the same logical values
-
-#### Scenario: Logical scan contains a sparse file
-
-- **GIVEN** a sparse file has a logical length greater than its local allocation
-- **WHEN** the file is scanned in logical mode
-- **THEN** the reported file size is its logical length
-
 ### Requirement: Allocated measurement reports local per-path allocation
 
 On supported macOS targets, per-path allocated and shared-aware allocated modes
@@ -264,7 +238,7 @@ governed by filesystem identity and verified full-clone data metadata.
 - **THEN** each identity contributes its attributed allocated bytes
 - **AND** the result discloses that partial clone extents are not deduplicated
 
-### Requirement: Shared-aware allocated measurement counts file identities once
+### Requirement: Hardlink-aware allocated measurement counts file identities once
 
 In shared-aware allocated mode, the scanner SHALL count the total allocated
 bytes of each successfully measured filesystem file identity at most once
@@ -367,7 +341,7 @@ paths, including descendants hidden by collapsed package presentation.
 - **AND** hardlinks and verified full-clone data spanning the package boundary
   contribute only once in shared-aware allocated mode
 
-### Requirement: Shared-aware results remain honest after Trash
+### Requirement: Hardlink-aware results remain honest after Trash
 
 After a successful Trash operation changes a shared-aware result, the
 application MUST refresh accounting from the filesystem before presenting an

@@ -36,7 +36,8 @@ public sealed class DiskItemTreeNodeViewModel
 
     public string FormattedSize =>
         Item.IsSizeCountedElsewhere
-            ? $"{FileSizeFormatter.Format(Item.MeasuredSizeBytes)} shared"
+            ? $"{FileSizeFormatter.Format(Item.SizeBytes)} counted, "
+              + $"{FileSizeFormatter.Format(Item.SharedSizeBytes)} shared"
             : FileSizeFormatter.Format(SizeBytes);
 
     public IReadOnlyList<DiskItemTreeNodeViewModel> Children { get; }

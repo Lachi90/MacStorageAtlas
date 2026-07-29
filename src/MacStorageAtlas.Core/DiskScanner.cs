@@ -61,8 +61,7 @@ public sealed class DiskScanner : IDiskScanner
 
         var state = new ScanState(
             root,
-            measurementMode,
-            options.FollowSymbolicLinks);
+            measurementMode);
         var visitedDirectories = options.FollowSymbolicLinks
             ? new HashSet<string>(PathComparer)
             : null;
@@ -213,12 +212,13 @@ public sealed class DiskScanner : IDiskScanner
 
                     directory.MeasuredSizeBytes += child.MeasuredSizeBytes;
                     directory.SizeBytes += child.SizeBytes;
+                    directory.SharedSizeBytes += child.SharedSizeBytes;
                     continue;
                 }
 
                 long measuredSize = 0;
                 long countedSize = 0;
-                var isSizeCountedElsewhere = false;
+                long sharedSize = 0;
                 recoverableError = null;
                 try
                 {
@@ -231,10 +231,16 @@ public sealed class DiskScanner : IDiskScanner
                     {
                         var metadata = _allocatedMetadataReader(currentEntryPath);
                         measuredSize = metadata.AllocatedSizeBytes;
-                        isSizeCountedElsewhere =
-                            options.MeasurementMode == StorageMeasurementMode.HardlinkAwareAllocated
-                            && state.IsIdentityCounted(metadata);
-                        countedSize = isSizeCountedElsewhere ? 0 : measuredSize;
+                        if (options.MeasurementMode == StorageMeasurementMode.SharedAwareAllocated)
+                        {
+                            var accounting = state.Account(metadata);
+                            countedSize = accounting.CountedSizeBytes;
+                            sharedSize = accounting.SharedSizeBytes;
+                        }
+                        else
+                        {
+                            countedSize = measuredSize;
+                        }
                     }
                 }
                 catch (Exception exception) when (IsRecoverable(exception))
@@ -253,7 +259,7 @@ public sealed class DiskScanner : IDiskScanner
                 {
                     SizeBytes = countedSize,
                     MeasuredSizeBytes = measuredSize,
-                    IsSizeCountedElsewhere = isSizeCountedElsewhere
+                    SharedSizeBytes = sharedSize
                 };
                 if (includeChildren)
                 {
@@ -262,6 +268,7 @@ public sealed class DiskScanner : IDiskScanner
 
                 directory.MeasuredSizeBytes += measuredSize;
                 directory.SizeBytes += countedSize;
+                directory.SharedSizeBytes += sharedSize;
                 state.FilesScanned++;
                 state.BytesScanned += countedSize;
                 var fileProgress = state.TryProgress(currentEntryPath);
@@ -349,22 +356,29 @@ public sealed class DiskScanner : IDiskScanner
 
     private sealed class ScanState(
         DiskItem root,
-        StorageMeasurementMode measurementMode,
-        bool followSymbolicLinks)
+        StorageMeasurementMode measurementMode)
     {
         private static readonly TimeSpan MinimumProgressInterval = TimeSpan.FromMilliseconds(150);
         private const long MaximumEntriesBetweenProgress = 4_096;
 
         private readonly List<ScanError> _errors = [];
         private readonly HashSet<FileIdentity>? _countedFileIdentities =
-            measurementMode == StorageMeasurementMode.HardlinkAwareAllocated
+            measurementMode == StorageMeasurementMode.SharedAwareAllocated
                 ? []
                 : null;
+        private readonly Dictionary<SharedDataIdentity, SharedDataAccounting>?
+            _countedSharedData =
+                measurementMode == StorageMeasurementMode.SharedAwareAllocated
+                    ? []
+                    : null;
         private IReadOnlyList<ScanError> _errorSnapshot = [];
         private long _entriesSinceLastProgress;
         private long _lastProgressTimestamp = Stopwatch.GetTimestamp();
         private bool _errorsChanged;
         private bool _reportedFirstEntry;
+        private CloneAccountingCoverage _cloneAccountingCoverage =
+            CloneAccountingCoverage.Unavailable;
+        private bool _hasCloneAccountingCoverage;
 
         public long FilesScanned { get; set; }
 
@@ -372,19 +386,85 @@ public sealed class DiskScanner : IDiskScanner
 
         public long BytesScanned { get; set; }
 
-        public bool IsIdentityCounted(AllocatedFileMetadata metadata)
+        public FileAccounting Account(AllocatedFileMetadata metadata)
         {
-            if (_countedFileIdentities is null)
+            if (_countedFileIdentities is null || _countedSharedData is null)
             {
-                return false;
+                return new FileAccounting(
+                    metadata.AllocatedSizeBytes,
+                    SharedSizeBytes: 0);
             }
 
-            if (!followSymbolicLinks && metadata.LinkCount <= 1)
+            AccumulateCoverage(metadata.CloneAccountingCoverage);
+
+            if (metadata.AllocatedSizeBytes < 0)
             {
-                return false;
+                throw new IOException("Allocated size cannot be negative.");
             }
 
-            return !_countedFileIdentities.Add(metadata.Identity);
+            if (!_countedFileIdentities.Add(metadata.Identity))
+            {
+                return new FileAccounting(
+                    CountedSizeBytes: 0,
+                    metadata.AllocatedSizeBytes);
+            }
+
+            var dataAllocatedSize = metadata.DataAllocatedSizeBytes;
+            if (dataAllocatedSize is < 0
+                || dataAllocatedSize > metadata.AllocatedSizeBytes)
+            {
+                MarkCoveragePartial();
+                return new FileAccounting(
+                    metadata.AllocatedSizeBytes,
+                    SharedSizeBytes: 0);
+            }
+
+            if (metadata.SharedDataIdentity is not { } sharedDataIdentity)
+            {
+                if (metadata.CloneAccountingCoverage == CloneAccountingCoverage.Available
+                    && dataAllocatedSize is null)
+                {
+                    MarkCoveragePartial();
+                }
+
+                return new FileAccounting(
+                    metadata.AllocatedSizeBytes,
+                    SharedSizeBytes: 0);
+            }
+
+            if (metadata.CloneAccountingCoverage != CloneAccountingCoverage.Available
+                || dataAllocatedSize is null)
+            {
+                MarkCoveragePartial();
+                return new FileAccounting(
+                    metadata.AllocatedSizeBytes,
+                    SharedSizeBytes: 0);
+            }
+
+            if (!_countedSharedData.TryGetValue(sharedDataIdentity, out var sharedData))
+            {
+                _countedSharedData.Add(
+                    sharedDataIdentity,
+                    new SharedDataAccounting(dataAllocatedSize.Value, IsValid: true));
+                return new FileAccounting(
+                    metadata.AllocatedSizeBytes,
+                    SharedSizeBytes: 0);
+            }
+
+            if (!sharedData.IsValid
+                || sharedData.DataAllocatedSizeBytes != dataAllocatedSize.Value)
+            {
+                _countedSharedData[sharedDataIdentity] =
+                    sharedData with { IsValid = false };
+                MarkCoveragePartial();
+                return new FileAccounting(
+                    metadata.AllocatedSizeBytes,
+                    SharedSizeBytes: 0);
+            }
+
+            return new FileAccounting(
+                metadata.AllocatedSizeBytes - dataAllocatedSize.Value,
+                dataAllocatedSize.Value);
         }
 
         public void AddError(string path, Exception exception)
@@ -433,7 +513,37 @@ public sealed class DiskScanner : IDiskScanner
                 root,
                 _errorSnapshot,
                 isCompleted,
-                measurementMode);
+                measurementMode,
+                _cloneAccountingCoverage);
         }
+
+        private void AccumulateCoverage(CloneAccountingCoverage coverage)
+        {
+            if (!_hasCloneAccountingCoverage)
+            {
+                _cloneAccountingCoverage = coverage;
+                _hasCloneAccountingCoverage = true;
+                return;
+            }
+
+            if (_cloneAccountingCoverage != coverage)
+            {
+                _cloneAccountingCoverage = CloneAccountingCoverage.Partial;
+            }
+        }
+
+        private void MarkCoveragePartial()
+        {
+            _cloneAccountingCoverage = CloneAccountingCoverage.Partial;
+            _hasCloneAccountingCoverage = true;
+        }
+
+        private readonly record struct SharedDataAccounting(
+            long DataAllocatedSizeBytes,
+            bool IsValid);
+
+        public readonly record struct FileAccounting(
+            long CountedSizeBytes,
+            long SharedSizeBytes);
     }
 }

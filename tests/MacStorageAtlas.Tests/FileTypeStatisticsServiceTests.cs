@@ -64,7 +64,7 @@ public class FileTypeStatisticsServiceTests
         {
             SizeBytes = 0,
             MeasuredSizeBytes = 4096,
-            IsSizeCountedElsewhere = true
+            SharedSizeBytes = 4096
         });
 
         var summary = new FileTypeStatisticsService().Calculate(root).Single();
@@ -73,6 +73,30 @@ public class FileTypeStatisticsServiceTests
         {
             Assert.That(summary.FileCount, Is.EqualTo(2));
             Assert.That(summary.TotalSizeBytes, Is.EqualTo(4096));
+        });
+    }
+
+    [Test]
+    public void CalculateUsesPositiveNonDataContributionFromSharedClone()
+    {
+        var root = Directory("root");
+        root.AddChild(File("representative.bin", 5120));
+        root.AddChild(new DiskItem(
+            "clone.bin",
+            "/clone.bin",
+            isDirectory: false)
+        {
+            SizeBytes = 1024,
+            MeasuredSizeBytes = 5120,
+            SharedSizeBytes = 4096
+        });
+
+        var summary = new FileTypeStatisticsService().Calculate(root).Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(summary.FileCount, Is.EqualTo(2));
+            Assert.That(summary.TotalSizeBytes, Is.EqualTo(6144));
         });
     }
 

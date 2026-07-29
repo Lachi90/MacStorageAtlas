@@ -27,8 +27,8 @@ public sealed class AppSettings
             ? measurementMode
             : MeasureAllocatedSize switch
             {
-                true => StorageMeasurementMode.HardlinkAwareAllocated,
+                true => StorageMeasurementMode.SharedAwareAllocated,
                 false => StorageMeasurementMode.Logical,
-                null => StorageMeasurementMode.HardlinkAwareAllocated
+                null => StorageMeasurementMode.SharedAwareAllocated
             };
 }

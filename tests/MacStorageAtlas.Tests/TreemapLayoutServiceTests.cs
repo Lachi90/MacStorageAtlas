@@ -123,7 +123,7 @@ public class TreemapLayoutServiceTests
         {
             SizeBytes = 0,
             MeasuredSizeBytes = 4096,
-            IsSizeCountedElsewhere = true
+            SharedSizeBytes = 4096
         };
 
         var rectangles = _service.Layout(
@@ -134,6 +134,39 @@ public class TreemapLayoutServiceTests
         {
             Assert.That(rectangles, Has.Count.EqualTo(1));
             Assert.That(rectangles.Single().Item.Item, Is.SameAs(counted));
+        });
+    }
+
+    [Test]
+    public void LayoutWeightsPartiallySharedCloneByPositiveCountedContribution()
+    {
+        var ordinary = new DiskItem("ordinary", "/ordinary", isDirectory: false)
+        {
+            SizeBytes = 3072,
+            MeasuredSizeBytes = 3072
+        };
+        var clone = new DiskItem("clone", "/clone", isDirectory: false)
+        {
+            SizeBytes = 1024,
+            MeasuredSizeBytes = 5120,
+            SharedSizeBytes = 4096
+        };
+
+        var rectangles = _service.Layout(
+            [new TreemapItem(ordinary), new TreemapItem(clone)],
+            new TreemapBounds(0, 0, 100, 100));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rectangles, Has.Count.EqualTo(2));
+            Assert.That(
+                rectangles.Single(item => item.Item.Item == ordinary).Width
+                * rectangles.Single(item => item.Item.Item == ordinary).Height,
+                Is.EqualTo(7500).Within(0.000001));
+            Assert.That(
+                rectangles.Single(item => item.Item.Item == clone).Width
+                * rectangles.Single(item => item.Item.Item == clone).Height,
+                Is.EqualTo(2500).Within(0.000001));
         });
     }
 

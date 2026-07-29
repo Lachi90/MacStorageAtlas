@@ -277,7 +277,7 @@ targets.
 ### Phase B: hardlink deduplication
 
 - Add a macOS file-identity reader based on device and inode.
-- Track file identities only when hardlink-aware allocated mode is active.
+- Track file identities only when shared-aware allocated mode is active.
 - Count the allocated bytes for a hardlinked file once.
 - Retain every path in the result tree, but mark additional links as sharing
   storage.
@@ -286,15 +286,17 @@ targets.
 
 ### Phase C: APFS clone investigation and implementation
 
-- Start with a time-boxed technical spike.
-- Determine which supported public macOS API can reliably expose shared physical
-  extents or clone identity.
-- If exact clone accounting is not possible with stable public APIs:
-  - Do not infer clone sharing from equal content.
-  - Document the limitation.
-  - Keep hardlink correctness and allocated-block measurement.
-- If it is possible, introduce a platform capability rather than APFS logic in
-  portable Core.
+- Completed by `investigate-apfs-clone-accounting`.
+- Use public, capability-gated `getattrlist(2)` metadata to identify verified
+  full-clone data streams.
+- Count full-clone data once within scan scope while retaining per-identity
+  non-data allocation.
+- Report available, unavailable, or partial coverage and fail closed when
+  optional metadata is missing or inconsistent.
+- Keep divergent clone extents per identity and make no unique-physical or
+  reclaimable-storage claim.
+- Keep APFS interpretation in Platform.Mac and portable accounting policy in
+  Core.
 
 ### Phase D: performance
 
@@ -307,18 +309,23 @@ targets.
 
 ### Acceptance criteria
 
-- Hardlinks are counted once in hardlink-aware allocated mode.
+- Hardlinks are counted once in shared-aware allocated mode.
 - All hardlink paths remain browsable.
+- Verified full-clone data is counted once where mounted-volume capability and
+  complete metadata permit it.
+- Non-data allocation remains counted for each distinct identity.
 - Sparse files use allocated rather than logical size when configured.
 - Cancellation still preserves a consistent partial result.
 - A one-million-entry scan does not cause unbounded queues or UI updates.
 - Benchmark results are documented and reproducible.
-- APFS clone support is either tested or explicitly documented as unsupported.
+- APFS full-clone support is tested with capability-gated disposable fixtures;
+  partial clone extents are explicitly not deduplicated.
 
 ### Tests and verification
 
 - Core unit tests with injectable file identities and size readers.
-- macOS integration tests using temporary hardlinks and sparse files.
+- macOS integration tests using temporary hardlinks, sparse files, full clones,
+  divergent clones, and resource-fork allocation.
 - Cancellation and error-injection tests.
 - Memory and throughput benchmark on SSD and one slower/external volume.
 
@@ -1002,7 +1009,7 @@ Update this table when work starts or finishes.
 | --- | --- | --- | --- |
 | WP-00 | Complete | `codex/storage-feature-roadmap` | Comparison corrected and verified 2026-07-24; OpenSpec change: `correct-market-comparison` |
 | WP-01 | Planned | `codex/storage-feature-roadmap` | Requires Apple Developer account |
-| WP-02 | In progress | `codex/storage-feature-roadmap` | Measurement definitions (`define-storage-measurement`) and hardlink-aware accounting (`deduplicate-hardlinks`) complete; remaining: `investigate-apfs-clone-accounting`, `benchmark-and-optimize-scans` |
+| WP-02 | In progress | `codex/storage-feature-roadmap` | Measurement definitions (`define-storage-measurement`), hardlink accounting (`deduplicate-hardlinks`), and capability-gated verified full-clone accounting (`investigate-apfs-clone-accounting`) complete; remaining: `benchmark-and-optimize-scans` |
 | WP-03 | Planned | `codex/storage-feature-roadmap` |  |
 | WP-04 | Planned | `codex/storage-feature-roadmap` | Depends on metadata |
 | WP-05 | Planned | `codex/storage-feature-roadmap` | Low-risk quick win |

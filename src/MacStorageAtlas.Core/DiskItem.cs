@@ -34,7 +34,9 @@ public sealed class DiskItem
         }
     }
 
-    public bool IsSizeCountedElsewhere { get; internal set; }
+    public long SharedSizeBytes { get; internal set; }
+
+    public bool IsSizeCountedElsewhere => SharedSizeBytes > 0;
 
     public IReadOnlyList<DiskItem> Children => _children;
 
@@ -52,6 +54,9 @@ public sealed class DiskItem
                 0,
                 MeasuredSizeBytes - descendant.MeasuredSizeBytes);
             SizeBytes = Math.Max(0, SizeBytes - descendant.SizeBytes);
+            SharedSizeBytes = Math.Max(
+                0,
+                SharedSizeBytes - descendant.SharedSizeBytes);
             return true;
         }
 
@@ -63,6 +68,9 @@ public sealed class DiskItem
                     0,
                     MeasuredSizeBytes - descendant.MeasuredSizeBytes);
                 SizeBytes = Math.Max(0, SizeBytes - descendant.SizeBytes);
+                SharedSizeBytes = Math.Max(
+                    0,
+                    SharedSizeBytes - descendant.SharedSizeBytes);
                 return true;
             }
         }

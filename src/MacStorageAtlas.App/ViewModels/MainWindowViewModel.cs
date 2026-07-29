@@ -90,7 +90,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public IReadOnlyList<StorageMeasurementMode> MeasurementModes { get; } =
     [
-        StorageMeasurementMode.HardlinkAwareAllocated,
+        StorageMeasurementMode.SharedAwareAllocated,
         StorageMeasurementMode.Allocated,
         StorageMeasurementMode.Logical
     ];
@@ -112,15 +112,35 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private StorageMeasurementMode _measurementMode =
-        StorageMeasurementMode.HardlinkAwareAllocated;
+        StorageMeasurementMode.SharedAwareAllocated;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(MeasurementBasisLabel))]
     private StorageMeasurementMode _resultMeasurementMode =
-        StorageMeasurementMode.HardlinkAwareAllocated;
+        StorageMeasurementMode.SharedAwareAllocated;
 
     public string MeasurementBasisLabel =>
         StorageMeasurementModeLabelConverter.Label(ResultMeasurementMode);
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CloneAccountingCoverageLabel))]
+    private CloneAccountingCoverage _resultCloneAccountingCoverage =
+        CloneAccountingCoverage.Unavailable;
+
+    public string CloneAccountingCoverageLabel =>
+        ResultCloneAccountingCoverage switch
+        {
+            CloneAccountingCoverage.Available =>
+                "Verified full-clone accounting available",
+            CloneAccountingCoverage.Unavailable =>
+                "Verified full-clone accounting unavailable",
+            CloneAccountingCoverage.Partial =>
+                "Verified full-clone accounting partial",
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(ResultCloneAccountingCoverage),
+                ResultCloneAccountingCoverage,
+                null)
+        };
 
     [ObservableProperty]
     private string? _currentPath;
@@ -192,6 +212,10 @@ public partial class MainWindowViewModel : ViewModelBase
     public string SelectedItemCountedSize => SelectedItem is null
         ? string.Empty
         : FileSizeFormatter.Format(SelectedItem.SizeBytes);
+
+    public string SelectedItemSharedSize => SelectedItem is null
+        ? string.Empty
+        : FileSizeFormatter.Format(SelectedItem.SharedSizeBytes);
 
     public bool HasSelectedItem => SelectedItem is not null;
 
@@ -298,7 +322,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 RemoveTrashedItem(item);
             }
             else if (ResultMeasurementMode
-                     == StorageMeasurementMode.HardlinkAwareAllocated
+                     == StorageMeasurementMode.SharedAwareAllocated
                      && _resultScanOptions is { } resultOptions
                      && _scanRoot is { } root)
             {
@@ -386,6 +410,7 @@ public partial class MainWindowViewModel : ViewModelBase
             DirectoriesScanned = 0;
             BytesScanned = 0;
             ResultMeasurementMode = options.MeasurementMode;
+            ResultCloneAccountingCoverage = CloneAccountingCoverage.Unavailable;
             ScanErrors = [];
             SelectedScanError = null;
             _scanRoot = null;
@@ -434,6 +459,7 @@ public partial class MainWindowViewModel : ViewModelBase
         DirectoriesScanned = progress.DirectoriesScanned;
         BytesScanned = progress.BytesScanned;
         ResultMeasurementMode = progress.MeasurementMode;
+        ResultCloneAccountingCoverage = progress.CloneAccountingCoverage;
         ScanErrors = progress.Errors;
 
         if (progress.IsCompleted)
@@ -503,6 +529,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(SelectedItem));
         OnPropertyChanged(nameof(SelectedItemMeasuredSize));
         OnPropertyChanged(nameof(SelectedItemCountedSize));
+        OnPropertyChanged(nameof(SelectedItemSharedSize));
         OnPropertyChanged(nameof(HasSelectedItem));
         OnPropertyChanged(nameof(SelectedItemIsCountedElsewhere));
     }

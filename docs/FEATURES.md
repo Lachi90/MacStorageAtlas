@@ -1120,15 +1120,18 @@ not counted at full size.
 ## Acceptance Criteria
 
 - Files can be measured by logical length, allocated size per path
-  (`st_blocks × 512`), or hardlink-aware allocated size.
-- Hardlink-aware allocated measurement is the application default.
+  (`st_blocks × 512` fallback), or shared-aware allocated size.
+- Shared-aware allocated measurement is the application default.
 - Device-and-inode identities are counted once within the selected scan scope.
 - Every included hardlink path remains browsable and retains its measured
   allocation.
-- Scanning never materializes/downloads dataless cloud files (stat only).
+- Verified full-clone data is counted once on capable volumes while non-data
+  allocation remains counted per identity.
+- Clone-accounting coverage is captured as available, unavailable, or partial.
+- Scanning never materializes or downloads dataless cloud files.
 - Scanner respects `ScanOptions.MeasurementMode`.
 - User can select all three behaviors in scan options.
-- APFS clone extents remain counted separately.
+- Divergent APFS clone extents remain counted separately.
 
 ## Affected Projects
 
@@ -1139,11 +1142,12 @@ not counted at full size.
 
 ## Implementation Notes
 
-Platform.Mac reads allocated size, device, inode, and link count through one
-native `stat(2)` call on macOS, retaining the 64-bit-inode struct layout and
-`stat$INODE64` entry point on x86_64. Core owns scan-scoped identity accounting
-and treats unavailable allocated metadata as a recoverable scan error rather
-than silently substituting logical length.
+Platform.Mac probes mounted-volume clone-mapping capability. On capable volumes
+it reads allocation, identity, and full-clone attributes coherently through
+public `getattrlist(2)` metadata; unsupported and degraded paths retain the
+`stat(2)` fallback and x86_64 64-bit-inode ABI. Core owns scan-scoped identity
+and shared-data accounting and treats unavailable required metadata as a
+recoverable scan error rather than silently substituting logical length.
 
 ## Codex Prompt
 
@@ -1151,11 +1155,13 @@ than silently substituting logical length.
 Implement On-Disk vs. Logical Size.
 
 Requirements:
-- Add explicit logical, per-path allocated, and hardlink-aware allocated modes.
-- Read allocated size and device/inode identity through one macOS stat call.
-- Count each included identity once in hardlink-aware mode while retaining all
-  paths.
+- Add explicit logical, per-path allocated, and shared-aware allocated modes.
+- Read allocated size and device/inode identity through macOS metadata APIs.
+- Count each included identity once and verified full-clone data once where
+  supported while retaining all paths.
 - Never download cloud placeholders or silently mix measurement bases.
-- Default the app to hardlink-aware allocated size; expose all three choices.
-- Add unit and macOS integration tests for identity-aware measurement.
+- Default the app to shared-aware allocated size; expose all three choices.
+- Disclose clone-accounting coverage and quantitative shared bytes.
+- Add unit and macOS integration tests for identity-aware and full-clone
+  measurement.
 ```

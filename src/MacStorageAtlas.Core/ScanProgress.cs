@@ -8,4 +8,6 @@ public sealed record ScanProgress(
     DiskItem Root,
     IReadOnlyList<ScanError> Errors,
     bool IsCompleted = false,
-    StorageMeasurementMode MeasurementMode = StorageMeasurementMode.Logical);
+    StorageMeasurementMode MeasurementMode = StorageMeasurementMode.Logical,
+    CloneAccountingCoverage CloneAccountingCoverage =
+        CloneAccountingCoverage.Unavailable);
