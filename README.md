@@ -200,6 +200,9 @@ src/
 
 tests/
   MacStorageAtlas.Tests            NUnit tests
+
+tools/
+  MacStorageAtlas.Benchmarks       developer scan benchmark command
 ```
 
 ## Documentation
@@ -207,6 +210,7 @@ tests/
 - Product backlog and feature specifications: [`docs/FEATURES.md`](docs/FEATURES.md)
 - Market-driven implementation roadmap: [`docs/IMPLEMENTATION_ROADMAP.md`](docs/IMPLEMENTATION_ROADMAP.md)
 - Storage measurement semantics and verification: [`docs/STORAGE_MEASUREMENT.md`](docs/STORAGE_MEASUREMENT.md)
+- Scan benchmark commands and representative results: [`docs/SCAN_BENCHMARKS.md`](docs/SCAN_BENCHMARKS.md)
 - OpenSpec feature workflow: [`docs/OPENSPEC_WORKFLOW.md`](docs/OPENSPEC_WORKFLOW.md)
 - macOS packaging and distribution: [`docs/PACKAGING.md`](docs/PACKAGING.md)
 

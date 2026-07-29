@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\src\MacStorageAtlas.Rendering\MacStorageAtlas.Rendering.csproj" />
     <ProjectReference Include="..\..\src\MacStorageAtlas.Platform.Mac\MacStorageAtlas.Platform.Mac.csproj" />
     <ProjectReference Include="..\..\src\MacStorageAtlas.App\MacStorageAtlas.App.csproj" />
+    <ProjectReference Include="..\..\tools\MacStorageAtlas.Benchmarks\MacStorageAtlas.Benchmarks.csproj" />
   </ItemGroup>
 
 </Project>

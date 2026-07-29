@@ -172,6 +172,30 @@ public class MainWindowViewModelTests
     }
 
     [Test]
+    public async Task ScanFolderCommandDispatchesOnlyScannerProgressAndLifecycleUpdates()
+    {
+        const int progressCount = 6;
+        var scanner = new StubDiskScanner(
+            _ => ProgressBurstAsync(progressCount));
+        var dispatcher = new RecordingUiDispatcher();
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns("/scan/root");
+        var viewModel = new MainWindowViewModel(folderPicker, scanner, dispatcher);
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(dispatcher.InvocationCount, Is.EqualTo(progressCount + 2));
+            Assert.That(viewModel.FilesScanned, Is.EqualTo(progressCount));
+            Assert.That(viewModel.TreeItems, Has.Count.EqualTo(1));
+            Assert.That(viewModel.LargeFiles, Has.Count.EqualTo(progressCount));
+            Assert.That(viewModel.FileTypeSummaries.Single().FileCount, Is.EqualTo(progressCount));
+        });
+    }
+
+    [Test]
     public void StopScanCommandIsDisabledWhenNotScanning()
     {
         var viewModel = new MainWindowViewModel(
@@ -1255,6 +1279,45 @@ public class MainWindowViewModelTests
 
         progressApplied.SetResult();
         await Task.Delay(Timeout.Infinite, cancellationToken);
+    }
+
+    private static async IAsyncEnumerable<ScanProgress> ProgressBurstAsync(
+        int progressCount)
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        for (var index = 1; index < progressCount; index++)
+        {
+            await Task.Yield();
+            yield return new ScanProgress(
+                $"/scan/root/file-{index}.bin",
+                FilesScanned: index,
+                DirectoriesScanned: 1,
+                BytesScanned: index * 1024,
+                root,
+                Errors: []);
+        }
+
+        for (var index = 1; index <= progressCount; index++)
+        {
+            var file = new DiskItem(
+                $"file-{index}.bin",
+                $"/scan/root/file-{index}.bin",
+                isDirectory: false)
+            {
+                SizeBytes = 1024
+            };
+            root.AddChild(file);
+            root.SizeBytes += file.SizeBytes;
+        }
+
+        yield return new ScanProgress(
+            root.Path,
+            FilesScanned: progressCount,
+            DirectoriesScanned: 1,
+            BytesScanned: root.SizeBytes,
+            root,
+            Errors: [],
+            IsCompleted: true);
     }
 
     private sealed class StubDiskScanner(

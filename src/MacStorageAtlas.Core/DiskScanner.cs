@@ -176,8 +176,8 @@ public sealed class DiskScanner : IDiskScanner
                     continue;
                 }
 
-                var isDirectory = attributes.HasFlag(FileAttributes.Directory);
-                var isSymbolicLink = attributes.HasFlag(FileAttributes.ReparsePoint);
+                var isDirectory = (attributes & FileAttributes.Directory) != 0;
+                var isSymbolicLink = (attributes & FileAttributes.ReparsePoint) != 0;
                 if (isSymbolicLink && !options.FollowSymbolicLinks)
                 {
                     continue;
@@ -336,7 +336,7 @@ public sealed class DiskScanner : IDiskScanner
     }
 
     private static bool IsHidden(string path, FileAttributes attributes) =>
-        attributes.HasFlag(FileAttributes.Hidden) ||
+        (attributes & FileAttributes.Hidden) != 0 ||
         Path.GetFileName(path).StartsWith(".", StringComparison.Ordinal);
 
     private static bool IsPackage(string path) =>
