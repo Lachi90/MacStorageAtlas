@@ -352,7 +352,7 @@ Users can determine what a file is and whether it is old before acting on it.
 ### Status
 
 Metadata details are implemented by `add-file-metadata`. Quick Look preview,
-Space handling, and Command-I shortcuts remain planned.
+Space handling, and Command-I shortcuts are implemented by `add-quick-look`.
 
 ### Scope
 
@@ -367,9 +367,9 @@ Space handling, and Command-I shortcuts remain planned.
 - Already covered by WP-02 and item details:
   - Logical and allocated size.
   - File identity/share status from WP-02.
-- Remaining:
-- Add a Quick Look command using the macOS-native preview experience.
-- Bind Space to Quick Look and Command-I to item details.
+- Completed by `add-quick-look`:
+  - Add a Quick Look command using the macOS-native preview experience.
+  - Bind Space to Quick Look and Command-I to item details.
 
 ### Acceptance criteria
 
@@ -377,6 +377,7 @@ Space handling, and Command-I shortcuts remain planned.
   `add-file-metadata`.
 - Pressing Space previews the selected item from every result view.
 - Missing or removed files produce a friendly status message.
+- Quick Look and item-details shortcuts are available for selected items.
 - Metadata failures are recoverable scan errors where appropriate. Completed by
   `add-file-metadata`.
 - The feature does not materialize cloud placeholders. Completed by
@@ -386,8 +387,10 @@ Space handling, and Command-I shortcuts remain planned.
 
 - Unit-test metadata mapping and formatting. Completed by `add-file-metadata`.
 - Test files with known timestamps. Completed by `add-file-metadata`.
-- Test Quick Look service command enablement and failure behavior.
-- Manually verify common images, videos, PDFs, archives, and folders.
+- Test Quick Look service command enablement and failure behavior. Completed by
+  `add-quick-look`.
+- Manually verify common images, videos, PDFs, archives, and folders. Completed
+  by `add-quick-look` where practical.
 
 ### Estimate
 
@@ -1021,7 +1024,7 @@ Update this table when work starts or finishes.
 | WP-00 | Complete | `codex/storage-feature-roadmap` | Comparison corrected and verified 2026-07-24; OpenSpec change: `correct-market-comparison` |
 | WP-01 | Planned | `codex/storage-feature-roadmap` | Requires Apple Developer account |
 | WP-02 | Complete | `codex/storage-feature-roadmap` | Measurement definitions (`define-storage-measurement`), hardlink accounting (`deduplicate-hardlinks`), capability-gated verified full-clone accounting (`investigate-apfs-clone-accounting`), and scan benchmark tooling with local baseline verification on 2026-07-29 (`benchmark-and-optimize-scans`) complete |
-| WP-03 | Planned | `codex/storage-feature-roadmap` |  |
+| WP-03 | Complete | `codex/storage-feature-roadmap` | Metadata details (`add-file-metadata`) plus Quick Look preview, Space handling, and Command-I details shortcut (`add-quick-look`) complete |
 | WP-04 | Planned | `codex/storage-feature-roadmap` | Depends on metadata |
 | WP-05 | Planned | `codex/storage-feature-roadmap` | Low-risk quick win |
 | WP-06 | Planned | `codex/storage-feature-roadmap` |  |

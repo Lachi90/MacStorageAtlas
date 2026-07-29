@@ -36,7 +36,8 @@ public partial class App : Application
                 new MacTrashService(),
                 new AvaloniaTrashConfirmationService(mainWindow),
                 new JsonSettingsService(),
-                new AvaloniaClipboardService(mainWindow));
+                new AvaloniaClipboardService(mainWindow),
+                new MacQuickLookService());
 
             desktop.MainWindow = mainWindow;
 

@@ -24,6 +24,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IDiskScanner _diskScanner;
     private readonly IUiDispatcher _uiDispatcher;
     private readonly IFileRevealService _fileRevealService;
+    private readonly IQuickLookService _quickLookService;
     private readonly ITrashService _trashService;
     private readonly ITrashConfirmationService _trashConfirmationService;
     private readonly ISettingsService _settingsService;
@@ -45,7 +46,8 @@ public partial class MainWindowViewModel : ViewModelBase
             new AvaloniaUiDispatcher(),
             new MacFileRevealService(),
             new MacTrashService(),
-            new NullTrashConfirmationService())
+            new NullTrashConfirmationService(),
+            quickLookService: new MacQuickLookService())
     {
     }
 
@@ -72,12 +74,14 @@ public partial class MainWindowViewModel : ViewModelBase
         ITrashService? trashService = null,
         ITrashConfirmationService? trashConfirmationService = null,
         ISettingsService? settingsService = null,
-        IClipboardService? clipboardService = null)
+        IClipboardService? clipboardService = null,
+        IQuickLookService? quickLookService = null)
     {
         _folderPickerService = folderPickerService;
         _diskScanner = diskScanner;
         _uiDispatcher = uiDispatcher;
         _fileRevealService = fileRevealService ?? new MacFileRevealService();
+        _quickLookService = quickLookService ?? new MacQuickLookService();
         _trashService = trashService ?? new MacTrashService();
         _trashConfirmationService =
             trashConfirmationService ?? new NullTrashConfirmationService();
@@ -186,7 +190,13 @@ public partial class MainWindowViewModel : ViewModelBase
     private string? _revealStatusMessage;
 
     [ObservableProperty]
+    private string? _quickLookStatusMessage;
+
+    [ObservableProperty]
     private string? _trashStatusMessage;
+
+    [ObservableProperty]
+    private int _selectedResultsTabIndex;
 
     [ObservableProperty]
     private bool _isMovingToTrash;
@@ -275,6 +285,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private bool CanRevealInFinder() => SelectedItem is not null;
 
+    private bool CanQuickLook() => SelectedItem is not null;
+
     private bool CanMoveToTrash() => SelectedItem is not null && !IsMovingToTrash;
 
     private bool CanCopyErrorPath() => SelectedScanError is not null;
@@ -310,6 +322,37 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             RevealStatusMessage =
                 "The selected item no longer exists or could not be revealed in Finder.";
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanQuickLook))]
+    private void QuickLook()
+    {
+        var item = SelectedItem;
+        if (item is null)
+        {
+            return;
+        }
+
+        try
+        {
+            QuickLookStatusMessage = _quickLookService.Preview(item.Path)
+                ? null
+                : "The selected item no longer exists or could not be previewed.";
+        }
+        catch (System.Exception)
+        {
+            QuickLookStatusMessage =
+                "The selected item no longer exists or could not be previewed.";
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanQuickLook))]
+    private void ShowSelectedItemDetails()
+    {
+        if (SelectedItem is not null)
+        {
+            SelectedResultsTabIndex = 0;
         }
     }
 
@@ -441,6 +484,7 @@ public partial class MainWindowViewModel : ViewModelBase
             FileTypeSummaries = [];
             SelectedTreemapRectangle = null;
             TrashStatusMessage = null;
+            QuickLookStatusMessage = null;
             RecentLocationStatusMessage = null;
         });
 
@@ -497,8 +541,11 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         NotifySelectedItemPropertiesChanged();
         RevealInFinderCommand.NotifyCanExecuteChanged();
+        QuickLookCommand.NotifyCanExecuteChanged();
+        ShowSelectedItemDetailsCommand.NotifyCanExecuteChanged();
         MoveToTrashCommand.NotifyCanExecuteChanged();
         RevealStatusMessage = null;
+        QuickLookStatusMessage = null;
         TrashStatusMessage = null;
 
         if (value is not null)
@@ -513,8 +560,11 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         NotifySelectedItemPropertiesChanged();
         RevealInFinderCommand.NotifyCanExecuteChanged();
+        QuickLookCommand.NotifyCanExecuteChanged();
+        ShowSelectedItemDetailsCommand.NotifyCanExecuteChanged();
         MoveToTrashCommand.NotifyCanExecuteChanged();
         RevealStatusMessage = null;
+        QuickLookStatusMessage = null;
         TrashStatusMessage = null;
 
         if (value is not null)
@@ -528,8 +578,11 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         NotifySelectedItemPropertiesChanged();
         RevealInFinderCommand.NotifyCanExecuteChanged();
+        QuickLookCommand.NotifyCanExecuteChanged();
+        ShowSelectedItemDetailsCommand.NotifyCanExecuteChanged();
         MoveToTrashCommand.NotifyCanExecuteChanged();
         RevealStatusMessage = null;
+        QuickLookStatusMessage = null;
         TrashStatusMessage = null;
 
         if (value is not null)

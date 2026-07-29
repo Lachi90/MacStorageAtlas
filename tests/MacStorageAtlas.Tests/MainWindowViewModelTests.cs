@@ -700,6 +700,164 @@ public class MainWindowViewModelTests
     }
 
     [Test]
+    public void QuickLookCommandIsDisabledWithoutASelection()
+    {
+        var quickLookService = Substitute.For<IQuickLookService>();
+        var viewModel = CreateQuickLookViewModel(quickLookService);
+
+        Assert.That(viewModel.QuickLookCommand.CanExecute(null), Is.False);
+    }
+
+    [Test]
+    public void QuickLookCommandPreviewsSelectedTreeItem()
+    {
+        var quickLookService = Substitute.For<IQuickLookService>();
+        quickLookService.Preview(Arg.Any<string>()).Returns(true);
+        var viewModel = CreateQuickLookViewModel(quickLookService);
+        var item = new DiskItem("file.dat", "/scan/root/file.dat", isDirectory: false);
+        viewModel.SelectedTreeItem = new DiskItemTreeNodeViewModel(item);
+
+        viewModel.QuickLookCommand.Execute(null);
+
+        quickLookService.Received(1).Preview(item.Path);
+        Assert.That(viewModel.QuickLookStatusMessage, Is.Null);
+    }
+
+    [Test]
+    public void QuickLookCommandPreviewsSelectedTreemapItem()
+    {
+        var quickLookService = Substitute.For<IQuickLookService>();
+        quickLookService.Preview(Arg.Any<string>()).Returns(true);
+        var viewModel = CreateQuickLookViewModel(quickLookService);
+        var item = new DiskItem("file.dat", "/scan/root/file.dat", isDirectory: false);
+        viewModel.SelectedTreemapRectangle = new TreemapRect(
+            new TreemapItem(item),
+            0,
+            0,
+            10,
+            10);
+
+        viewModel.QuickLookCommand.Execute(null);
+
+        quickLookService.Received(1).Preview(item.Path);
+        Assert.That(viewModel.SelectedItem, Is.SameAs(item));
+    }
+
+    [Test]
+    public void QuickLookCommandPreviewsSelectedLargeFile()
+    {
+        var quickLookService = Substitute.For<IQuickLookService>();
+        quickLookService.Preview(Arg.Any<string>()).Returns(true);
+        var viewModel = CreateQuickLookViewModel(quickLookService);
+        var item = new DiskItem("file.dat", "/scan/root/file.dat", isDirectory: false);
+        viewModel.SelectedLargeFile = item;
+
+        viewModel.QuickLookCommand.Execute(null);
+
+        quickLookService.Received(1).Preview(item.Path);
+        Assert.That(viewModel.SelectedItem, Is.SameAs(item));
+    }
+
+    [Test]
+    public void QuickLookCommandHandlesADeletedSelectedPath()
+    {
+        var quickLookService = Substitute.For<IQuickLookService>();
+        quickLookService.Preview(Arg.Any<string>()).Returns(false);
+        var viewModel = CreateQuickLookViewModel(quickLookService);
+        viewModel.SelectedTreeItem = new DiskItemTreeNodeViewModel(
+            new DiskItem("deleted.dat", "/deleted.dat", isDirectory: false));
+
+        Assert.DoesNotThrow(() => viewModel.QuickLookCommand.Execute(null));
+        Assert.That(viewModel.QuickLookStatusMessage, Does.Contain("no longer exists"));
+    }
+
+    [Test]
+    public void QuickLookCommandHandlesAPlatformFailure()
+    {
+        var quickLookService = Substitute.For<IQuickLookService>();
+        quickLookService
+            .When(service => service.Preview(Arg.Any<string>()))
+            .Do(_ => throw new InvalidOperationException("Quick Look unavailable"));
+        var viewModel = CreateQuickLookViewModel(quickLookService);
+        viewModel.SelectedTreeItem = new DiskItemTreeNodeViewModel(
+            new DiskItem("file.dat", "/file.dat", isDirectory: false));
+
+        Assert.DoesNotThrow(() => viewModel.QuickLookCommand.Execute(null));
+        Assert.That(viewModel.QuickLookStatusMessage, Does.Contain("could not be previewed"));
+    }
+
+    [Test]
+    public async Task QuickLookCommandPreservesCompletedScanResultState()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var file = new DiskItem("file.dat", "/scan/root/file.dat", isDirectory: false)
+        {
+            SizeBytes = 1_536,
+            MeasuredSizeBytes = 2_048,
+            SharedSizeBytes = 512,
+            Metadata = new DiskItemMetadata(
+                DiskItemKind.File,
+                FileAttributes.Normal,
+                CreatedTimeUtc: null,
+                new DateTimeOffset(2026, 7, 29, 8, 30, 0, TimeSpan.Zero),
+                LastAccessTimeUtc: null)
+        };
+        root.AddChild(file);
+        root.SizeBytes = file.SizeBytes;
+        root.MeasuredSizeBytes = file.MeasuredSizeBytes;
+        root.SharedSizeBytes = file.SharedSizeBytes;
+        var quickLookService = Substitute.For<IQuickLookService>();
+        quickLookService.Preview(Arg.Any<string>()).Returns(true);
+        var viewModel = CreateScanningViewModel(
+            root,
+            new InMemorySettingsService(),
+            quickLookService);
+        viewModel.SelectedFolderPath = root.Path;
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        viewModel.SelectedLargeFile = file;
+        var treeCount = viewModel.TreeItems.Count;
+        var largestFiles = viewModel.LargeFiles;
+        var fileTypeSummaries = viewModel.FileTypeSummaries;
+        var measured = viewModel.SelectedItemMeasuredSize;
+        var counted = viewModel.SelectedItemCountedSize;
+        var shared = viewModel.SelectedItemSharedSize;
+        var modified = viewModel.SelectedItemModifiedTime;
+
+        viewModel.QuickLookCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.TreeItems.Count, Is.EqualTo(treeCount));
+            Assert.That(viewModel.LargeFiles, Is.SameAs(largestFiles));
+            Assert.That(viewModel.FileTypeSummaries, Is.SameAs(fileTypeSummaries));
+            Assert.That(viewModel.SelectedItem, Is.SameAs(file));
+            Assert.That(viewModel.SelectedItemMeasuredSize, Is.EqualTo(measured));
+            Assert.That(viewModel.SelectedItemCountedSize, Is.EqualTo(counted));
+            Assert.That(viewModel.SelectedItemSharedSize, Is.EqualTo(shared));
+            Assert.That(viewModel.SelectedItemModifiedTime, Is.EqualTo(modified));
+        });
+    }
+
+    [Test]
+    public void ShowSelectedItemDetailsCommandSelectsDetailsTab()
+    {
+        var viewModel = CreateQuickLookViewModel(Substitute.For<IQuickLookService>());
+        var item = new DiskItem("file.dat", "/scan/root/file.dat", isDirectory: false);
+        viewModel.SelectedTreeItem = new DiskItemTreeNodeViewModel(item);
+        viewModel.SelectedResultsTabIndex = 2;
+
+        viewModel.ShowSelectedItemDetailsCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.SelectedResultsTabIndex, Is.Zero);
+            Assert.That(viewModel.SelectedItem, Is.SameAs(item));
+            Assert.That(viewModel.SelectedItemKind, Is.EqualTo("File"));
+        });
+    }
+
+    [Test]
     public void MoveToTrashCommandIsDisabledWithoutASelection()
     {
         var viewModel = CreateTrashViewModel(
@@ -1220,12 +1378,14 @@ public class MainWindowViewModelTests
 
     private static MainWindowViewModel CreateScanningViewModel(
         DiskItem root,
-        ISettingsService settingsService) =>
+        ISettingsService settingsService,
+        IQuickLookService? quickLookService = null) =>
         new(
             Substitute.For<IFolderPickerService>(),
             new StubDiskScanner(_ => CompletedScanAsync(root)),
             new RecordingUiDispatcher(),
-            settingsService: settingsService);
+            settingsService: settingsService,
+            quickLookService: quickLookService);
 
     private static async Task ScanPathAsync(MainWindowViewModel viewModel, string path)
     {
@@ -1236,12 +1396,19 @@ public class MainWindowViewModelTests
     private static string FormattedTime(DateTimeOffset value) =>
         value.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture);
 
-    private static MainWindowViewModel CreateViewModel(IFileRevealService revealService) =>
+    private static MainWindowViewModel CreateViewModel(
+        IFileRevealService revealService,
+        IQuickLookService? quickLookService = null) =>
         new(
             Substitute.For<IFolderPickerService>(),
             Substitute.For<IDiskScanner>(),
             new RecordingUiDispatcher(),
-            revealService);
+            revealService,
+            quickLookService: quickLookService);
+
+    private static MainWindowViewModel CreateQuickLookViewModel(
+        IQuickLookService quickLookService) =>
+        CreateViewModel(Substitute.For<IFileRevealService>(), quickLookService);
 
     private static MainWindowViewModel CreateTrashViewModel(
         ITrashService trashService,

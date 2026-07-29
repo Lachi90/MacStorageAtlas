@@ -104,6 +104,12 @@
                             <TextBlock Text="Reveal in Finder"/>
                         </StackPanel>
                     </Button>
+                    <Button Command="{Binding QuickLookCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconPreview}"/>
+                            <TextBlock Text="Quick Look"/>
+                        </StackPanel>
+                    </Button>
                     <Button Classes="danger" Command="{Binding MoveToTrashCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <PathIcon Data="{StaticResource IconTrash}"/>
@@ -119,6 +125,11 @@
                     Padding="16,8"
                     IsVisible="{Binding RevealStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                 <TextBlock Classes="danger" TextWrapping="Wrap" Text="{Binding RevealStatusMessage}"/>
+            </Border>
+            <Border Background="{DynamicResource ChromeBackgroundBrush}"
+                    Padding="16,8"
+                    IsVisible="{Binding QuickLookStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock Classes="danger" TextWrapping="Wrap" Text="{Binding QuickLookStatusMessage}"/>
             </Border>
             <Border Background="{DynamicResource ChromeBackgroundBrush}"
                     Padding="16,8"
@@ -277,7 +288,7 @@
                     </Border>
 
 <Border Grid.Row="1" Classes="card" MinHeight="220">
-                        <TabControl>
+                        <TabControl SelectedIndex="{Binding SelectedResultsTabIndex, Mode=TwoWay}">
 
 <TabItem Header="Selected item">
                                 <ScrollViewer Margin="0,12,0,0">

@@ -49,11 +49,11 @@ counts, sizes, and full paths.
 | --- | --- |
 | ![Storage grouped by file extension](docs/images/03-file-types.png) | ![List of the largest files with paths](docs/images/04-largest-files.png) |
 
-### 🧹 Reveal in Finder or move to Trash — safely
+### 🔎 Preview, reveal, or move to Trash — safely
 
-Found something to clean up? Reveal any item in Finder, or move it to the Trash
-after a confirmation. Files are never permanently deleted — they go to the Trash,
-so nothing is lost by accident.
+Found something to inspect? Preview the selected item with Quick Look, reveal it
+in Finder, or move it to the Trash after a confirmation. Files are never
+permanently deleted — they go to the Trash, so nothing is lost by accident.
 
 ### ⚙️ Configurable scanning
 
@@ -74,6 +74,8 @@ between runs.
 - Browse results as a folder tree sorted by size, or as an interactive treemap.
 - Inspect selected file and folder metadata captured during the scan, including
   item kind and available created or modified dates.
+- Preview the selected item with Quick Look using the toolbar or Space, and use
+  Command-I to jump back to item details.
 - See storage broken down by file type and a list of the largest files.
 - Search and filter scanned items by name or path.
 - Reveal items in Finder or move them safely to the Trash.
