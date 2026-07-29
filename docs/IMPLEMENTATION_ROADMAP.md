@@ -349,32 +349,43 @@ targets.
 
 Users can determine what a file is and whether it is old before acting on it.
 
+### Status
+
+Metadata details are implemented by `add-file-metadata`. Quick Look preview,
+Space handling, and Command-I shortcuts remain planned.
+
 ### Scope
 
-- Extend `DiskItem` with an immutable metadata model:
+- Completed by `add-file-metadata`:
+  - Extend `DiskItem` with an immutable metadata model.
   - Creation time where available.
   - Modification time.
   - Last-access time where reliable.
+  - Read metadata during the existing filesystem visit to avoid a second full
+    traversal.
+  - Show unavailable or unreliable dates as unknown, not as a fabricated value.
+- Already covered by WP-02 and item details:
   - Logical and allocated size.
   - File identity/share status from WP-02.
-- Read metadata during the existing filesystem visit to avoid a second full
-  traversal.
+- Remaining:
 - Add a Quick Look command using the macOS-native preview experience.
 - Bind Space to Quick Look and Command-I to item details.
-- Show unavailable or unreliable dates as unknown, not as a fabricated value.
 
 ### Acceptance criteria
 
-- File and folder details display available metadata.
+- File and folder details display available metadata. Completed by
+  `add-file-metadata`.
 - Pressing Space previews the selected item from every result view.
 - Missing or removed files produce a friendly status message.
-- Metadata failures are recoverable scan errors where appropriate.
-- The feature does not materialize cloud placeholders.
+- Metadata failures are recoverable scan errors where appropriate. Completed by
+  `add-file-metadata`.
+- The feature does not materialize cloud placeholders. Completed by
+  `add-file-metadata` for metadata collection.
 
 ### Tests and verification
 
-- Unit-test metadata mapping and formatting.
-- Test files with known timestamps.
+- Unit-test metadata mapping and formatting. Completed by `add-file-metadata`.
+- Test files with known timestamps. Completed by `add-file-metadata`.
 - Test Quick Look service command enablement and failure behavior.
 - Manually verify common images, videos, PDFs, archives, and folders.
 

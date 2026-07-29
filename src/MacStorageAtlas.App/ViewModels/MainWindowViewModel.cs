@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -216,6 +217,22 @@ public partial class MainWindowViewModel : ViewModelBase
     public string SelectedItemSharedSize => SelectedItem is null
         ? string.Empty
         : FileSizeFormatter.Format(SelectedItem.SharedSizeBytes);
+
+    public string SelectedItemKind => SelectedItem is null
+        ? string.Empty
+        : KindLabel(SelectedItem.Metadata.Kind);
+
+    public string SelectedItemCreatedTime => SelectedItem is null
+        ? string.Empty
+        : FormatMetadataTime(SelectedItem.Metadata.CreatedTimeUtc);
+
+    public string SelectedItemModifiedTime => SelectedItem is null
+        ? string.Empty
+        : FormatMetadataTime(SelectedItem.Metadata.ModifiedTimeUtc);
+
+    public string SelectedItemLastAccessTime => SelectedItem is null
+        ? string.Empty
+        : FormatMetadataTime(SelectedItem.Metadata.LastAccessTimeUtc);
 
     public bool HasSelectedItem => SelectedItem is not null;
 
@@ -530,9 +547,28 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(SelectedItemMeasuredSize));
         OnPropertyChanged(nameof(SelectedItemCountedSize));
         OnPropertyChanged(nameof(SelectedItemSharedSize));
+        OnPropertyChanged(nameof(SelectedItemKind));
+        OnPropertyChanged(nameof(SelectedItemCreatedTime));
+        OnPropertyChanged(nameof(SelectedItemModifiedTime));
+        OnPropertyChanged(nameof(SelectedItemLastAccessTime));
         OnPropertyChanged(nameof(HasSelectedItem));
         OnPropertyChanged(nameof(SelectedItemIsCountedElsewhere));
     }
+
+    private static string KindLabel(DiskItemKind kind) =>
+        kind switch
+        {
+            DiskItemKind.File => "File",
+            DiskItemKind.Directory => "Folder",
+            DiskItemKind.ApplicationBundle => "Application bundle",
+            DiskItemKind.SymbolicLink => "Symbolic link",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
+        };
+
+    private static string FormatMetadataTime(DateTimeOffset? value) =>
+        value is { } time
+            ? time.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)
+            : "Unknown";
 
     private void ApplySearch()
     {

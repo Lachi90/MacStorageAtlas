@@ -286,20 +286,28 @@
                                                    Text="Select an item in the tree, treemap, or largest-files list to see its details."
                                                    IsVisible="{Binding !HasSelectedItem}"/>
                                         <Grid ColumnDefinitions="Auto,*"
-                                              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                                              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                                               ColumnSpacing="16" RowSpacing="8"
                                               IsVisible="{Binding HasSelectedItem}">
                                             <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Name"/>
                                             <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedItem.Name}" TextWrapping="Wrap"/>
                                             <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Path"/>
                                             <TextBlock Grid.Row="1" Grid.Column="1" Classes="subtle" Text="{Binding SelectedItem.Path}" TextWrapping="Wrap"/>
-                                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Measured"/>
-                                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedItemMeasuredSize}"/>
-                                            <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Counted"/>
-                                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedItemCountedSize}"/>
-                                            <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="Shared"/>
-                                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedItemSharedSize}"/>
-                                            <TextBlock Grid.Row="5" Grid.ColumnSpan="2"
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Kind"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedItemKind}"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Created"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedItemCreatedTime}"/>
+                                            <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="Modified"/>
+                                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedItemModifiedTime}"/>
+                                            <TextBlock Grid.Row="5" Grid.Column="0" Classes="label" Text="Last access"/>
+                                            <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedItemLastAccessTime}"/>
+                                            <TextBlock Grid.Row="6" Grid.Column="0" Classes="label" Text="Measured"/>
+                                            <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding SelectedItemMeasuredSize}"/>
+                                            <TextBlock Grid.Row="7" Grid.Column="0" Classes="label" Text="Counted"/>
+                                            <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding SelectedItemCountedSize}"/>
+                                            <TextBlock Grid.Row="8" Grid.Column="0" Classes="label" Text="Shared"/>
+                                            <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding SelectedItemSharedSize}"/>
+                                            <TextBlock Grid.Row="9" Grid.ColumnSpan="2"
                                                        Classes="caption"
                                                        Text="This path shares storage with another included path. Counted bytes remain attributed to this path; shared bytes are represented elsewhere."
                                                        TextWrapping="Wrap"

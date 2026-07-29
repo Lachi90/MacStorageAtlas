@@ -25,7 +25,8 @@ gigabytes in seconds.
 
 Every scan gives you two synchronized views: a folder tree sorted by size and a
 proportional treemap where the biggest blocks are the biggest consumers. Click a
-block to inspect it — name, full path, and size — and jump straight to it.
+block to inspect it — name, full path, item kind, scan-time dates, and size —
+and jump straight to it.
 
 ![Selected treemap block with item details](docs/images/02-selected-item.png)
 
@@ -71,6 +72,8 @@ between runs.
 - Select and scan any folder or volume with live progress reporting, and
   cancel a running scan at any time.
 - Browse results as a folder tree sorted by size, or as an interactive treemap.
+- Inspect selected file and folder metadata captured during the scan, including
+  item kind and available created or modified dates.
 - See storage broken down by file type and a list of the largest files.
 - Search and filter scanned items by name or path.
 - Reveal items in Finder or move them safely to the Trash.

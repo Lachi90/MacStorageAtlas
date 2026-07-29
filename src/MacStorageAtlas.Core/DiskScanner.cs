@@ -9,6 +9,8 @@ public sealed class DiskScanner : IDiskScanner
     private readonly Func<string, IEnumerable<string>> _enumerateFileSystemEntries;
     private readonly Func<string, long> _logicalSizeReader;
     private readonly Func<string, AllocatedFileMetadata> _allocatedMetadataReader;
+    private readonly Func<string, FileAttributes, DiskItemKind, DiskItemMetadata>
+        _itemMetadataReader;
 
     public DiskScanner()
         : this(Directory.EnumerateFileSystemEntries)
@@ -27,11 +29,13 @@ public sealed class DiskScanner : IDiskScanner
     internal DiskScanner(
         Func<string, IEnumerable<string>> enumerateFileSystemEntries,
         Func<string, long>? logicalSizeReader = null,
-        Func<string, AllocatedFileMetadata>? allocatedMetadataReader = null)
+        Func<string, AllocatedFileMetadata>? allocatedMetadataReader = null,
+        Func<string, FileAttributes, DiskItemKind, DiskItemMetadata>? itemMetadataReader = null)
     {
         _enumerateFileSystemEntries = enumerateFileSystemEntries;
         _logicalSizeReader = logicalSizeReader ?? (path => new FileInfo(path).Length);
         _allocatedMetadataReader = allocatedMetadataReader ?? MissingAllocatedMetadata;
+        _itemMetadataReader = itemMetadataReader ?? ReadItemMetadata;
     }
 
     public async IAsyncEnumerable<ScanProgress> ScanAsync(
@@ -62,6 +66,7 @@ public sealed class DiskScanner : IDiskScanner
         var state = new ScanState(
             root,
             measurementMode);
+        SetRootMetadata(root);
         var visitedDirectories = options.FollowSymbolicLinks
             ? new HashSet<string>(PathComparer)
             : null;
@@ -183,9 +188,37 @@ public sealed class DiskScanner : IDiskScanner
                     continue;
                 }
 
+                var kind = ItemKind(currentEntryPath, attributes, isDirectory);
+                DiskItemMetadata itemMetadata = default;
+                recoverableError = null;
+                try
+                {
+                    itemMetadata = _itemMetadataReader(
+                        currentEntryPath,
+                        attributes,
+                        kind);
+                }
+                catch (Exception exception) when (IsRecoverable(exception))
+                {
+                    recoverableError = exception;
+                }
+
+                if (recoverableError is not null)
+                {
+                    state.AddError(currentEntryPath, recoverableError);
+                    yield return state.Progress(currentEntryPath);
+                    continue;
+                }
+
                 if (isDirectory)
                 {
-                    var child = new DiskItem(Path.GetFileName(currentEntryPath), currentEntryPath, isDirectory: true);
+                    var child = new DiskItem(
+                        Path.GetFileName(currentEntryPath),
+                        currentEntryPath,
+                        isDirectory: true)
+                    {
+                        Metadata = itemMetadata
+                    };
                     if (includeChildren)
                     {
                         directory.AddChild(child);
@@ -259,7 +292,8 @@ public sealed class DiskScanner : IDiskScanner
                 {
                     SizeBytes = countedSize,
                     MeasuredSizeBytes = measuredSize,
-                    SharedSizeBytes = sharedSize
+                    SharedSizeBytes = sharedSize,
+                    Metadata = itemMetadata
                 };
                 if (includeChildren)
                 {
@@ -342,8 +376,70 @@ public sealed class DiskScanner : IDiskScanner
     private static bool IsPackage(string path) =>
         string.Equals(Path.GetExtension(path), ".app", StringComparison.OrdinalIgnoreCase);
 
+    private void SetRootMetadata(DiskItem root)
+    {
+        try
+        {
+            var attributes = File.GetAttributes(root.Path);
+            root.Metadata = _itemMetadataReader(
+                root.Path,
+                attributes,
+                ItemKind(root.Path, attributes, isDirectory: true));
+        }
+        catch (Exception exception) when (IsRecoverable(exception))
+        {
+        }
+    }
+
+    private static DiskItemKind ItemKind(
+        string path,
+        FileAttributes attributes,
+        bool isDirectory)
+    {
+        if ((attributes & FileAttributes.ReparsePoint) != 0)
+        {
+            return DiskItemKind.SymbolicLink;
+        }
+
+        if (isDirectory && IsPackage(path))
+        {
+            return DiskItemKind.ApplicationBundle;
+        }
+
+        return isDirectory ? DiskItemKind.Directory : DiskItemKind.File;
+    }
+
+    private static DiskItemMetadata ReadItemMetadata(
+        string path,
+        FileAttributes attributes,
+        DiskItemKind kind)
+    {
+        var info = (attributes & FileAttributes.Directory) != 0
+            ? (FileSystemInfo)new DirectoryInfo(path)
+            : new FileInfo(path);
+
+        return new DiskItemMetadata(
+            kind,
+            attributes,
+            KnownUtc(info.CreationTimeUtc),
+            KnownUtc(info.LastWriteTimeUtc),
+            LastAccessTimeUtc: null);
+    }
+
+    private static DateTimeOffset? KnownUtc(DateTime value)
+    {
+        if (value <= DateTime.FromFileTimeUtc(0))
+        {
+            return null;
+        }
+
+        return new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc));
+    }
+
     private static bool IsRecoverable(Exception exception) =>
-        exception is UnauthorizedAccessException or IOException;
+        exception is UnauthorizedAccessException or IOException
+            or DirectoryNotFoundException
+            or FileNotFoundException;
 
     private static AllocatedFileMetadata MissingAllocatedMetadata(string path) =>
         throw new IOException(

@@ -14,6 +14,8 @@ public sealed class DiskItem
         Name = name;
         Path = path;
         IsDirectory = isDirectory;
+        Metadata = DiskItemMetadata.Unknown(
+            isDirectory ? DiskItemKind.Directory : DiskItemKind.File);
     }
 
     public string Name { get; }
@@ -21,6 +23,8 @@ public sealed class DiskItem
     public string Path { get; }
 
     public bool IsDirectory { get; }
+
+    public DiskItemMetadata Metadata { get; internal set; }
 
     public long SizeBytes { get; internal set; }
 

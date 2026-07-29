@@ -247,9 +247,16 @@ public class MainWindowViewModelTests
     {
         var root = new DiskItem("root", "/scan/root", isDirectory: true);
         var folder = new DiskItem("folder", "/scan/root/folder", isDirectory: true);
+        var modified = new DateTimeOffset(2026, 7, 29, 8, 30, 0, TimeSpan.Zero);
         var file = new DiskItem("file.dat", "/scan/root/folder/file.dat", isDirectory: false)
         {
-            SizeBytes = 1_536
+            SizeBytes = 1_536,
+            Metadata = new DiskItemMetadata(
+                DiskItemKind.File,
+                FileAttributes.Normal,
+                CreatedTimeUtc: null,
+                modified,
+                LastAccessTimeUtc: null)
         };
         folder.AddChild(file);
         folder.SizeBytes = file.SizeBytes;
@@ -281,6 +288,10 @@ public class MainWindowViewModelTests
             Assert.That(fileNode.FormattedSize, Is.EqualTo("1.5 KB"));
             Assert.That(fileNode.Item, Is.SameAs(file));
             Assert.That(viewModel.SelectedTreeItem, Is.SameAs(fileNode));
+            Assert.That(viewModel.SelectedItemKind, Is.EqualTo("File"));
+            Assert.That(viewModel.SelectedItemModifiedTime, Is.EqualTo(FormattedTime(modified)));
+            Assert.That(viewModel.SelectedItemCreatedTime, Is.EqualTo("Unknown"));
+            Assert.That(viewModel.SelectedItemLastAccessTime, Is.EqualTo("Unknown"));
             Assert.That(viewModel.FileTypeSummaries, Has.Count.EqualTo(1));
             Assert.That(viewModel.FileTypeSummaries[0].Extension, Is.EqualTo(".dat"));
             Assert.That(viewModel.FileTypeSummaries[0].FileCount, Is.EqualTo(1));
@@ -467,9 +478,17 @@ public class MainWindowViewModelTests
     [Test]
     public void TreemapSelectionExposesSelectedItemDetails()
     {
+        var created = new DateTimeOffset(2026, 7, 28, 8, 30, 0, TimeSpan.Zero);
+        var modified = new DateTimeOffset(2026, 7, 29, 8, 30, 0, TimeSpan.Zero);
         var item = new DiskItem("archive.zip", "/scan/root/archive.zip", isDirectory: false)
         {
-            SizeBytes = 1_536
+            SizeBytes = 1_536,
+            Metadata = new DiskItemMetadata(
+                DiskItemKind.File,
+                FileAttributes.Normal,
+                created,
+                modified,
+                LastAccessTimeUtc: null)
         };
         var rectangle = new TreemapRect(new TreemapItem(item), 0, 0, 100, 50);
         var viewModel = new MainWindowViewModel();
@@ -483,6 +502,10 @@ public class MainWindowViewModelTests
             Assert.That(viewModel.SelectedTreemapItem.Path, Is.EqualTo("/scan/root/archive.zip"));
             Assert.That(viewModel.SelectedItemMeasuredSize, Is.EqualTo("1.5 KB"));
             Assert.That(viewModel.SelectedItemCountedSize, Is.EqualTo("1.5 KB"));
+            Assert.That(viewModel.SelectedItemKind, Is.EqualTo("File"));
+            Assert.That(viewModel.SelectedItemCreatedTime, Is.EqualTo(FormattedTime(created)));
+            Assert.That(viewModel.SelectedItemModifiedTime, Is.EqualTo(FormattedTime(modified)));
+            Assert.That(viewModel.SelectedItemLastAccessTime, Is.EqualTo("Unknown"));
             Assert.That(viewModel.HasSelectedItem, Is.True);
         });
     }
@@ -503,7 +526,28 @@ public class MainWindowViewModelTests
             Assert.That(viewModel.SelectedTreemapItem, Is.Null);
             Assert.That(viewModel.SelectedItemMeasuredSize, Is.Empty);
             Assert.That(viewModel.SelectedItemCountedSize, Is.Empty);
+            Assert.That(viewModel.SelectedItemKind, Is.Empty);
+            Assert.That(viewModel.SelectedItemCreatedTime, Is.Empty);
+            Assert.That(viewModel.SelectedItemModifiedTime, Is.Empty);
+            Assert.That(viewModel.SelectedItemLastAccessTime, Is.Empty);
             Assert.That(viewModel.HasSelectedItem, Is.False);
+        });
+    }
+
+    [Test]
+    public void UnknownSelectedItemMetadataFormatsAsUnknown()
+    {
+        var viewModel = new MainWindowViewModel();
+        var directory = new DiskItem("folder", "/scan/root/folder", isDirectory: true);
+
+        viewModel.SelectedTreeItem = new DiskItemTreeNodeViewModel(directory);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.SelectedItemKind, Is.EqualTo("Folder"));
+            Assert.That(viewModel.SelectedItemCreatedTime, Is.EqualTo("Unknown"));
+            Assert.That(viewModel.SelectedItemModifiedTime, Is.EqualTo("Unknown"));
+            Assert.That(viewModel.SelectedItemLastAccessTime, Is.EqualTo("Unknown"));
         });
     }
 
@@ -672,7 +716,15 @@ public class MainWindowViewModelTests
         var confirmation = Substitute.For<ITrashConfirmationService>();
         confirmation.ConfirmMoveToTrashAsync(Arg.Any<DiskItem>()).Returns(false);
         var viewModel = CreateTrashViewModel(trashService, confirmation);
-        var item = new DiskItem("file.dat", "/file.dat", isDirectory: false);
+        var item = new DiskItem("file.dat", "/file.dat", isDirectory: false)
+        {
+            Metadata = new DiskItemMetadata(
+                DiskItemKind.File,
+                FileAttributes.Normal,
+                CreatedTimeUtc: null,
+                new DateTimeOffset(2001, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                LastAccessTimeUtc: null)
+        };
         viewModel.SelectedTreeItem = new DiskItemTreeNodeViewModel(item);
 
         await viewModel.MoveToTrashCommand.ExecuteAsync(null);
@@ -1095,9 +1147,16 @@ public class MainWindowViewModelTests
     {
         var revealService = Substitute.For<IFileRevealService>();
         var viewModel = CreateViewModel(revealService);
+        var modified = new DateTimeOffset(2026, 7, 29, 8, 30, 0, TimeSpan.Zero);
         var file = new DiskItem("big.bin", "/scan/root/big.bin", isDirectory: false)
         {
-            SizeBytes = 4_096
+            SizeBytes = 4_096,
+            Metadata = new DiskItemMetadata(
+                DiskItemKind.File,
+                FileAttributes.Normal,
+                CreatedTimeUtc: null,
+                modified,
+                LastAccessTimeUtc: null)
         };
 
         viewModel.SelectedLargeFile = file;
@@ -1105,6 +1164,8 @@ public class MainWindowViewModelTests
         Assert.Multiple(() =>
         {
             Assert.That(viewModel.SelectedItem, Is.SameAs(file));
+            Assert.That(viewModel.SelectedItemKind, Is.EqualTo("File"));
+            Assert.That(viewModel.SelectedItemModifiedTime, Is.EqualTo(FormattedTime(modified)));
             Assert.That(viewModel.RevealInFinderCommand.CanExecute(null), Is.True);
             Assert.That(viewModel.MoveToTrashCommand.CanExecute(null), Is.True);
         });
@@ -1171,6 +1232,9 @@ public class MainWindowViewModelTests
         viewModel.SelectedFolderPath = path;
         await viewModel.ScanFolderCommand.ExecuteAsync(null);
     }
+
+    private static string FormattedTime(DateTimeOffset value) =>
+        value.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture);
 
     private static MainWindowViewModel CreateViewModel(IFileRevealService revealService) =>
         new(

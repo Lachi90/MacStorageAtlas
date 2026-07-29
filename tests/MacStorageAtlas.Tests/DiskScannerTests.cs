@@ -58,6 +58,135 @@ public class DiskScannerTests
         });
     }
 
+    [TestCase(StorageMeasurementMode.Logical)]
+    [TestCase(StorageMeasurementMode.Allocated)]
+    [TestCase(StorageMeasurementMode.SharedAwareAllocated)]
+    public async Task ScanAsyncCapturesFileMetadataForMeasurementMode(
+        StorageMeasurementMode measurementMode)
+    {
+        var filePath = Path.Combine(_temporaryDirectory, "file.bin");
+        await File.WriteAllBytesAsync(filePath, new byte[10]);
+        var modified = new DateTimeOffset(2026, 7, 29, 8, 0, 0, TimeSpan.Zero);
+        var created = new DateTimeOffset(2026, 7, 28, 8, 0, 0, TimeSpan.Zero);
+        var scanner = new DiskScanner(
+            Directory.EnumerateFileSystemEntries,
+            allocatedMetadataReader: _ => Metadata(4096),
+            itemMetadataReader: (path, attributes, kind) => new DiskItemMetadata(
+                kind,
+                attributes,
+                created,
+                modified,
+                LastAccessTimeUtc: null));
+        var options = new ScanOptions { MeasurementMode = measurementMode };
+
+        var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
+
+        var result = progress[^1];
+        var file = result.Root.Children.Single(item => item.Path == filePath);
+        Assert.Multiple(() =>
+        {
+            Assert.That(file.Metadata.Kind, Is.EqualTo(DiskItemKind.File));
+            Assert.That(file.Metadata.Attributes, Is.Not.Null);
+            Assert.That(file.Metadata.CreatedTimeUtc, Is.EqualTo(created));
+            Assert.That(file.Metadata.ModifiedTimeUtc, Is.EqualTo(modified));
+            Assert.That(file.Metadata.LastAccessTimeUtc, Is.Null);
+            Assert.That(result.MeasurementMode, Is.EqualTo(measurementMode));
+            Assert.That(result.BytesScanned, Is.EqualTo(measurementMode == StorageMeasurementMode.Logical ? 10 : 4096));
+        });
+    }
+
+    [Test]
+    public async Task ScanAsyncCapturesDirectoryMetadataAndApplicationBundleKind()
+    {
+        var bundle = Directory.CreateDirectory(
+            Path.Combine(_temporaryDirectory, "Example.app"));
+        await File.WriteAllBytesAsync(
+            Path.Combine(bundle.FullName, "payload"),
+            new byte[3]);
+        var modified = new DateTimeOffset(2026, 7, 29, 9, 0, 0, TimeSpan.Zero);
+        var scanner = new DiskScanner(
+            Directory.EnumerateFileSystemEntries,
+            itemMetadataReader: (path, attributes, kind) => new DiskItemMetadata(
+                kind,
+                attributes,
+                CreatedTimeUtc: null,
+                modified,
+                LastAccessTimeUtc: null));
+        var options = new ScanOptions { TreatPackagesAsDirectories = false };
+
+        var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory, options));
+
+        var package = progress[^1].Root.Children.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(package.Name, Is.EqualTo("Example.app"));
+            Assert.That(package.Metadata.Kind, Is.EqualTo(DiskItemKind.ApplicationBundle));
+            Assert.That(package.Metadata.ModifiedTimeUtc, Is.EqualTo(modified));
+            Assert.That(package.Children, Is.Empty);
+            Assert.That(package.SizeBytes, Is.EqualTo(3));
+        });
+    }
+
+    [Test]
+    public async Task ScanAsyncKeepsMetadataSnapshotAfterFilesystemChanges()
+    {
+        var filePath = Path.Combine(_temporaryDirectory, "file.bin");
+        await File.WriteAllBytesAsync(filePath, new byte[10]);
+        var captured = new DateTimeOffset(2026, 7, 29, 8, 0, 0, TimeSpan.Zero);
+        var scanner = new DiskScanner(
+            Directory.EnumerateFileSystemEntries,
+            itemMetadataReader: (path, attributes, kind) => new DiskItemMetadata(
+                kind,
+                attributes,
+                CreatedTimeUtc: null,
+                captured,
+                LastAccessTimeUtc: null));
+
+        var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory));
+        File.SetLastWriteTimeUtc(filePath, captured.AddDays(1).UtcDateTime);
+
+        var file = progress[^1].Root.Children.Single();
+        Assert.That(file.Metadata.ModifiedTimeUtc, Is.EqualTo(captured));
+    }
+
+    [Test]
+    public async Task ScanAsyncReportsMetadataFailureAndKeepsSuccessfulSibling()
+    {
+        var failedFile = Path.Combine(_temporaryDirectory, "failed.bin");
+        var successfulFile = Path.Combine(_temporaryDirectory, "successful.bin");
+        await File.WriteAllBytesAsync(failedFile, new byte[10]);
+        await File.WriteAllBytesAsync(successfulFile, new byte[17]);
+        var scanner = new DiskScanner(
+            Directory.EnumerateFileSystemEntries,
+            itemMetadataReader: (path, attributes, kind) =>
+            {
+                if (path == failedFile)
+                {
+                    throw new IOException("Metadata unavailable.");
+                }
+
+                return new DiskItemMetadata(
+                    kind,
+                    attributes,
+                    CreatedTimeUtc: null,
+                    ModifiedTimeUtc: new DateTimeOffset(2026, 7, 29, 8, 0, 0, TimeSpan.Zero),
+                    LastAccessTimeUtc: null);
+            });
+
+        var progress = await CollectAsync(scanner.ScanAsync(_temporaryDirectory));
+
+        var result = progress[^1];
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsCompleted, Is.True);
+            Assert.That(result.FilesScanned, Is.EqualTo(1));
+            Assert.That(result.BytesScanned, Is.EqualTo(17));
+            Assert.That(result.Root.Children.Single().Path, Is.EqualTo(successfulFile));
+            Assert.That(result.Errors.Single().Path, Is.EqualTo(failedFile));
+            Assert.That(result.Errors.Single().ExceptionType, Is.EqualTo(nameof(IOException)));
+        });
+    }
+
     [Test]
     public async Task ScanAsyncSortsCompletedTreeBySizeDescendingRecursively()
     {
@@ -1126,7 +1255,20 @@ public class DiskScannerTests
         var scanner = new DiskScanner(
             Directory.EnumerateFileSystemEntries,
             allocatedMetadataReader: path =>
-                Metadata(path == firstFile ? 4096 : 8192));
+                Metadata(path == firstFile ? 4096 : 8192),
+            itemMetadataReader: (path, attributes, kind) => new DiskItemMetadata(
+                kind,
+                attributes,
+                CreatedTimeUtc: null,
+                ModifiedTimeUtc: new DateTimeOffset(
+                    2026,
+                    7,
+                    29,
+                    8,
+                    0,
+                    0,
+                    TimeSpan.Zero),
+                LastAccessTimeUtc: null));
         var options = new ScanOptions
         {
             MeasurementMode = measurementMode
@@ -1160,6 +1302,7 @@ public class DiskScannerTests
             Assert.That(
                 latest.Root.Children.Sum(item => item.SizeBytes),
                 Is.EqualTo(latest.Root.SizeBytes));
+            Assert.That(latest.Root.Children.Single().Metadata.ModifiedTimeUtc, Is.Not.Null);
             Assert.That(latest.MeasurementMode, Is.EqualTo(measurementMode));
         });
     }
