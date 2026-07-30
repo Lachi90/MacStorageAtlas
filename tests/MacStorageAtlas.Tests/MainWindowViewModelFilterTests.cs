@@ -206,7 +206,7 @@ public class MainWindowViewModelFilterTests
     {
         var viewModel = await CreateScannedViewModelAsync();
 
-        viewModel.Filter.ModifiedBefore = new DateTimeOffset(2026, 7, 30, 0, 0, 0, TimeSpan.Zero);
+        viewModel.Filter.ModifiedBefore.Instant = new DateTimeOffset(2026, 7, 30, 0, 0, 0, TimeSpan.Zero);
         await viewModel.TreePreparation;
 
         Assert.Multiple(() =>

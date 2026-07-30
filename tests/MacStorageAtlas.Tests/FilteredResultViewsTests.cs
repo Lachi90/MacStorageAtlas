@@ -4,7 +4,13 @@ namespace MacStorageAtlas.Tests;
 
 public class FilteredResultViewsTests
 {
+    private static readonly DateTimeOffset Reference =
+        new(2026, 7, 30, 12, 0, 0, TimeSpan.Zero);
+
     private readonly DiskItemFilterEvaluator _evaluator = new();
+
+    private FilterResult EvaluateAt(DiskItem root, DiskItemFilter filter) =>
+        _evaluator.Evaluate(root, filter, Reference);
     private readonly LargeFilesService _largeFilesService = new();
     private readonly FileTypeStatisticsService _fileTypeStatisticsService = new();
 
@@ -12,7 +18,7 @@ public class FilteredResultViewsTests
     public void LargestFilesOverAFilterResultReturnsOnlyMatches()
     {
         var root = CreateTree();
-        var result = _evaluator.Evaluate(root, new DiskItemFilter { Extensions = [".mov"] });
+        var result = EvaluateAt(root, new DiskItemFilter { Extensions = [".mov"] });
 
         var largest = _largeFilesService.GetLargestFiles(result.MatchedFiles);
 
@@ -25,7 +31,7 @@ public class FilteredResultViewsTests
     public void LargestFilesOverAFilterResultKeepsSizeOrdering()
     {
         var root = CreateTree();
-        var result = _evaluator.Evaluate(root, DiskItemFilter.Empty);
+        var result = EvaluateAt(root, DiskItemFilter.Empty);
 
         var largest = _largeFilesService.GetLargestFiles(result.MatchedFiles);
 
@@ -38,7 +44,7 @@ public class FilteredResultViewsTests
     public void LargestFilesOverAnEmptyFilterResultMatchesTheWholeTreeResult()
     {
         var root = CreateTree();
-        var result = _evaluator.Evaluate(root, DiskItemFilter.Empty);
+        var result = EvaluateAt(root, DiskItemFilter.Empty);
 
         var fromTree = _largeFilesService.GetLargestFiles(root);
         var fromMatches = _largeFilesService.GetLargestFiles(result.MatchedFiles);
@@ -52,7 +58,7 @@ public class FilteredResultViewsTests
     public void LargestFilesRespectsTheLimitOverAFilterResult()
     {
         var root = CreateTree();
-        var result = _evaluator.Evaluate(root, DiskItemFilter.Empty);
+        var result = EvaluateAt(root, DiskItemFilter.Empty);
 
         var largest = _largeFilesService.GetLargestFiles(result.MatchedFiles, limit: 2);
 
@@ -63,7 +69,7 @@ public class FilteredResultViewsTests
     public void LargestFilesReturnsNothingForAZeroLimitOverAFilterResult()
     {
         var root = CreateTree();
-        var result = _evaluator.Evaluate(root, DiskItemFilter.Empty);
+        var result = EvaluateAt(root, DiskItemFilter.Empty);
 
         Assert.That(
             _largeFilesService.GetLargestFiles(result.MatchedFiles, limit: 0),
@@ -74,7 +80,7 @@ public class FilteredResultViewsTests
     public void FileTypeSummariesOverAFilterResultDescribeOnlyMatches()
     {
         var root = CreateTree();
-        var result = _evaluator.Evaluate(root, new DiskItemFilter { Extensions = [".mov"] });
+        var result = EvaluateAt(root, new DiskItemFilter { Extensions = [".mov"] });
 
         var summaries = _fileTypeStatisticsService.Calculate(result.MatchedFiles);
 
@@ -90,7 +96,7 @@ public class FilteredResultViewsTests
     public void FileTypeSummariesOverAnEmptyFilterResultMatchTheWholeTreeResult()
     {
         var root = CreateTree();
-        var result = _evaluator.Evaluate(root, DiskItemFilter.Empty);
+        var result = EvaluateAt(root, DiskItemFilter.Empty);
 
         var fromTree = _fileTypeStatisticsService.Calculate(root);
         var fromMatches = _fileTypeStatisticsService.Calculate(result.MatchedFiles);
@@ -102,7 +108,7 @@ public class FilteredResultViewsTests
     public void FileTypeSummariesOverAFilterResultAgreeWithTheMatchedTotal()
     {
         var root = CreateTree();
-        var result = _evaluator.Evaluate(root, new DiskItemFilter { MinimumSizeBytes = 1024 });
+        var result = EvaluateAt(root, new DiskItemFilter { MinimumSizeBytes = 1024 });
 
         var summaries = _fileTypeStatisticsService.Calculate(result.MatchedFiles);
 
@@ -119,7 +125,7 @@ public class FilteredResultViewsTests
         {
             SizeBytes = 64
         });
-        var result = _evaluator.Evaluate(root, DiskItemFilter.Empty);
+        var result = EvaluateAt(root, DiskItemFilter.Empty);
 
         var summaries = _fileTypeStatisticsService.Calculate(result.MatchedFiles);
 
@@ -132,7 +138,7 @@ public class FilteredResultViewsTests
     public void EmptyMatchesProduceEmptyResultViews()
     {
         var root = CreateTree();
-        var result = _evaluator.Evaluate(
+        var result = EvaluateAt(
             root,
             new DiskItemFilter { Extensions = [".nothing"] });
 

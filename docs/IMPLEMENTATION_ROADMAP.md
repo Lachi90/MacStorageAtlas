@@ -405,6 +405,13 @@ Space handling, and Command-I shortcuts are implemented by `add-quick-look`.
 Users can reduce large scans to actionable questions instead of browsing the
 entire tree.
 
+### Status
+
+Filters and presets are implemented by `add-advanced-filters`. Relative date
+bounds, preset renaming in the filter panel, preset updating in place, and
+applied-preset reporting are implemented by `improve-filter-presets`, which
+stops a saved age preset from drifting as time passes.
+
 ### Scope
 
 - Filter by:

@@ -19,6 +19,55 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
+    <Window.Resources>
+        <DataTemplate x:Key="DateBoundTemplate" x:DataType="vm:DateBoundViewModel">
+            <StackPanel Spacing="4" Margin="0,0,0,8">
+                <Grid ColumnDefinitions="46,Auto,*" ColumnSpacing="6">
+                    <TextBlock Grid.Column="0"
+                               Classes="caption"
+                               Text="{Binding BoundLabel}"
+                               VerticalAlignment="Center"/>
+                    <CheckBox Grid.Column="1"
+                              Content="Relative"
+                              IsChecked="{Binding IsRelative, Mode=TwoWay}"
+                              AutomationProperties.Name="{Binding RelativeToggleName}"
+                              ToolTip.Tip="Measures the bound from the moment the filter runs instead of a fixed date."/>
+                </Grid>
+                <DatePicker Margin="52,0,0,0"
+                            HorizontalAlignment="Stretch"
+                            IsVisible="{Binding IsAbsolute}"
+                            AutomationProperties.Name="{Binding DisplayName}"
+                            SelectedDate="{Binding Instant, Mode=TwoWay}"/>
+                <Grid Margin="52,0,0,0"
+                      IsVisible="{Binding IsRelative}"
+                      ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                    <NumericUpDown Grid.Column="0"
+                                   Width="112"
+                                   Minimum="1"
+                                   Increment="1"
+                                   FormatString="0"
+                                   PlaceholderText="Count"
+                                   AutomationProperties.Name="{Binding CountName}"
+                                   Value="{Binding CountValue, Mode=TwoWay}"/>
+                    <ComboBox Grid.Column="1"
+                              HorizontalAlignment="Stretch"
+                              ItemsSource="{Binding UnitOptions}"
+                              SelectedItem="{Binding Unit, Mode=TwoWay}"
+                              AutomationProperties.Name="{Binding UnitName}"/>
+                    <TextBlock Grid.Column="2"
+                               Classes="caption"
+                               Text="ago"
+                               VerticalAlignment="Center"/>
+                </Grid>
+                <TextBlock Classes="caption"
+                           Margin="52,0,0,0"
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding HasResolvedDescription}"
+                           Text="{Binding ResolvedDescription}"/>
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
+
     <DockPanel>
 
 <Border DockPanel.Dock="Top"
@@ -84,7 +133,7 @@
                                     <ItemsControl ItemsSource="{Binding Presets}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="core:FilterPreset">
-                                                <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                                <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,2">
                                                     <Button Grid.Column="0"
                                                             HorizontalAlignment="Stretch"
                                                             HorizontalContentAlignment="Left"
@@ -92,6 +141,15 @@
                                                             Command="{Binding $parent[ItemsControl].((vm:ResultFilterViewModel)DataContext).ApplyPresetCommand}"
                                                             CommandParameter="{Binding}"/>
                                                     <Button Grid.Column="1"
+                                                            Margin="4,0,0,0"
+                                                            IsVisible="{Binding !IsBuiltIn}"
+                                                            ToolTip.Tip="Rename preset"
+                                                            AutomationProperties.Name="Rename preset"
+                                                            Command="{Binding $parent[ItemsControl].((vm:ResultFilterViewModel)DataContext).BeginRenamePresetCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <PathIcon Data="{StaticResource IconRename}"/>
+                                                    </Button>
+                                                    <Button Grid.Column="2"
                                                             Margin="4,0,0,0"
                                                             IsVisible="{Binding !IsBuiltIn}"
                                                             ToolTip.Tip="Delete preset"
@@ -104,6 +162,30 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
+
+                                    <TextBlock Classes="caption"
+                                               TextWrapping="Wrap"
+                                               IsVisible="{Binding HasPresetState}"
+                                               Text="{Binding PresetStateSummary}"/>
+
+                                    <Button HorizontalAlignment="Stretch"
+                                            Content="Update preset with current criteria"
+                                            IsVisible="{Binding HasEditedCriteria}"
+                                            Command="{Binding UpdatePresetCommand}"/>
+
+                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6"
+                                          IsVisible="{Binding IsRenamingPreset}">
+                                        <TextBox Grid.Column="0"
+                                                 Text="{Binding RenamePresetName, Mode=TwoWay}"
+                                                 AutomationProperties.Name="New name for the selected preset"
+                                                 PlaceholderText="Preset name"/>
+                                        <Button Grid.Column="1"
+                                                Content="Rename"
+                                                Command="{Binding CommitRenamePresetCommand}"/>
+                                        <Button Grid.Column="2"
+                                                Content="Cancel"
+                                                Command="{Binding CancelRenamePresetCommand}"/>
+                                    </Grid>
 
                                     <TextBlock Classes="label" Text="Size"/>
                                     <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="6">
@@ -121,64 +203,22 @@
                                     </Grid>
 
                                     <TextBlock Classes="label" Text="Modified"/>
-                                    <Grid ColumnDefinitions="Auto,*"
-                                          RowDefinitions="Auto,Auto"
-                                          ColumnSpacing="8" RowSpacing="6">
-                                        <TextBlock Grid.Row="0" Grid.Column="0"
-                                                   Classes="caption" Text="After"
-                                                   VerticalAlignment="Center" Width="46"/>
-                                        <DatePicker Grid.Row="0" Grid.Column="1"
-                                                    HorizontalAlignment="Stretch"
-                                                    AutomationProperties.Name="Modified after"
-                                                    SelectedDate="{Binding ModifiedAfter, Mode=TwoWay}"/>
-                                        <TextBlock Grid.Row="1" Grid.Column="0"
-                                                   Classes="caption" Text="Before"
-                                                   VerticalAlignment="Center" Width="46"/>
-                                        <DatePicker Grid.Row="1" Grid.Column="1"
-                                                    HorizontalAlignment="Stretch"
-                                                    AutomationProperties.Name="Modified before"
-                                                    SelectedDate="{Binding ModifiedBefore, Mode=TwoWay}"/>
-                                    </Grid>
+                                    <ContentControl Content="{Binding ModifiedAfter}"
+                                                    ContentTemplate="{StaticResource DateBoundTemplate}"/>
+                                    <ContentControl Content="{Binding ModifiedBefore}"
+                                                    ContentTemplate="{StaticResource DateBoundTemplate}"/>
 
                                     <TextBlock Classes="label" Text="Created"/>
-                                    <Grid ColumnDefinitions="Auto,*"
-                                          RowDefinitions="Auto,Auto"
-                                          ColumnSpacing="8" RowSpacing="6">
-                                        <TextBlock Grid.Row="0" Grid.Column="0"
-                                                   Classes="caption" Text="After"
-                                                   VerticalAlignment="Center" Width="46"/>
-                                        <DatePicker Grid.Row="0" Grid.Column="1"
-                                                    HorizontalAlignment="Stretch"
-                                                    AutomationProperties.Name="Created after"
-                                                    SelectedDate="{Binding CreatedAfter, Mode=TwoWay}"/>
-                                        <TextBlock Grid.Row="1" Grid.Column="0"
-                                                   Classes="caption" Text="Before"
-                                                   VerticalAlignment="Center" Width="46"/>
-                                        <DatePicker Grid.Row="1" Grid.Column="1"
-                                                    HorizontalAlignment="Stretch"
-                                                    AutomationProperties.Name="Created before"
-                                                    SelectedDate="{Binding CreatedBefore, Mode=TwoWay}"/>
-                                    </Grid>
+                                    <ContentControl Content="{Binding CreatedAfter}"
+                                                    ContentTemplate="{StaticResource DateBoundTemplate}"/>
+                                    <ContentControl Content="{Binding CreatedBefore}"
+                                                    ContentTemplate="{StaticResource DateBoundTemplate}"/>
 
                                     <TextBlock Classes="label" Text="Last accessed"/>
-                                    <Grid ColumnDefinitions="Auto,*"
-                                          RowDefinitions="Auto,Auto"
-                                          ColumnSpacing="8" RowSpacing="6">
-                                        <TextBlock Grid.Row="0" Grid.Column="0"
-                                                   Classes="caption" Text="After"
-                                                   VerticalAlignment="Center" Width="46"/>
-                                        <DatePicker Grid.Row="0" Grid.Column="1"
-                                                    HorizontalAlignment="Stretch"
-                                                    AutomationProperties.Name="Last accessed after"
-                                                    SelectedDate="{Binding LastAccessedAfter, Mode=TwoWay}"/>
-                                        <TextBlock Grid.Row="1" Grid.Column="0"
-                                                   Classes="caption" Text="Before"
-                                                   VerticalAlignment="Center" Width="46"/>
-                                        <DatePicker Grid.Row="1" Grid.Column="1"
-                                                    HorizontalAlignment="Stretch"
-                                                    AutomationProperties.Name="Last accessed before"
-                                                    SelectedDate="{Binding LastAccessedBefore, Mode=TwoWay}"/>
-                                    </Grid>
+                                    <ContentControl Content="{Binding LastAccessedAfter}"
+                                                    ContentTemplate="{StaticResource DateBoundTemplate}"/>
+                                    <ContentControl Content="{Binding LastAccessedBefore}"
+                                                    ContentTemplate="{StaticResource DateBoundTemplate}"/>
 
                                     <TextBlock Classes="label" Text="File extensions"/>
                                     <TextBox Text="{Binding ExtensionsText, Mode=TwoWay}"

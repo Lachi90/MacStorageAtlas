@@ -10,17 +10,17 @@ public sealed record DiskItemFilter
 
     public long? MaximumSizeBytes { get; init; }
 
-    public DateTimeOffset? CreatedAfter { get; init; }
+    public DateCriterion? CreatedAfter { get; init; }
 
-    public DateTimeOffset? CreatedBefore { get; init; }
+    public DateCriterion? CreatedBefore { get; init; }
 
-    public DateTimeOffset? ModifiedAfter { get; init; }
+    public DateCriterion? ModifiedAfter { get; init; }
 
-    public DateTimeOffset? ModifiedBefore { get; init; }
+    public DateCriterion? ModifiedBefore { get; init; }
 
-    public DateTimeOffset? LastAccessedAfter { get; init; }
+    public DateCriterion? LastAccessedAfter { get; init; }
 
-    public DateTimeOffset? LastAccessedBefore { get; init; }
+    public DateCriterion? LastAccessedBefore { get; init; }
 
     public IReadOnlyList<string> Extensions { get; init; } = [];
 
@@ -47,6 +47,72 @@ public sealed record DiskItemFilter
 
     public DiskItemFilterValidation Validate()
     {
+        var basics = ValidateSizesAndCriteria();
+        if (!basics.IsValid)
+        {
+            return basics;
+        }
+
+        foreach (var (after, before, message) in DateDimensions)
+        {
+            if (after is AbsoluteDateCriterion lower
+                && before is AbsoluteDateCriterion upper
+                && lower.Instant > upper.Instant)
+            {
+                return DiskItemFilterValidation.Invalid(message);
+            }
+        }
+
+        return DiskItemFilterValidation.Valid;
+    }
+
+    public DiskItemFilterValidation Validate(DateTimeOffset referenceTime)
+    {
+        var basics = ValidateSizesAndCriteria();
+        if (!basics.IsValid)
+        {
+            return basics;
+        }
+
+        foreach (var (after, before, message) in DateDimensions)
+        {
+            if (after is not null
+                && before is not null
+                && after.Resolve(referenceTime) > before.Resolve(referenceTime))
+            {
+                return DiskItemFilterValidation.Invalid(message);
+            }
+        }
+
+        return DiskItemFilterValidation.Valid;
+    }
+
+    private IReadOnlyList<DateCriterion?> DateCriteria =>
+    [
+        CreatedAfter,
+        CreatedBefore,
+        ModifiedAfter,
+        ModifiedBefore,
+        LastAccessedAfter,
+        LastAccessedBefore
+    ];
+
+    private IReadOnlyList<(DateCriterion? After, DateCriterion? Before, string Message)>
+        DateDimensions =>
+    [
+        (CreatedAfter,
+            CreatedBefore,
+            "Created-after date is later than created-before date."),
+        (ModifiedAfter,
+            ModifiedBefore,
+            "Modified-after date is later than modified-before date."),
+        (LastAccessedAfter,
+            LastAccessedBefore,
+            "Accessed-after date is later than accessed-before date.")
+    ];
+
+    private DiskItemFilterValidation ValidateSizesAndCriteria()
+    {
         if (MinimumSizeBytes is { } minimum && minimum < 0)
         {
             return DiskItemFilterValidation.Invalid(
@@ -67,28 +133,12 @@ public sealed record DiskItemFilter
                 "Minimum size is larger than maximum size.");
         }
 
-        if (CreatedAfter is { } createdAfter
-            && CreatedBefore is { } createdBefore
-            && createdAfter > createdBefore)
+        foreach (var criterion in DateCriteria)
         {
-            return DiskItemFilterValidation.Invalid(
-                "Created-after date is later than created-before date.");
-        }
-
-        if (ModifiedAfter is { } modifiedAfter
-            && ModifiedBefore is { } modifiedBefore
-            && modifiedAfter > modifiedBefore)
-        {
-            return DiskItemFilterValidation.Invalid(
-                "Modified-after date is later than modified-before date.");
-        }
-
-        if (LastAccessedAfter is { } accessedAfter
-            && LastAccessedBefore is { } accessedBefore
-            && accessedAfter > accessedBefore)
-        {
-            return DiskItemFilterValidation.Invalid(
-                "Accessed-after date is later than accessed-before date.");
+            if (criterion?.Validate() is { IsValid: false } invalid)
+            {
+                return invalid;
+            }
         }
 
         return DiskItemFilterValidation.Valid;

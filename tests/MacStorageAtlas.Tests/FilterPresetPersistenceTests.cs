@@ -38,7 +38,7 @@ public class FilterPresetPersistenceTests
             TextTerm = "report",
             MinimumSizeBytes = 2048,
             MaximumSizeBytes = 8192,
-            ModifiedBefore = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            ModifiedBefore = new AbsoluteDateCriterion(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)),
             Extensions = [".mov"],
             Categories = [FileCategory.Video],
             SharedStorageOnly = true
@@ -198,7 +198,136 @@ public class FilterPresetPersistenceTests
                 Is.EqualTo("Big"));
             Assert.That(
                 presets[0].GetProperty("SchemaVersion").GetInt32(),
-                Is.EqualTo(FilterPresetSettings.CurrentSchemaVersion));
+                Is.EqualTo(1));
         });
+    }
+
+    [Test]
+    public void APresetWithARelativeBoundRecordsTheCurrentSchemaVersion()
+    {
+        var settings = FilterPresetSettings.FromPreset(
+            new FilterPreset(
+                "Stale",
+                new DiskItemFilter
+                {
+                    ModifiedBefore = new RelativeDateCriterion(
+                        18,
+                        RelativeDateUnit.Months)
+                }));
+
+        Assert.That(
+            settings.SchemaVersion,
+            Is.EqualTo(FilterPresetSettings.CurrentSchemaVersion));
+    }
+
+    [Test]
+    public void ARelativeBoundRoundTripsThroughSettings()
+    {
+        var service = new JsonSettingsService(_settingsPath);
+        var filter = new DiskItemFilter
+        {
+            ModifiedBefore = new RelativeDateCriterion(18, RelativeDateUnit.Months),
+            LastAccessedBefore = new RelativeDateCriterion(3, RelativeDateUnit.Weeks)
+        };
+
+        service.Save(new AppSettings
+        {
+            FilterPresets = [FilterPresetSettings.FromPreset(new FilterPreset("Stale", filter))]
+        });
+
+        var restored = service.Load().FilterPresets[0].TryCreatePreset();
+
+        Assert.That(restored, Is.Not.Null);
+        Assert.That(restored!.Filter, Is.EqualTo(filter));
+    }
+
+    [Test]
+    public void APresetStoredWithAnAbsoluteBoundLoadsAsAnAbsoluteBound()
+    {
+        File.WriteAllText(
+            _settingsPath,
+            """
+            {
+              "FilterPresets": [
+                {
+                  "SchemaVersion": 1,
+                  "Name": "Before 2026",
+                  "ModifiedBefore": "2026-01-01T00:00:00+00:00"
+                }
+              ]
+            }
+            """);
+
+        var restored = new JsonSettingsService(_settingsPath)
+            .Load()
+            .FilterPresets[0]
+            .TryCreatePreset();
+
+        Assert.That(restored, Is.Not.Null);
+        Assert.That(
+            restored!.Filter.ModifiedBefore,
+            Is.EqualTo(
+                new AbsoluteDateCriterion(
+                    new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero))));
+    }
+
+    [Test]
+    public void APresetFromANewerSchemaVersionIsSkippedWhileItsNeighboursLoad()
+    {
+        File.WriteAllText(
+            _settingsPath,
+            """
+            {
+              "FilterPresets": [
+                { "SchemaVersion": 1, "Name": "Readable", "MinimumSizeBytes": 1024 },
+                { "SchemaVersion": 3, "Name": "FromTheFuture", "MinimumSizeBytes": 2048 }
+              ]
+            }
+            """);
+
+        var stored = new JsonSettingsService(_settingsPath).Load().FilterPresets;
+        var restored = stored
+            .Select(preset => preset.TryCreatePreset())
+            .Where(preset => preset is not null)
+            .ToArray();
+
+        Assert.That(stored, Has.Count.EqualTo(2));
+        Assert.That(restored, Has.Length.EqualTo(1));
+        Assert.That(restored[0]!.Name, Is.EqualTo("Readable"));
+    }
+
+    [Test]
+    public void APresetWithAnUndefinedRelativeUnitIsRejected()
+    {
+        var settings = new FilterPresetSettings
+        {
+            SchemaVersion = 2,
+            Name = "Broken",
+            ModifiedBeforeRelative = new RelativeDateCriterionSettings
+            {
+                Count = 1,
+                Unit = (RelativeDateUnit)97
+            }
+        };
+
+        Assert.That(settings.TryCreatePreset(), Is.Null);
+    }
+
+    [Test]
+    public void APresetSupplyingBothFormsForOneBoundIsRejected()
+    {
+        var settings = new FilterPresetSettings
+        {
+            SchemaVersion = 2,
+            Name = "Ambiguous",
+            ModifiedBefore = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            ModifiedBeforeRelative = new RelativeDateCriterionSettings
+            {
+                Count = 1,
+                Unit = RelativeDateUnit.Years
+            }
+        };
+
+        Assert.That(settings.TryCreatePreset(), Is.Null);
     }
 }

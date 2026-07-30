@@ -7,11 +7,13 @@ public sealed class FilterResult
 
     internal FilterResult(
         DiskItemFilter filter,
+        DateTimeOffset referenceTime,
         IReadOnlyList<DiskItem> matchedFiles,
         Dictionary<DiskItem, long> matchedBytesByDirectory,
         long unknownDateExclusionCount)
     {
         Filter = filter;
+        ReferenceTime = referenceTime;
         MatchedFiles = matchedFiles;
         _matchedFiles = new HashSet<DiskItem>(
             matchedFiles,
@@ -22,6 +24,8 @@ public sealed class FilterResult
     }
 
     public DiskItemFilter Filter { get; }
+
+    public DateTimeOffset ReferenceTime { get; }
 
     public IReadOnlyList<DiskItem> MatchedFiles { get; }
 

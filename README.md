@@ -83,8 +83,13 @@ between runs.
   modification and last-access dates, file extension, file category, and
   shared-storage status. Criteria combine with AND, and filtering never
   rescans.
-- Apply built-in filter presets, or save, rename, and delete your own. Presets
-  persist between runs.
+- Set each date bound to a fixed date or to a span before the moment the filter
+  runs, such as 18 months ago. A relative bound is stored as the span, so a
+  saved preset keeps meaning the same span instead of drifting as time passes.
+  The panel shows the date each span resolved to.
+- Apply built-in filter presets, or save, rename, delete, and update your own.
+  Presets persist between runs, and the panel shows which preset the current
+  criteria match and whether they have been edited since.
 - See the number of matching files, their total matched size, and how many
   files were excluded because a required date was unknown.
 - Reveal items in Finder or move them safely to the Trash.

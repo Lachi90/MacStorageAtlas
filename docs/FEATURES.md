@@ -469,7 +469,9 @@ Requirements:
 ## Status
 
 Delivered. Text search shipped earlier; advanced filters and presets shipped
-with WP-04 (`add-advanced-filters`).
+with WP-04 (`add-advanced-filters`). Relative date bounds, preset renaming in the
+filter panel, and applied-preset reporting shipped with
+`improve-filter-presets`.
 
 ## Purpose
 

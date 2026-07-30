@@ -7,12 +7,13 @@ public sealed class DiskItemFilterEvaluator
     public FilterResult Evaluate(
         DiskItem root,
         DiskItemFilter filter,
+        DateTimeOffset referenceTime,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(filter);
 
-        var criteria = new Criteria(filter);
+        var criteria = new Criteria(filter, referenceTime);
         var matchedFiles = new List<DiskItem>();
         var matchedBytesByDirectory = new Dictionary<DiskItem, long>(
             ReferenceEqualityComparer.Instance);
@@ -28,6 +29,7 @@ public sealed class DiskItemFilterEvaluator
 
         return new FilterResult(
             filter,
+            referenceTime,
             matchedFiles,
             matchedBytesByDirectory,
             unknownDateExclusionCount);
@@ -106,10 +108,22 @@ public sealed class DiskItemFilterEvaluator
         private readonly string? _textTerm;
         private readonly HashSet<string>? _extensions;
         private readonly HashSet<FileCategory>? _categories;
+        private readonly DateTimeOffset? _createdAfter;
+        private readonly DateTimeOffset? _createdBefore;
+        private readonly DateTimeOffset? _modifiedAfter;
+        private readonly DateTimeOffset? _modifiedBefore;
+        private readonly DateTimeOffset? _lastAccessedAfter;
+        private readonly DateTimeOffset? _lastAccessedBefore;
 
-        public Criteria(DiskItemFilter filter)
+        public Criteria(DiskItemFilter filter, DateTimeOffset referenceTime)
         {
             _filter = filter;
+            _createdAfter = filter.CreatedAfter?.Resolve(referenceTime);
+            _createdBefore = filter.CreatedBefore?.Resolve(referenceTime);
+            _modifiedAfter = filter.ModifiedAfter?.Resolve(referenceTime);
+            _modifiedBefore = filter.ModifiedBefore?.Resolve(referenceTime);
+            _lastAccessedAfter = filter.LastAccessedAfter?.Resolve(referenceTime);
+            _lastAccessedBefore = filter.LastAccessedBefore?.Resolve(referenceTime);
             _textTerm = string.IsNullOrWhiteSpace(filter.TextTerm)
                 ? null
                 : filter.TextTerm.Trim();
@@ -174,8 +188,8 @@ public sealed class DiskItemFilterEvaluator
         {
             var created = EvaluateRange(
                 metadata.CreatedTimeUtc,
-                _filter.CreatedAfter,
-                _filter.CreatedBefore);
+                _createdAfter,
+                _createdBefore);
             if (created != MatchOutcome.Matched)
             {
                 return created;
@@ -183,8 +197,8 @@ public sealed class DiskItemFilterEvaluator
 
             var modified = EvaluateRange(
                 metadata.ModifiedTimeUtc,
-                _filter.ModifiedAfter,
-                _filter.ModifiedBefore);
+                _modifiedAfter,
+                _modifiedBefore);
             if (modified != MatchOutcome.Matched)
             {
                 return modified;
@@ -192,8 +206,8 @@ public sealed class DiskItemFilterEvaluator
 
             return EvaluateRange(
                 metadata.LastAccessTimeUtc,
-                _filter.LastAccessedAfter,
-                _filter.LastAccessedBefore);
+                _lastAccessedAfter,
+                _lastAccessedBefore);
         }
 
         private static MatchOutcome EvaluateRange(

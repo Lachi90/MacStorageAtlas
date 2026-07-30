@@ -9,12 +9,15 @@ public class DiskItemFilterEvaluatorTests
 
     private readonly DiskItemFilterEvaluator _evaluator = new();
 
+    private FilterResult EvaluateAt(DiskItem root, DiskItemFilter filter) =>
+        _evaluator.Evaluate(root, filter, Reference);
+
     [Test]
     public void AnEmptyFilterMatchesEveryFile()
     {
         var root = CreateTree();
 
-        var result = _evaluator.Evaluate(root, DiskItemFilter.Empty);
+        var result = EvaluateAt(root, DiskItemFilter.Empty);
 
         Assert.Multiple(() =>
         {
@@ -28,8 +31,8 @@ public class DiskItemFilterEvaluatorTests
     {
         var root = CreateTree();
 
-        var byName = _evaluator.Evaluate(root, new DiskItemFilter { TextTerm = "REPORT" });
-        var byPath = _evaluator.Evaluate(root, new DiskItemFilter { TextTerm = "/photos/" });
+        var byName = EvaluateAt(root, new DiskItemFilter { TextTerm = "REPORT" });
+        var byPath = EvaluateAt(root, new DiskItemFilter { TextTerm = "/photos/" });
 
         Assert.Multiple(() =>
         {
@@ -45,7 +48,7 @@ public class DiskItemFilterEvaluatorTests
     {
         var root = CreateTree();
 
-        var result = _evaluator.Evaluate(
+        var result = EvaluateAt(
             root,
             new DiskItemFilter { TextTerm = "Photos", MinimumSizeBytes = 8192 });
 
@@ -57,7 +60,7 @@ public class DiskItemFilterEvaluatorTests
     {
         var root = CreateTree();
 
-        var result = _evaluator.Evaluate(root, new DiskItemFilter { MinimumSizeBytes = 2048 });
+        var result = EvaluateAt(root, new DiskItemFilter { MinimumSizeBytes = 2048 });
 
         Assert.That(
             result.MatchedFiles.Select(file => file.Name),
@@ -69,7 +72,7 @@ public class DiskItemFilterEvaluatorTests
     {
         var root = CreateTree();
 
-        var result = _evaluator.Evaluate(root, new DiskItemFilter { MaximumSizeBytes = 2048 });
+        var result = EvaluateAt(root, new DiskItemFilter { MaximumSizeBytes = 2048 });
 
         Assert.That(
             result.MatchedFiles.Select(file => file.Name),
@@ -81,7 +84,7 @@ public class DiskItemFilterEvaluatorTests
     {
         var root = CreateTree();
 
-        var result = _evaluator.Evaluate(
+        var result = EvaluateAt(
             root,
             new DiskItemFilter { MinimumSizeBytes = 2048, MaximumSizeBytes = 4096 });
 
@@ -95,7 +98,7 @@ public class DiskItemFilterEvaluatorTests
     {
         var root = CreateTree();
 
-        var result = _evaluator.Evaluate(
+        var result = EvaluateAt(
             root,
             new DiskItemFilter { MinimumSizeBytes = 2048, Extensions = [".mov"] });
 
@@ -107,7 +110,7 @@ public class DiskItemFilterEvaluatorTests
     {
         var root = CreateTree();
 
-        var result = _evaluator.Evaluate(
+        var result = EvaluateAt(
             root,
             new DiskItemFilter { MinimumSizeBytes = 100_000, Extensions = [".mov"] });
 
@@ -119,7 +122,7 @@ public class DiskItemFilterEvaluatorTests
     {
         var root = CreateTree();
 
-        var result = _evaluator.Evaluate(root, new DiskItemFilter { MinimumSizeBytes = 1 });
+        var result = EvaluateAt(root, new DiskItemFilter { MinimumSizeBytes = 1 });
 
         Assert.That(result.MatchedFiles.Any(file => file.IsDirectory), Is.False);
     }
@@ -139,7 +142,7 @@ public class DiskItemFilterEvaluatorTests
         root.AddChild(folder);
         root.SizeBytes = 10_000;
 
-        var result = _evaluator.Evaluate(root, new DiskItemFilter { MinimumSizeBytes = 5_000 });
+        var result = EvaluateAt(root, new DiskItemFilter { MinimumSizeBytes = 5_000 });
 
         Assert.Multiple(() =>
         {
@@ -154,10 +157,10 @@ public class DiskItemFilterEvaluatorTests
     {
         var root = CreateTree();
 
-        var byCategory = _evaluator.Evaluate(
+        var byCategory = EvaluateAt(
             root,
             new DiskItemFilter { Categories = [FileCategory.Video] });
-        var byShared = _evaluator.Evaluate(
+        var byShared = EvaluateAt(
             root,
             new DiskItemFilter { SharedStorageOnly = true });
 
@@ -173,7 +176,7 @@ public class DiskItemFilterEvaluatorTests
     {
         var root = CreateTree();
 
-        var result = _evaluator.Evaluate(root, new DiskItemFilter { Extensions = ["MOV"] });
+        var result = EvaluateAt(root, new DiskItemFilter { Extensions = ["MOV"] });
 
         Assert.That(result.MatchedFiles.Select(file => file.Name), Is.EqualTo(["clip.mov"]));
     }
@@ -183,7 +186,7 @@ public class DiskItemFilterEvaluatorTests
     {
         var root = CreateTree();
 
-        var result = _evaluator.Evaluate(
+        var result = EvaluateAt(
             root,
             new DiskItemFilter { Categories = [FileCategory.Document] });
 
@@ -201,7 +204,7 @@ public class DiskItemFilterEvaluatorTests
             SizeBytes = 10
         });
 
-        var result = _evaluator.Evaluate(
+        var result = EvaluateAt(
             root,
             new DiskItemFilter { Categories = [FileCategory.Document] });
 
@@ -224,7 +227,7 @@ public class DiskItemFilterEvaluatorTests
         root.AddChild(shared);
         root.AddChild(owned);
 
-        var result = _evaluator.Evaluate(root, new DiskItemFilter { SharedStorageOnly = true });
+        var result = EvaluateAt(root, new DiskItemFilter { SharedStorageOnly = true });
 
         Assert.That(result.MatchedFiles.Select(file => file.Name), Is.EqualTo(["linked.bin"]));
     }
@@ -240,7 +243,7 @@ public class DiskItemFilterEvaluatorTests
         };
         root.AddChild(shared);
 
-        var result = _evaluator.Evaluate(
+        var result = EvaluateAt(
             root,
             new DiskItemFilter { MinimumSizeBytes = 1_000_000_000 });
 
@@ -257,9 +260,9 @@ public class DiskItemFilterEvaluatorTests
         };
         root.AddChild(undated);
 
-        var result = _evaluator.Evaluate(
+        var result = EvaluateAt(
             root,
-            new DiskItemFilter { ModifiedBefore = Reference });
+            new DiskItemFilter { ModifiedBefore = new AbsoluteDateCriterion(Reference) });
 
         Assert.Multiple(() =>
         {
@@ -277,7 +280,7 @@ public class DiskItemFilterEvaluatorTests
             SizeBytes = 100
         });
 
-        var result = _evaluator.Evaluate(root, new DiskItemFilter { MinimumSizeBytes = 1 });
+        var result = EvaluateAt(root, new DiskItemFilter { MinimumSizeBytes = 1 });
 
         Assert.Multiple(() =>
         {
@@ -291,9 +294,9 @@ public class DiskItemFilterEvaluatorTests
     {
         var root = CreateTree();
 
-        var result = _evaluator.Evaluate(
+        var result = EvaluateAt(
             root,
-            new DiskItemFilter { ModifiedAfter = Reference.AddDays(1) });
+            new DiskItemFilter { ModifiedAfter = new AbsoluteDateCriterion(Reference.AddDays(1)) });
 
         Assert.Multiple(() =>
         {
@@ -307,12 +310,12 @@ public class DiskItemFilterEvaluatorTests
     {
         var root = CreateTree();
 
-        var result = _evaluator.Evaluate(
+        var result = EvaluateAt(
             root,
             new DiskItemFilter
             {
-                ModifiedAfter = Reference.AddDays(-30),
-                ModifiedBefore = Reference.AddDays(-30)
+                ModifiedAfter = new AbsoluteDateCriterion(Reference.AddDays(-30)),
+                ModifiedBefore = new AbsoluteDateCriterion(Reference.AddDays(-30))
             });
 
         Assert.That(result.MatchedFiles.Select(file => file.Name), Is.EqualTo(["report.pdf"]));
@@ -323,7 +326,7 @@ public class DiskItemFilterEvaluatorTests
     {
         var root = CreateTree();
 
-        var result = _evaluator.Evaluate(root, new DiskItemFilter { Extensions = [".mov"] });
+        var result = EvaluateAt(root, new DiskItemFilter { Extensions = [".mov"] });
 
         Assert.That(result.MatchedBytes, Is.EqualTo(8192));
     }
@@ -334,7 +337,7 @@ public class DiskItemFilterEvaluatorTests
         var root = CreateTree();
         var documents = root.Children.Single(child => child.Name == "Documents");
 
-        var result = _evaluator.Evaluate(root, new DiskItemFilter { MinimumSizeBytes = 2048 });
+        var result = EvaluateAt(root, new DiskItemFilter { MinimumSizeBytes = 2048 });
 
         Assert.Multiple(() =>
         {
@@ -350,7 +353,7 @@ public class DiskItemFilterEvaluatorTests
         var documents = root.Children.Single(child => child.Name == "Documents");
         var photos = root.Children.Single(child => child.Name == "Photos");
 
-        var result = _evaluator.Evaluate(root, new DiskItemFilter { Extensions = [".pdf"] });
+        var result = EvaluateAt(root, new DiskItemFilter { Extensions = [".pdf"] });
 
         Assert.Multiple(() =>
         {
@@ -371,7 +374,7 @@ public class DiskItemFilterEvaluatorTests
         });
         root.AddChild(folder);
 
-        var result = _evaluator.Evaluate(root, new DiskItemFilter { Extensions = [".mov"] });
+        var result = EvaluateAt(root, new DiskItemFilter { Extensions = [".mov"] });
 
         Assert.Multiple(() =>
         {
@@ -389,7 +392,7 @@ public class DiskItemFilterEvaluatorTests
         cancellation.Cancel();
 
         Assert.Throws<OperationCanceledException>(
-            () => _evaluator.Evaluate(root, DiskItemFilter.Empty, cancellation.Token));
+            () => _evaluator.Evaluate(root, DiskItemFilter.Empty, Reference, cancellation.Token));
     }
 
     [Test]
@@ -400,7 +403,7 @@ public class DiskItemFilterEvaluatorTests
         var rootSize = root.SizeBytes;
         var documentsChildCount = documents.Children.Count;
 
-        _evaluator.Evaluate(root, new DiskItemFilter { MinimumSizeBytes = 2048 });
+        EvaluateAt(root, new DiskItemFilter { MinimumSizeBytes = 2048 });
 
         Assert.Multiple(() =>
         {

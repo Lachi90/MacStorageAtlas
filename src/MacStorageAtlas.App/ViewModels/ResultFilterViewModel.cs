@@ -12,6 +12,7 @@ public partial class ResultFilterViewModel : ViewModelBase
     private readonly Func<DateTimeOffset> _referenceTimeProvider;
     private readonly List<FilterPreset> _userPresets = [];
     private bool _isApplyingPreset;
+    private string? _appliedPresetName;
 
     public ResultFilterViewModel()
         : this(() => DateTimeOffset.Now)
@@ -26,6 +27,12 @@ public partial class ResultFilterViewModel : ViewModelBase
         CategoryOptions = Enum.GetValues<FileCategory>()
             .Select(category => new FileCategoryOption(category, RaiseCriteriaChanged))
             .ToArray();
+        CreatedAfter = CreateBound("Created after", "After");
+        CreatedBefore = CreateBound("Created before", "Before");
+        ModifiedAfter = CreateBound("Modified after", "After");
+        ModifiedBefore = CreateBound("Modified before", "Before");
+        LastAccessedAfter = CreateBound("Last accessed after", "After");
+        LastAccessedBefore = CreateBound("Last accessed before", "Before");
         RefreshPresets();
     }
 
@@ -34,6 +41,18 @@ public partial class ResultFilterViewModel : ViewModelBase
     public event EventHandler? UserPresetsChanged;
 
     public IReadOnlyList<FileCategoryOption> CategoryOptions { get; }
+
+    public DateBoundViewModel CreatedAfter { get; }
+
+    public DateBoundViewModel CreatedBefore { get; }
+
+    public DateBoundViewModel ModifiedAfter { get; }
+
+    public DateBoundViewModel ModifiedBefore { get; }
+
+    public DateBoundViewModel LastAccessedAfter { get; }
+
+    public DateBoundViewModel LastAccessedBefore { get; }
 
     public IReadOnlyList<FileCategory> SelectedCategories =>
         CategoryOptions
@@ -71,24 +90,6 @@ public partial class ResultFilterViewModel : ViewModelBase
     private long? _maximumSizeBytes;
 
     [ObservableProperty]
-    private DateTimeOffset? _createdAfter;
-
-    [ObservableProperty]
-    private DateTimeOffset? _createdBefore;
-
-    [ObservableProperty]
-    private DateTimeOffset? _modifiedAfter;
-
-    [ObservableProperty]
-    private DateTimeOffset? _modifiedBefore;
-
-    [ObservableProperty]
-    private DateTimeOffset? _lastAccessedAfter;
-
-    [ObservableProperty]
-    private DateTimeOffset? _lastAccessedBefore;
-
-    [ObservableProperty]
     private string _extensionsText = string.Empty;
 
     [ObservableProperty]
@@ -99,6 +100,13 @@ public partial class ResultFilterViewModel : ViewModelBase
 
     [ObservableProperty]
     private string _newPresetName = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsRenamingPreset))]
+    private FilterPreset? _renamingPreset;
+
+    [ObservableProperty]
+    private string _renamePresetName = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasMatchSummary))]
@@ -113,6 +121,12 @@ public partial class ResultFilterViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(UnknownDateExclusionMessage))]
     private long _unknownDateExclusionCount;
 
+    [ObservableProperty]
+    private DateTimeOffset? _lastEvaluatedReferenceTime;
+
+    public DateTimeOffset EffectiveReferenceTime =>
+        LastEvaluatedReferenceTime ?? _referenceTimeProvider();
+
     public string FormattedMatchedBytes => FileSizeFormatter.Format(MatchedBytes);
 
     public DiskItemFilter CurrentFilter => new()
@@ -120,18 +134,19 @@ public partial class ResultFilterViewModel : ViewModelBase
         TextTerm = string.IsNullOrWhiteSpace(TextTerm) ? null : TextTerm,
         MinimumSizeBytes = MinimumSizeBytes,
         MaximumSizeBytes = MaximumSizeBytes,
-        CreatedAfter = CreatedAfter,
-        CreatedBefore = CreatedBefore,
-        ModifiedAfter = ModifiedAfter,
-        ModifiedBefore = ModifiedBefore,
-        LastAccessedAfter = LastAccessedAfter,
-        LastAccessedBefore = LastAccessedBefore,
+        CreatedAfter = CreatedAfter.Criterion,
+        CreatedBefore = CreatedBefore.Criterion,
+        ModifiedAfter = ModifiedAfter.Criterion,
+        ModifiedBefore = ModifiedBefore.Criterion,
+        LastAccessedAfter = LastAccessedAfter.Criterion,
+        LastAccessedBefore = LastAccessedBefore.Criterion,
         Extensions = ParseExtensions(ExtensionsText),
         Categories = [.. SelectedCategories],
         SharedStorageOnly = SharedStorageOnly
     };
 
-    public DiskItemFilterValidation Validation => CurrentFilter.Validate();
+    public DiskItemFilterValidation Validation =>
+        CurrentFilter.Validate(EffectiveReferenceTime);
 
     public bool IsFilterActive => CurrentFilter.IsActive;
 
@@ -157,6 +172,44 @@ public partial class ResultFilterViewModel : ViewModelBase
 
     public IReadOnlyList<FilterPreset> UserPresets => _userPresets;
 
+    public FilterPreset? AppliedPreset
+    {
+        get
+        {
+            var filter = CurrentFilter;
+            return Presets.FirstOrDefault(preset => preset.Filter == filter);
+        }
+    }
+
+    public string? AppliedPresetName => AppliedPreset?.Name;
+
+    public bool HasAppliedPreset => AppliedPreset is not null;
+
+    public FilterPreset? EditedFromPreset =>
+        _appliedPresetName is null
+            ? null
+            : Presets.FirstOrDefault(
+                preset => string.Equals(
+                    preset.Name,
+                    _appliedPresetName,
+                    StringComparison.OrdinalIgnoreCase));
+
+    public bool HasEditedCriteria =>
+        AppliedPreset is null && EditedFromPreset is not null;
+
+    public string? EditedFromPresetName => HasEditedCriteria ? EditedFromPreset?.Name : null;
+
+    public string? PresetStateSummary =>
+        AppliedPreset is { } applied
+            ? $"Criteria match preset “{applied.Name}”."
+            : EditedFromPresetName is { } edited
+                ? $"Criteria edited from preset “{edited}”."
+                : null;
+
+    public bool HasPresetState => PresetStateSummary is not null;
+
+    public bool IsRenamingPreset => RenamingPreset is not null;
+
     internal void ApplyMatchSummary(FilterResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
@@ -164,8 +217,10 @@ public partial class ResultFilterViewModel : ViewModelBase
         MatchCount = result.MatchCount;
         MatchedBytes = result.MatchedBytes;
         UnknownDateExclusionCount = result.UnknownDateExclusionCount;
+        LastEvaluatedReferenceTime = result.ReferenceTime;
         OnPropertyChanged(nameof(MatchSummary));
         OnPropertyChanged(nameof(HasNoMatches));
+        RefreshResolvedDescriptions();
     }
 
     [RelayCommand]
@@ -176,39 +231,18 @@ public partial class ResultFilterViewModel : ViewModelBase
             return;
         }
 
-        _isApplyingPreset = true;
-        try
-        {
-            var filter = preset.Filter;
-            TextTerm = filter.TextTerm ?? string.Empty;
-            MinimumSizeBytes = filter.MinimumSizeBytes;
-            MaximumSizeBytes = filter.MaximumSizeBytes;
-            CreatedAfter = filter.CreatedAfter;
-            CreatedBefore = filter.CreatedBefore;
-            ModifiedAfter = filter.ModifiedAfter;
-            ModifiedBefore = filter.ModifiedBefore;
-            LastAccessedAfter = filter.LastAccessedAfter;
-            LastAccessedBefore = filter.LastAccessedBefore;
-            ExtensionsText = string.Join(", ", filter.Extensions);
-            foreach (var option in CategoryOptions)
-            {
-                option.SetSelectedSilently(filter.Categories.Contains(option.Category));
-            }
-
-            SharedStorageOnly = filter.SharedStorageOnly;
-        }
-        finally
-        {
-            _isApplyingPreset = false;
-        }
-
+        ApplyFilterCriteria(preset.Filter);
+        _appliedPresetName = preset.Name.Length == 0 ? null : preset.Name;
         RaiseCriteriaChanged();
     }
 
     [RelayCommand]
     public void ClearFilter()
     {
-        ApplyPreset(new FilterPreset(string.Empty, DiskItemFilter.Empty));
+        ApplyFilterCriteria(DiskItemFilter.Empty);
+        _appliedPresetName = null;
+        CancelRenamePreset();
+        RaiseCriteriaChanged();
     }
 
     [RelayCommand]
@@ -234,9 +268,40 @@ public partial class ResultFilterViewModel : ViewModelBase
         }
 
         NewPresetName = string.Empty;
+        _appliedPresetName = preset.Name;
         RefreshPresets();
         UserPresetsChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    [RelayCommand(CanExecute = nameof(CanUpdatePreset))]
+    public void UpdatePreset()
+    {
+        if (EditedFromPreset is not { IsBuiltIn: false } target)
+        {
+            return;
+        }
+
+        var index = _userPresets.FindIndex(
+            existing => string.Equals(
+                existing.Name,
+                target.Name,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (index < 0)
+        {
+            return;
+        }
+
+        _userPresets[index] = _userPresets[index] with { Filter = CurrentFilter };
+        RefreshPresets();
+        UserPresetsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public bool CanUpdatePreset =>
+        HasEditedCriteria
+        && EditedFromPreset is { IsBuiltIn: false }
+        && IsFilterValid
+        && IsFilterActive;
 
     [RelayCommand]
     public void DeletePreset(FilterPreset? preset)
@@ -251,8 +316,51 @@ public partial class ResultFilterViewModel : ViewModelBase
                 existing.Name,
                 preset.Name,
                 StringComparison.OrdinalIgnoreCase));
+
+        if (string.Equals(_appliedPresetName, preset.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            _appliedPresetName = null;
+        }
+
+        if (RenamingPreset is { } renaming
+            && string.Equals(renaming.Name, preset.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            CancelRenamePreset();
+        }
+
         RefreshPresets();
         UserPresetsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    public void BeginRenamePreset(FilterPreset? preset)
+    {
+        if (preset is null || preset.IsBuiltIn)
+        {
+            return;
+        }
+
+        RenamingPreset = preset;
+        RenamePresetName = preset.Name;
+    }
+
+    [RelayCommand]
+    public void CommitRenamePreset()
+    {
+        if (RenamingPreset is not { } preset)
+        {
+            return;
+        }
+
+        RenamePreset(preset, RenamePresetName);
+        CancelRenamePreset();
+    }
+
+    [RelayCommand]
+    public void CancelRenamePreset()
+    {
+        RenamingPreset = null;
+        RenamePresetName = string.Empty;
     }
 
     public void RenamePreset(FilterPreset preset, string newName)
@@ -273,6 +381,14 @@ public partial class ResultFilterViewModel : ViewModelBase
 
         if (index >= 0)
         {
+            if (string.Equals(
+                _appliedPresetName,
+                _userPresets[index].Name,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                _appliedPresetName = trimmed;
+            }
+
             _userPresets[index] = _userPresets[index] with { Name = trimmed };
             RefreshPresets();
             UserPresetsChanged?.Invoke(this, EventArgs.Empty);
@@ -288,12 +404,60 @@ public partial class ResultFilterViewModel : ViewModelBase
         RefreshPresets();
     }
 
-    private void RefreshPresets() =>
-        Presets =
-        [
-            .. BuiltInFilterPresets.Create(_referenceTimeProvider()),
-            .. _userPresets
-        ];
+    private DateBoundViewModel CreateBound(string displayName, string boundLabel) =>
+        new(displayName, boundLabel, () => EffectiveReferenceTime, RaiseCriteriaChanged);
+
+    private void RefreshResolvedDescriptions()
+    {
+        foreach (var bound in DateBounds)
+        {
+            bound.RefreshResolvedDescription();
+        }
+    }
+
+    private IReadOnlyList<DateBoundViewModel> DateBounds =>
+    [
+        CreatedAfter,
+        CreatedBefore,
+        ModifiedAfter,
+        ModifiedBefore,
+        LastAccessedAfter,
+        LastAccessedBefore
+    ];
+
+    private void ApplyFilterCriteria(DiskItemFilter filter)
+    {
+        _isApplyingPreset = true;
+        try
+        {
+            TextTerm = filter.TextTerm ?? string.Empty;
+            MinimumSizeBytes = filter.MinimumSizeBytes;
+            MaximumSizeBytes = filter.MaximumSizeBytes;
+            CreatedAfter.SetCriterionSilently(filter.CreatedAfter);
+            CreatedBefore.SetCriterionSilently(filter.CreatedBefore);
+            ModifiedAfter.SetCriterionSilently(filter.ModifiedAfter);
+            ModifiedBefore.SetCriterionSilently(filter.ModifiedBefore);
+            LastAccessedAfter.SetCriterionSilently(filter.LastAccessedAfter);
+            LastAccessedBefore.SetCriterionSilently(filter.LastAccessedBefore);
+            ExtensionsText = string.Join(", ", filter.Extensions);
+            foreach (var option in CategoryOptions)
+            {
+                option.SetSelectedSilently(filter.Categories.Contains(option.Category));
+            }
+
+            SharedStorageOnly = filter.SharedStorageOnly;
+        }
+        finally
+        {
+            _isApplyingPreset = false;
+        }
+    }
+
+    private void RefreshPresets()
+    {
+        Presets = [.. BuiltInFilterPresets.Create(), .. _userPresets];
+        RaisePresetStateChanged();
+    }
 
     private static IReadOnlyList<string> ParseExtensions(string text) =>
         string.IsNullOrWhiteSpace(text)
@@ -321,18 +485,6 @@ public partial class ResultFilterViewModel : ViewModelBase
         RaiseCriteriaChanged();
     }
 
-    partial void OnCreatedAfterChanged(DateTimeOffset? value) => RaiseCriteriaChanged();
-
-    partial void OnCreatedBeforeChanged(DateTimeOffset? value) => RaiseCriteriaChanged();
-
-    partial void OnModifiedAfterChanged(DateTimeOffset? value) => RaiseCriteriaChanged();
-
-    partial void OnModifiedBeforeChanged(DateTimeOffset? value) => RaiseCriteriaChanged();
-
-    partial void OnLastAccessedAfterChanged(DateTimeOffset? value) => RaiseCriteriaChanged();
-
-    partial void OnLastAccessedBeforeChanged(DateTimeOffset? value) => RaiseCriteriaChanged();
-
     partial void OnExtensionsTextChanged(string value) => RaiseCriteriaChanged();
 
     partial void OnSharedStorageOnlyChanged(bool value) => RaiseCriteriaChanged();
@@ -347,10 +499,25 @@ public partial class ResultFilterViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasValidationError));
         OnPropertyChanged(nameof(HasMatchSummary));
         OnPropertyChanged(nameof(HasNoMatches));
+        RaisePresetStateChanged();
 
         if (!_isApplyingPreset)
         {
             CriteriaChanged?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    private void RaisePresetStateChanged()
+    {
+        OnPropertyChanged(nameof(AppliedPreset));
+        OnPropertyChanged(nameof(AppliedPresetName));
+        OnPropertyChanged(nameof(HasAppliedPreset));
+        OnPropertyChanged(nameof(EditedFromPreset));
+        OnPropertyChanged(nameof(EditedFromPresetName));
+        OnPropertyChanged(nameof(HasEditedCriteria));
+        OnPropertyChanged(nameof(PresetStateSummary));
+        OnPropertyChanged(nameof(HasPresetState));
+        OnPropertyChanged(nameof(CanUpdatePreset));
+        UpdatePresetCommand.NotifyCanExecuteChanged();
     }
 }

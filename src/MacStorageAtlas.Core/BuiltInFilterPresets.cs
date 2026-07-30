@@ -6,8 +6,6 @@ public static class BuiltInFilterPresets
 
     public const long OneHundredMegabytes = 100L * 1024 * 1024;
 
-    public const int OneYearInDays = 365;
-
     public const string LargerThanOneGigabyteName = "Larger than 1 GB";
 
     public const string NotModifiedForOneYearName = "Not modified for one year";
@@ -17,7 +15,7 @@ public static class BuiltInFilterPresets
     public const string LargeDiskImagesAndInstallersName =
         "Large disk images and installers";
 
-    public static IReadOnlyList<FilterPreset> Create(DateTimeOffset referenceTime) =>
+    public static IReadOnlyList<FilterPreset> Create() =>
     [
         new FilterPreset(
             LargerThanOneGigabyteName,
@@ -27,7 +25,7 @@ public static class BuiltInFilterPresets
             NotModifiedForOneYearName,
             new DiskItemFilter
             {
-                ModifiedBefore = referenceTime.AddDays(-OneYearInDays)
+                ModifiedBefore = new RelativeDateCriterion(1, RelativeDateUnit.Years)
             },
             IsBuiltIn: true),
         new FilterPreset(

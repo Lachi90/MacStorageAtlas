@@ -29,7 +29,7 @@ public class DiskItemFilterTests
             Assert.That(new DiskItemFilter { MinimumSizeBytes = 1 }.IsActive, Is.True);
             Assert.That(new DiskItemFilter { MaximumSizeBytes = 1 }.IsActive, Is.True);
             Assert.That(
-                new DiskItemFilter { ModifiedBefore = DateTimeOffset.UnixEpoch }.IsActive,
+                new DiskItemFilter { ModifiedBefore = new AbsoluteDateCriterion(DateTimeOffset.UnixEpoch) }.IsActive,
                 Is.True);
             Assert.That(new DiskItemFilter { Extensions = [".mov"] }.IsActive, Is.True);
             Assert.That(
@@ -93,8 +93,8 @@ public class DiskItemFilterTests
     {
         var filter = new DiskItemFilter
         {
-            ModifiedAfter = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero),
-            ModifiedBefore = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)
+            ModifiedAfter = new AbsoluteDateCriterion(new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero)),
+            ModifiedBefore = new AbsoluteDateCriterion(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero))
         };
 
         var validation = filter.Validate();
@@ -111,8 +111,8 @@ public class DiskItemFilterTests
     {
         var filter = new DiskItemFilter
         {
-            CreatedAfter = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero),
-            CreatedBefore = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)
+            CreatedAfter = new AbsoluteDateCriterion(new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero)),
+            CreatedBefore = new AbsoluteDateCriterion(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero))
         };
 
         Assert.That(filter.Validate().IsValid, Is.False);
@@ -123,8 +123,8 @@ public class DiskItemFilterTests
     {
         var filter = new DiskItemFilter
         {
-            LastAccessedAfter = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero),
-            LastAccessedBefore = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)
+            LastAccessedAfter = new AbsoluteDateCriterion(new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero)),
+            LastAccessedBefore = new AbsoluteDateCriterion(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero))
         };
 
         Assert.That(filter.Validate().IsValid, Is.False);
@@ -139,7 +139,7 @@ public class DiskItemFilterTests
                 new DiskItemFilter { MinimumSizeBytes = 1 }.HasDateCriteria,
                 Is.False);
             Assert.That(
-                new DiskItemFilter { LastAccessedAfter = DateTimeOffset.UnixEpoch }
+                new DiskItemFilter { LastAccessedAfter = new AbsoluteDateCriterion(DateTimeOffset.UnixEpoch) }
                     .HasDateCriteria,
                 Is.True);
         });

@@ -38,6 +38,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly Dictionary<DiskItem, IReadOnlyList<TreemapRect>> _treemapLayoutCache =
         new(ReferenceEqualityComparer.Instance);
     private readonly TimeSpan _searchDebounceInterval;
+    private readonly Func<DateTimeOffset> _referenceTimeProvider;
     private DiskItem? _scanRoot;
     private ScanOptions? _resultScanOptions;
     private CancellationTokenSource? _scanCancellation;
@@ -83,11 +84,14 @@ public partial class MainWindowViewModel : ViewModelBase
         ISettingsService? settingsService = null,
         IClipboardService? clipboardService = null,
         IQuickLookService? quickLookService = null,
-        TimeSpan? searchDebounceInterval = null)
+        TimeSpan? searchDebounceInterval = null,
+        Func<DateTimeOffset>? referenceTimeProvider = null)
     {
         _folderPickerService = folderPickerService;
         _diskScanner = diskScanner;
         _uiDispatcher = uiDispatcher;
+        _referenceTimeProvider = referenceTimeProvider ?? (() => DateTimeOffset.Now);
+        Filter = new ResultFilterViewModel(_referenceTimeProvider);
         _searchDebounceInterval = searchDebounceInterval ?? DefaultSearchDebounceInterval;
         _fileRevealService = fileRevealService ?? new MacFileRevealService();
         _quickLookService = quickLookService ?? new MacQuickLookService();
@@ -105,7 +109,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void OnUserPresetsChanged(object? sender, EventArgs e) => SaveSettings();
 
-    public ResultFilterViewModel Filter { get; } = new();
+    public ResultFilterViewModel Filter { get; }
 
     private void OnFilterCriteriaChanged(object? sender, EventArgs e)
     {
@@ -691,14 +695,15 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         CancelTreePreparation();
 
-        var filter = Filter.CurrentFilter;
-        if (_scanRoot is null || !filter.Validate().IsValid)
+        var request = CreateFilterRequest();
+        if (_scanRoot is null
+            || !request.Filter.Validate(request.ReferenceTime).IsValid)
         {
             ApplyEmptyPreparation();
             return;
         }
 
-        ApplyPreparation(Prepare(_scanRoot, filter, CancellationToken.None));
+        ApplyPreparation(Prepare(_scanRoot, request, CancellationToken.None));
     }
 
     private void CancelTreePreparation()
@@ -715,12 +720,15 @@ public partial class MainWindowViewModel : ViewModelBase
         _treePreparationCancellation = cancellation;
         previous?.Cancel();
 
-        TreePreparation = PrepareTreeAsync(_scanRoot, Filter.CurrentFilter, cancellation);
+        TreePreparation = PrepareTreeAsync(_scanRoot, CreateFilterRequest(), cancellation);
     }
+
+    private FilterRequest CreateFilterRequest() =>
+        new(Filter.CurrentFilter, _referenceTimeProvider());
 
     private async Task PrepareTreeAsync(
         DiskItem? root,
-        DiskItemFilter filter,
+        FilterRequest request,
         CancellationTokenSource cancellation)
     {
         var token = cancellation.Token;
@@ -732,7 +740,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 await Task.Delay(_searchDebounceInterval, token).ConfigureAwait(false);
             }
 
-            if (root is null || !filter.Validate().IsValid)
+            if (root is null || !request.Filter.Validate(request.ReferenceTime).IsValid)
             {
                 await _uiDispatcher.InvokeAsync(() =>
                 {
@@ -745,7 +753,7 @@ public partial class MainWindowViewModel : ViewModelBase
             }
 
             var prepared = await Task.Run(
-                    () => Prepare(root, filter, token),
+                    () => Prepare(root, request, token),
                     token)
                 .ConfigureAwait(false);
 
@@ -777,10 +785,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private PreparedResult Prepare(
         DiskItem root,
-        DiskItemFilter filter,
+        FilterRequest request,
         CancellationToken cancellationToken)
     {
-        if (!filter.IsActive)
+        if (!request.Filter.IsActive)
         {
             return new PreparedResult(
                 null,
@@ -789,7 +797,11 @@ public partial class MainWindowViewModel : ViewModelBase
                 _fileTypeStatisticsService.Calculate(root));
         }
 
-        var result = _filterEvaluator.Evaluate(root, filter, cancellationToken);
+        var result = _filterEvaluator.Evaluate(
+            root,
+            request.Filter,
+            request.ReferenceTime,
+            cancellationToken);
         return new PreparedResult(
             result,
             DiskItemTreeFilter.Filter(root, result),
@@ -906,6 +918,10 @@ public partial class MainWindowViewModel : ViewModelBase
         IReadOnlyList<DiskItemTreeNodeViewModel> TreeItems,
         IReadOnlyList<DiskItem> LargeFiles,
         IReadOnlyList<FileTypeSummary> FileTypeSummaries);
+
+    private sealed record FilterRequest(
+        DiskItemFilter Filter,
+        DateTimeOffset ReferenceTime);
 
     private IReadOnlyList<TreemapRect> LayoutChildren(DiskItem parent)
     {
