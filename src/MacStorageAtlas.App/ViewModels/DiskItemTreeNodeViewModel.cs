@@ -7,12 +7,13 @@ namespace MacStorageAtlas.App.ViewModels;
 
 public sealed class DiskItemTreeNodeViewModel
 {
+    private IReadOnlyList<DiskItemTreeNodeViewModel>? _children;
+
     public DiskItemTreeNodeViewModel(DiskItem item)
-        : this(
-            item,
-            item?.Children.Select(child => new DiskItemTreeNodeViewModel(child)).ToArray()
-                ?? throw new ArgumentNullException(nameof(item)))
     {
+        ArgumentNullException.ThrowIfNull(item);
+
+        Item = item;
     }
 
     internal DiskItemTreeNodeViewModel(
@@ -23,7 +24,7 @@ public sealed class DiskItemTreeNodeViewModel
         ArgumentNullException.ThrowIfNull(children);
 
         Item = item;
-        Children = children;
+        _children = children;
     }
 
     public DiskItem Item { get; }
@@ -40,5 +41,10 @@ public sealed class DiskItemTreeNodeViewModel
               + $"{FileSizeFormatter.Format(Item.SharedSizeBytes)} shared"
             : FileSizeFormatter.Format(SizeBytes);
 
-    public IReadOnlyList<DiskItemTreeNodeViewModel> Children { get; }
+    internal bool HasMaterializedChildren => _children is not null;
+
+    public IReadOnlyList<DiskItemTreeNodeViewModel> Children =>
+        _children ??= Item.Children
+            .Select(child => new DiskItemTreeNodeViewModel(child))
+            .ToArray();
 }

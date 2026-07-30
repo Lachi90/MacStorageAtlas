@@ -20,6 +20,8 @@ public partial class MainWindowViewModel : ViewModelBase
 {
     private const double TreemapWidth = 700;
     private const double TreemapHeight = 320;
+    private static readonly TimeSpan DefaultSearchDebounceInterval =
+        TimeSpan.FromMilliseconds(200);
     private readonly IFolderPickerService _folderPickerService;
     private readonly IDiskScanner _diskScanner;
     private readonly IUiDispatcher _uiDispatcher;
@@ -34,9 +36,11 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly LargeFilesService _largeFilesService = new();
     private readonly Dictionary<DiskItem, IReadOnlyList<TreemapRect>> _treemapLayoutCache =
         new(ReferenceEqualityComparer.Instance);
+    private readonly TimeSpan _searchDebounceInterval;
     private DiskItem? _scanRoot;
     private ScanOptions? _resultScanOptions;
     private CancellationTokenSource? _scanCancellation;
+    private CancellationTokenSource? _treePreparationCancellation;
     private bool _isApplyingSettings;
 
     public MainWindowViewModel()
@@ -75,11 +79,13 @@ public partial class MainWindowViewModel : ViewModelBase
         ITrashConfirmationService? trashConfirmationService = null,
         ISettingsService? settingsService = null,
         IClipboardService? clipboardService = null,
-        IQuickLookService? quickLookService = null)
+        IQuickLookService? quickLookService = null,
+        TimeSpan? searchDebounceInterval = null)
     {
         _folderPickerService = folderPickerService;
         _diskScanner = diskScanner;
         _uiDispatcher = uiDispatcher;
+        _searchDebounceInterval = searchDebounceInterval ?? DefaultSearchDebounceInterval;
         _fileRevealService = fileRevealService ?? new MacFileRevealService();
         _quickLookService = quickLookService ?? new MacQuickLookService();
         _trashService = trashService ?? new MacTrashService();
@@ -592,7 +598,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    partial void OnSearchTextChanged(string value) => ApplySearch();
+    partial void OnSearchTextChanged(string value) => ScheduleTreePreparation();
 
     private void NotifySelectedItemPropertiesChanged()
     {
@@ -623,12 +629,80 @@ public partial class MainWindowViewModel : ViewModelBase
             ? time.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)
             : "Unknown";
 
+    internal Task TreePreparation { get; private set; } = Task.CompletedTask;
+
     private void ApplySearch()
     {
+        CancelTreePreparation();
         TreeItems = _scanRoot is null
             ? []
             : DiskItemTreeFilter.Filter(_scanRoot, SearchText);
         SelectedTreeItem = null;
+    }
+
+    private void CancelTreePreparation()
+    {
+        _treePreparationCancellation?.Cancel();
+        _treePreparationCancellation = null;
+        TreePreparation = Task.CompletedTask;
+    }
+
+    private void ScheduleTreePreparation()
+    {
+        var previous = _treePreparationCancellation;
+        var cancellation = new CancellationTokenSource();
+        _treePreparationCancellation = cancellation;
+        previous?.Cancel();
+
+        TreePreparation = PrepareTreeAsync(_scanRoot, SearchText, cancellation);
+    }
+
+    private async Task PrepareTreeAsync(
+        DiskItem? root,
+        string searchText,
+        CancellationTokenSource cancellation)
+    {
+        var token = cancellation.Token;
+
+        try
+        {
+            if (_searchDebounceInterval > TimeSpan.Zero)
+            {
+                await Task.Delay(_searchDebounceInterval, token).ConfigureAwait(false);
+            }
+
+            var items = root is null
+                ? []
+                : await Task.Run(
+                        () => DiskItemTreeFilter.Filter(root, searchText),
+                        token)
+                    .ConfigureAwait(false);
+
+            token.ThrowIfCancellationRequested();
+
+            await _uiDispatcher.InvokeAsync(() =>
+            {
+                if (!ReferenceEquals(_treePreparationCancellation, cancellation))
+                {
+                    return;
+                }
+
+                TreeItems = items;
+                SelectedTreeItem = null;
+            }).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            if (ReferenceEquals(_treePreparationCancellation, cancellation))
+            {
+                _treePreparationCancellation = null;
+            }
+
+            cancellation.Dispose();
+        }
     }
 
     private IReadOnlyList<TreemapRect> LayoutChildren(DiskItem parent)

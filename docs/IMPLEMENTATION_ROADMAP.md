@@ -1025,7 +1025,7 @@ Update this table when work starts or finishes.
 | WP-01 | Planned | `codex/storage-feature-roadmap` | Requires Apple Developer account |
 | WP-02 | Complete | `codex/storage-feature-roadmap` | Measurement definitions (`define-storage-measurement`), hardlink accounting (`deduplicate-hardlinks`), capability-gated verified full-clone accounting (`investigate-apfs-clone-accounting`), and scan benchmark tooling with local baseline verification on 2026-07-29 (`benchmark-and-optimize-scans`) complete |
 | WP-03 | Complete | `codex/storage-feature-roadmap` | Metadata details (`add-file-metadata`) plus Quick Look preview, Space handling, and Command-I details shortcut (`add-quick-look`) complete |
-| WP-04 | Planned | `codex/storage-feature-roadmap` | Depends on metadata |
+| WP-04 | In progress | `codex/storage-feature-roadmap` | Depends on metadata; preparatory lazy/off-thread result tree complete (`virtualize-result-tree`); filters planned (`add-advanced-filters`) |
 | WP-05 | Planned | `codex/storage-feature-roadmap` | Low-risk quick win |
 | WP-06 | Planned | `codex/storage-feature-roadmap` |  |
 | WP-07 | Planned | `codex/storage-feature-roadmap` | Safety review required |
