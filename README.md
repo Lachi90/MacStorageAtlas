@@ -77,7 +77,16 @@ between runs.
 - Preview the selected item with Quick Look using the toolbar or Space, and use
   Command-I to jump back to item details.
 - See storage broken down by file type and a list of the largest files.
-- Search and filter scanned items by name or path.
+- Search and filter scanned items by name or path, and press Command-F to jump
+  to the search box.
+- Narrow a completed scan with advanced filters covering size, creation,
+  modification and last-access dates, file extension, file category, and
+  shared-storage status. Criteria combine with AND, and filtering never
+  rescans.
+- Apply built-in filter presets, or save, rename, and delete your own. Presets
+  persist between runs.
+- See the number of matching files, their total matched size, and how many
+  files were excluded because a required date was unknown.
 - Reveal items in Finder or move them safely to the Trash.
 - Inspect files and folders that couldn't be scanned, and copy their paths to
   the clipboard.

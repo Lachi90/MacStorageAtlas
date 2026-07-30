@@ -18,13 +18,15 @@ public sealed class DiskItemTreeNodeViewModel
 
     internal DiskItemTreeNodeViewModel(
         DiskItem item,
-        IReadOnlyList<DiskItemTreeNodeViewModel> children)
+        IReadOnlyList<DiskItemTreeNodeViewModel> children,
+        long? matchedSizeBytes = null)
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(children);
 
         Item = item;
         _children = children;
+        MatchedSizeBytes = matchedSizeBytes;
     }
 
     public DiskItem Item { get; }
@@ -35,11 +37,20 @@ public sealed class DiskItemTreeNodeViewModel
 
     public long SizeBytes => Item.SizeBytes;
 
+    public long? MatchedSizeBytes { get; }
+
+    public bool HasMatchedSize => MatchedSizeBytes is not null;
+
     public string FormattedSize =>
         Item.IsSizeCountedElsewhere
             ? $"{FileSizeFormatter.Format(Item.SizeBytes)} counted, "
               + $"{FileSizeFormatter.Format(Item.SharedSizeBytes)} shared"
             : FileSizeFormatter.Format(SizeBytes);
+
+    public string DisplaySize =>
+        MatchedSizeBytes is { } matched
+            ? FileSizeFormatter.Format(matched)
+            : FormattedSize;
 
     internal bool HasMaterializedChildren => _children is not null;
 

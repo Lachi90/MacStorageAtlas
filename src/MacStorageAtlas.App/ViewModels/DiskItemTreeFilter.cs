@@ -23,6 +23,49 @@ public static class DiskItemTreeFilter
         return filteredRoot is null ? [] : [filteredRoot];
     }
 
+    public static IReadOnlyList<DiskItemTreeNodeViewModel> Filter(
+        DiskItem root,
+        FilterResult result)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        ArgumentNullException.ThrowIfNull(result);
+
+        if (!result.IsFilterActive)
+        {
+            return [new DiskItemTreeNodeViewModel(root) { IsExpanded = true }];
+        }
+
+        var filteredRoot = BuildNode(root, result);
+        return filteredRoot is null ? [] : [filteredRoot];
+    }
+
+    private static DiskItemTreeNodeViewModel? BuildNode(DiskItem item, FilterResult result)
+    {
+        if (!result.IsVisible(item))
+        {
+            return null;
+        }
+
+        if (!item.IsDirectory)
+        {
+            return new DiskItemTreeNodeViewModel(item, []);
+        }
+
+        var children = item.Children
+            .Select(child => BuildNode(child, result))
+            .Where(child => child is not null)
+            .Cast<DiskItemTreeNodeViewModel>()
+            .ToArray();
+
+        return new DiskItemTreeNodeViewModel(
+            item,
+            children,
+            result.MatchedBytesFor(item))
+        {
+            IsExpanded = children.Length > 0
+        };
+    }
+
     private static DiskItemTreeNodeViewModel? FilterNode(DiskItem item, string query)
     {
         var children = item.Children

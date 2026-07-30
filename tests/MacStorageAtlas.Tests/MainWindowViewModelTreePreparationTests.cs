@@ -198,15 +198,38 @@ public class MainWindowViewModelTreePreparationTests
     }
 
     [Test]
-    public async Task SearchChangeClearsTheTreeSelection()
+    public async Task SearchChangeClearsASelectionThatIsNoLongerDisplayed()
     {
         var viewModel = await CreateScannedViewModelAsync();
-        viewModel.SelectedTreeItem = viewModel.TreeItems.Single();
+        viewModel.SelectedTreeItem = viewModel.TreeItems
+            .Single()
+            .Children
+            .Single(node => node.Name == "Photos");
 
         viewModel.SearchText = "report";
         await viewModel.TreePreparation;
 
         Assert.That(viewModel.SelectedTreeItem, Is.Null);
+    }
+
+    [Test]
+    public async Task SearchChangeKeepsASelectionThatIsStillDisplayed()
+    {
+        var viewModel = await CreateScannedViewModelAsync();
+        var rootNode = viewModel.TreeItems.Single();
+        viewModel.SelectedTreeItem = rootNode;
+
+        viewModel.SearchText = "report";
+        await viewModel.TreePreparation;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.SelectedTreeItem, Is.Not.Null);
+            Assert.That(viewModel.SelectedTreeItem!.Item, Is.SameAs(rootNode.Item));
+            Assert.That(
+                viewModel.SelectedTreeItem,
+                Is.SameAs(viewModel.TreeItems.Single()));
+        });
     }
 
     private static async Task<TestableMainWindowViewModel> CreateScannedViewModelAsync(

@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Styling;
+using MacStorageAtlas.Core;
 using MacStorageAtlas.Rendering;
 
 namespace MacStorageAtlas.App.Controls;
@@ -25,16 +26,30 @@ public sealed class TreemapControl : Control
             nameof(HoveredRectangle),
             control => control.HoveredRectangle);
 
+    public static readonly StyledProperty<IReadOnlyList<DiskItem>?> HighlightedItemsProperty =
+        AvaloniaProperty.Register<TreemapControl, IReadOnlyList<DiskItem>?>(
+            nameof(HighlightedItems));
+
+    public static readonly StyledProperty<bool> IsHighlightActiveProperty =
+        AvaloniaProperty.Register<TreemapControl, bool>(nameof(IsHighlightActive));
+
+    private const double UnmatchedOpacity = 0.25;
+
     private readonly Dictionary<string, IBrush> _brushes = new(StringComparer.Ordinal);
     private INotifyCollectionChanged? _observableRectangles;
     private TreemapRect? _hoveredRectangle;
     private IPen? _borderPen;
     private IPen? _hoverPen;
     private IPen? _selectionPen;
+    private IPen? _matchPen;
 
     static TreemapControl()
     {
-        AffectsRender<TreemapControl>(RectanglesProperty, SelectedRectangleProperty);
+        AffectsRender<TreemapControl>(
+            RectanglesProperty,
+            SelectedRectangleProperty,
+            HighlightedItemsProperty,
+            IsHighlightActiveProperty);
     }
 
     public TreemapControl()
@@ -63,6 +78,18 @@ public sealed class TreemapControl : Control
         set => SetValue(SelectedRectangleProperty, value);
     }
 
+    public IReadOnlyList<DiskItem>? HighlightedItems
+    {
+        get => GetValue(HighlightedItemsProperty);
+        set => SetValue(HighlightedItemsProperty, value);
+    }
+
+    public bool IsHighlightActive
+    {
+        get => GetValue(IsHighlightActiveProperty);
+        set => SetValue(IsHighlightActiveProperty, value);
+    }
+
     public TreemapRect? HoveredRectangle => _hoveredRectangle;
 
     public override void Render(DrawingContext context)
@@ -77,6 +104,12 @@ public sealed class TreemapControl : Control
         EnsurePens();
 
         var (scaleX, scaleY) = GetScale(rectangles);
+        var highlightActive = IsHighlightActive;
+        var highlighted = highlightActive
+            ? new HashSet<DiskItem>(
+                HighlightedItems ?? [],
+                ReferenceEqualityComparer.Instance as IEqualityComparer<DiskItem>)
+            : null;
 
         foreach (var rectangle in rectangles)
         {
@@ -86,7 +119,23 @@ public sealed class TreemapControl : Control
             }
 
             var bounds = ToAvaloniaRect(rectangle, scaleX, scaleY);
-            context.DrawRectangle(GetBrush(rectangle), _borderPen, bounds);
+            var isMatch = highlighted is null || highlighted.Contains(rectangle.Item.Item);
+
+            if (isMatch)
+            {
+                context.DrawRectangle(GetBrush(rectangle), _borderPen, bounds);
+                if (highlightActive)
+                {
+                    context.DrawRectangle(null, _matchPen, bounds.Deflate(1));
+                }
+            }
+            else
+            {
+                using (context.PushOpacity(UnmatchedOpacity))
+                {
+                    context.DrawRectangle(GetBrush(rectangle), _borderPen, bounds);
+                }
+            }
 
             if (rectangle.Equals(SelectedRectangle))
             {
@@ -112,6 +161,10 @@ public sealed class TreemapControl : Control
         _borderPen = new Pen(new SolidColorBrush(stroke), 1);
         _hoverPen = new Pen(new SolidColorBrush(highlight), 2);
         _selectionPen = new Pen(new SolidColorBrush(highlight), 3);
+        _matchPen = new Pen(new SolidColorBrush(highlight), 2)
+        {
+            DashStyle = new DashStyle([3, 2], 0)
+        };
     }
 
     private Color ResolveColor(string key, Color fallback) =>

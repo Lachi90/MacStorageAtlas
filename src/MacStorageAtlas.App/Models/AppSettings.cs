@@ -22,6 +22,8 @@ public sealed class AppSettings
 
     public List<string> RecentLocations { get; set; } = [];
 
+    public List<FilterPresetSettings> FilterPresets { get; set; } = [];
+
     public StorageMeasurementMode EffectiveMeasurementMode =>
         MeasurementMode is { } measurementMode && Enum.IsDefined(measurementMode)
             ? measurementMode

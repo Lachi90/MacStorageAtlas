@@ -18,6 +18,8 @@ public sealed class JsonSettingsService : ISettingsService
     {
         SerializerOptions.Converters.Add(
             new NullableStorageMeasurementModeJsonConverter());
+        SerializerOptions.Converters.Add(
+            new TolerantFilterPresetListJsonConverter());
     }
 
     private readonly string _settingsFilePath;

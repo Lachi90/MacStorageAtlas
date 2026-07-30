@@ -17,12 +17,25 @@ public sealed class LargeFilesService
         var files = new List<DiskItem>();
         Collect(root, files);
 
-        return files
+        return Rank(files, limit);
+    }
+
+    public IReadOnlyList<DiskItem> GetLargestFiles(
+        IReadOnlyList<DiskItem> files,
+        int limit = DefaultLimit)
+    {
+        ArgumentNullException.ThrowIfNull(files);
+        ArgumentOutOfRangeException.ThrowIfNegative(limit);
+
+        return limit == 0 ? [] : Rank(files, limit);
+    }
+
+    private static IReadOnlyList<DiskItem> Rank(IReadOnlyList<DiskItem> files, int limit) =>
+        files
             .OrderByDescending(file => file.SizeBytes)
             .ThenBy(file => file.Path, StringComparer.Ordinal)
             .Take(limit)
             .ToArray();
-    }
 
     private static void Collect(DiskItem item, List<DiskItem> files)
     {

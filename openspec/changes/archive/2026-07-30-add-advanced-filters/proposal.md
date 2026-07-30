@@ -71,9 +71,16 @@ cleanup basket.
 
 ### Modified Capabilities
 
-<!-- No existing capability's requirements change. Filtering reads the metadata
-     and measurement values that file-metadata and storage-measurement already
-     specify, without altering how they are captured or defined. -->
+- `result-tree-browsing`: selection behavior on a search change. The scenario
+  requiring the folder-tree selection to be cleared unconditionally is replaced
+  by clearing only a selection that is no longer displayed, and keeping one that
+  is. Search text becomes a filter criterion in this change, so the previous
+  rule would contradict this change's requirement that a still-visible selection
+  is preserved.
+
+`file-metadata` and `storage-measurement` are unchanged. Filtering reads the
+metadata and measurement values they already specify, without altering how those
+are captured or defined.
 
 ## Impact
 

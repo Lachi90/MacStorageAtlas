@@ -65,8 +65,165 @@
                         </Button.Flyout>
                     </Button>
 
-                    <TextBox Width="220"
+                    <Button Name="FilterButton"
+                            ToolTip.Tip="Result filters"
+                            AutomationProperties.Name="Result filters">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconOptions}"/>
+                            <TextBlock Text="Filters"/>
+                        </StackPanel>
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight">
+                                <Panel DataContext="{Binding Filter}" Width="420">
+                                <ScrollViewer MaxHeight="560"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              VerticalScrollBarVisibility="Auto">
+                                <StackPanel Spacing="10" Margin="4,4,14,4"
+                                            x:DataType="vm:ResultFilterViewModel">
+                                    <TextBlock Classes="label" Text="Presets"/>
+                                    <ItemsControl ItemsSource="{Binding Presets}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="core:FilterPreset">
+                                                <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                                    <Button Grid.Column="0"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Left"
+                                                            Content="{Binding Name}"
+                                                            Command="{Binding $parent[ItemsControl].((vm:ResultFilterViewModel)DataContext).ApplyPresetCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Grid.Column="1"
+                                                            Margin="4,0,0,0"
+                                                            IsVisible="{Binding !IsBuiltIn}"
+                                                            ToolTip.Tip="Delete preset"
+                                                            AutomationProperties.Name="Delete preset"
+                                                            Command="{Binding $parent[ItemsControl].((vm:ResultFilterViewModel)DataContext).DeletePresetCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <PathIcon Data="{StaticResource IconTrash}"/>
+                                                    </Button>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <TextBlock Classes="label" Text="Size"/>
+                                    <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="6">
+                                        <NumericUpDown Grid.Column="0"
+                                                       Minimum="0"
+                                                       PlaceholderText="Min MB"
+                                                       AutomationProperties.Name="Minimum size in megabytes"
+                                                       Value="{Binding MinimumSizeMegabytes, Mode=TwoWay}"/>
+                                        <TextBlock Grid.Column="1" Text="to" VerticalAlignment="Center"/>
+                                        <NumericUpDown Grid.Column="2"
+                                                       Minimum="0"
+                                                       PlaceholderText="Max MB"
+                                                       AutomationProperties.Name="Maximum size in megabytes"
+                                                       Value="{Binding MaximumSizeMegabytes, Mode=TwoWay}"/>
+                                    </Grid>
+
+                                    <TextBlock Classes="label" Text="Modified"/>
+                                    <Grid ColumnDefinitions="Auto,*"
+                                          RowDefinitions="Auto,Auto"
+                                          ColumnSpacing="8" RowSpacing="6">
+                                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                                   Classes="caption" Text="After"
+                                                   VerticalAlignment="Center" Width="46"/>
+                                        <DatePicker Grid.Row="0" Grid.Column="1"
+                                                    HorizontalAlignment="Stretch"
+                                                    AutomationProperties.Name="Modified after"
+                                                    SelectedDate="{Binding ModifiedAfter, Mode=TwoWay}"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="0"
+                                                   Classes="caption" Text="Before"
+                                                   VerticalAlignment="Center" Width="46"/>
+                                        <DatePicker Grid.Row="1" Grid.Column="1"
+                                                    HorizontalAlignment="Stretch"
+                                                    AutomationProperties.Name="Modified before"
+                                                    SelectedDate="{Binding ModifiedBefore, Mode=TwoWay}"/>
+                                    </Grid>
+
+                                    <TextBlock Classes="label" Text="Created"/>
+                                    <Grid ColumnDefinitions="Auto,*"
+                                          RowDefinitions="Auto,Auto"
+                                          ColumnSpacing="8" RowSpacing="6">
+                                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                                   Classes="caption" Text="After"
+                                                   VerticalAlignment="Center" Width="46"/>
+                                        <DatePicker Grid.Row="0" Grid.Column="1"
+                                                    HorizontalAlignment="Stretch"
+                                                    AutomationProperties.Name="Created after"
+                                                    SelectedDate="{Binding CreatedAfter, Mode=TwoWay}"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="0"
+                                                   Classes="caption" Text="Before"
+                                                   VerticalAlignment="Center" Width="46"/>
+                                        <DatePicker Grid.Row="1" Grid.Column="1"
+                                                    HorizontalAlignment="Stretch"
+                                                    AutomationProperties.Name="Created before"
+                                                    SelectedDate="{Binding CreatedBefore, Mode=TwoWay}"/>
+                                    </Grid>
+
+                                    <TextBlock Classes="label" Text="Last accessed"/>
+                                    <Grid ColumnDefinitions="Auto,*"
+                                          RowDefinitions="Auto,Auto"
+                                          ColumnSpacing="8" RowSpacing="6">
+                                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                                   Classes="caption" Text="After"
+                                                   VerticalAlignment="Center" Width="46"/>
+                                        <DatePicker Grid.Row="0" Grid.Column="1"
+                                                    HorizontalAlignment="Stretch"
+                                                    AutomationProperties.Name="Last accessed after"
+                                                    SelectedDate="{Binding LastAccessedAfter, Mode=TwoWay}"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="0"
+                                                   Classes="caption" Text="Before"
+                                                   VerticalAlignment="Center" Width="46"/>
+                                        <DatePicker Grid.Row="1" Grid.Column="1"
+                                                    HorizontalAlignment="Stretch"
+                                                    AutomationProperties.Name="Last accessed before"
+                                                    SelectedDate="{Binding LastAccessedBefore, Mode=TwoWay}"/>
+                                    </Grid>
+
+                                    <TextBlock Classes="label" Text="File extensions"/>
+                                    <TextBox Text="{Binding ExtensionsText, Mode=TwoWay}"
+                                             AutomationProperties.Name="File extensions"
+                                             PlaceholderText="mov, zip, pdf"/>
+
+                                    <TextBlock Classes="label" Text="Categories"/>
+                                    <ItemsControl ItemsSource="{Binding CategoryOptions}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:FileCategoryOption">
+                                                <CheckBox Content="{Binding DisplayName}"
+                                                          IsChecked="{Binding IsSelected, Mode=TwoWay}"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <CheckBox IsChecked="{Binding SharedStorageOnly, Mode=TwoWay}"
+                                              Content="Only results whose storage is shared"
+                                              ToolTip.Tip="Shows only files whose storage is counted against another path in this scan, such as hardlinks."/>
+
+                                    <TextBlock Classes="label" Text="Save current filter as preset"/>
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                        <TextBox Grid.Column="0"
+                                                 Text="{Binding NewPresetName, Mode=TwoWay}"
+                                                 AutomationProperties.Name="New preset name"
+                                                 PlaceholderText="Preset name"/>
+                                        <Button Grid.Column="1"
+                                                Content="Save"
+                                                Command="{Binding SavePresetCommand}"/>
+                                    </Grid>
+
+                                    <Button HorizontalAlignment="Stretch"
+                                            Content="Clear filter"
+                                            Command="{Binding ClearFilterCommand}"/>
+                                </StackPanel>
+                                </ScrollViewer>
+                                </Panel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
+                    <TextBox Name="SearchBox"
+                             Width="220"
                              Text="{Binding SearchText, Mode=TwoWay}"
+                             AutomationProperties.Name="Search name or path"
                              PlaceholderText="Search name or path"/>
                 </StackPanel>
 
@@ -121,6 +278,30 @@
         </Border>
 
 <StackPanel DockPanel.Dock="Top" Spacing="0">
+            <Border Background="{DynamicResource ChromeBackgroundBrush}"
+                    BorderBrush="{DynamicResource DividerBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="16,8"
+                    IsVisible="{Binding Filter.IsFilterActive}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBlock Classes="danger"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding Filter.HasValidationError}"
+                                   Text="{Binding Filter.ValidationMessage}"/>
+                        <TextBlock Classes="caption"
+                                   IsVisible="{Binding Filter.HasMatchSummary}"
+                                   Text="{Binding Filter.MatchSummary}"/>
+                        <TextBlock Classes="caption"
+                                   IsVisible="{Binding Filter.HasUnknownDateExclusions}"
+                                   Text="{Binding Filter.UnknownDateExclusionMessage}"/>
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Content="Clear filter"
+                            VerticalAlignment="Center"
+                            Command="{Binding Filter.ClearFilterCommand}"/>
+                </Grid>
+            </Border>
             <Border Background="{DynamicResource ChromeBackgroundBrush}"
                     Padding="16,8"
                     IsVisible="{Binding RevealStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
@@ -180,7 +361,7 @@
                     Padding="32"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
-                    IsVisible="{Binding !TreeItems.Count}">
+                    IsVisible="{Binding !HasScanResult}">
                 <StackPanel Spacing="16" HorizontalAlignment="Center">
                     <TextBlock Classes="title" Text="Analyze your storage" HorizontalAlignment="Center"/>
                     <TextBlock Classes="subtle"
@@ -230,15 +411,45 @@
                 </StackPanel>
             </Border>
 
+<Border Classes="card"
+                    MaxWidth="520"
+                    Padding="32"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding ShowEmptyFilterResult}">
+                <StackPanel Spacing="16" HorizontalAlignment="Center">
+                    <TextBlock Classes="title"
+                               Text="No results match this filter"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Classes="subtle"
+                               MaxWidth="380"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               Text="The scan result is unchanged. Adjust or clear the filter to see it again."/>
+                    <Button Classes="accent"
+                            HorizontalAlignment="Center"
+                            Content="Clear filter"
+                            Command="{Binding Filter.ClearFilterCommand}"/>
+                </StackPanel>
+            </Border>
+
 <Grid ColumnDefinitions="0.4*,Auto,0.6*"
                   IsVisible="{Binding TreeItems.Count}">
 
 <Border Grid.Column="0" Classes="card" Padding="0" MinWidth="280">
                     <DockPanel>
-                        <TextBlock DockPanel.Dock="Top"
-                                   Classes="section-header"
-                                   Text="Folder tree"
-                                   Margin="16,14,16,8"/>
+                        <Grid DockPanel.Dock="Top"
+                              ColumnDefinitions="*,Auto"
+                              ColumnSpacing="16"
+                              Margin="16,14,16,8">
+                            <TextBlock Grid.Column="0"
+                                       Classes="section-header"
+                                       Text="Folder tree"/>
+                            <TextBlock Grid.Column="1"
+                                       Classes="label"
+                                       VerticalAlignment="Center"
+                                       Text="{Binding TreeSizeColumnHeader}"/>
+                        </Grid>
                         <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource DividerBrush}"/>
                         <TreeView ItemsSource="{Binding TreeItems}"
                                   SelectedItem="{Binding SelectedTreeItem, Mode=TwoWay}"
@@ -253,7 +464,8 @@
                                                    TextTrimming="CharacterEllipsis"/>
                                         <TextBlock Grid.Column="1"
                                                    Classes="subtle"
-                                                   Text="{Binding FormattedSize}"/>
+                                                   ToolTip.Tip="{Binding FormattedSize}"
+                                                   Text="{Binding DisplaySize}"/>
                                     </Grid>
                                 </TreeDataTemplate>
                             </TreeView.ItemTemplate>
@@ -282,6 +494,8 @@
                                     ClipToBounds="True"
                                     IsVisible="{Binding TreemapRectangles.Count}">
                                 <controls:TreemapControl Rectangles="{Binding TreemapRectangles}"
+                                                         HighlightedItems="{Binding HighlightedTreemapItems}"
+                                                         IsHighlightActive="{Binding IsFilterActive}"
                                                          SelectedRectangle="{Binding SelectedTreemapRectangle, Mode=TwoWay}"/>
                             </Border>
                         </DockPanel>

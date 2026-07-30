@@ -47,7 +47,25 @@ public partial class MainWindow : Window
             return true;
         }
 
+        if (e.Key == Key.F && e.KeyModifiers.HasFlag(KeyModifiers.Meta))
+        {
+            e.Handled = FocusSearchBox();
+            return e.Handled;
+        }
+
         return false;
+    }
+
+    private bool FocusSearchBox()
+    {
+        if (this.FindControl<TextBox>("SearchBox") is not { } searchBox)
+        {
+            return false;
+        }
+
+        searchBox.Focus();
+        searchBox.SelectAll();
+        return true;
     }
 
     internal static bool IsTextEditingSource(object? source) =>

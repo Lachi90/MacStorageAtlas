@@ -34,6 +34,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ITreemapLayoutService _treemapLayoutService = new TreemapLayoutService();
     private readonly FileTypeStatisticsService _fileTypeStatisticsService = new();
     private readonly LargeFilesService _largeFilesService = new();
+    private readonly DiskItemFilterEvaluator _filterEvaluator = new();
     private readonly Dictionary<DiskItem, IReadOnlyList<TreemapRect>> _treemapLayoutCache =
         new(ReferenceEqualityComparer.Instance);
     private readonly TimeSpan _searchDebounceInterval;
@@ -41,7 +42,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private ScanOptions? _resultScanOptions;
     private CancellationTokenSource? _scanCancellation;
     private CancellationTokenSource? _treePreparationCancellation;
+    private FilterResult? _filterResult;
     private bool _isApplyingSettings;
+    private bool _isSyncingSearchText;
 
     public MainWindowViewModel()
         : this(
@@ -94,7 +97,32 @@ public partial class MainWindowViewModel : ViewModelBase
         _settingsService = settingsService ?? new InMemorySettingsService();
         _clipboardService = clipboardService ?? new NullClipboardService();
 
+        Filter.CriteriaChanged += OnFilterCriteriaChanged;
+        Filter.UserPresetsChanged += OnUserPresetsChanged;
+
         LoadSettings();
+    }
+
+    private void OnUserPresetsChanged(object? sender, EventArgs e) => SaveSettings();
+
+    public ResultFilterViewModel Filter { get; } = new();
+
+    private void OnFilterCriteriaChanged(object? sender, EventArgs e)
+    {
+        if (!_isSyncingSearchText)
+        {
+            _isSyncingSearchText = true;
+            try
+            {
+                SearchText = Filter.TextTerm;
+            }
+            finally
+            {
+                _isSyncingSearchText = false;
+            }
+        }
+
+        ScheduleTreePreparation();
     }
 
     public string ApplicationName { get; } = "MacStorageAtlas";
@@ -209,6 +237,20 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private IReadOnlyList<TreemapRect> _treemapRectangles = [];
+
+    [ObservableProperty]
+    private IReadOnlyList<DiskItem> _highlightedTreemapItems = [];
+
+    partial void OnTreemapRectanglesChanged(IReadOnlyList<TreemapRect> value) =>
+        RefreshTreemapHighlight();
+
+    private void RefreshTreemapHighlight() =>
+        HighlightedTreemapItems = _filterResult is { IsFilterActive: true } result
+            ? TreemapRectangles
+                .Select(rectangle => rectangle.Item.Item)
+                .Where(result.IsVisible)
+                .ToArray()
+            : [];
 
     [ObservableProperty]
     private IReadOnlyList<FileTypeSummary> _fileTypeSummaries = [];
@@ -533,13 +575,11 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             _scanRoot = progress.Root;
             _resultScanOptions = options;
-            ApplySearch();
             SelectedTreeItem = null;
             SelectedTreemapRectangle = null;
             SelectedLargeFile = null;
             TreemapRectangles = LayoutChildren(progress.Root);
-            FileTypeSummaries = _fileTypeStatisticsService.Calculate(progress.Root);
-            LargeFiles = _largeFilesService.GetLargestFiles(progress.Root);
+            ApplySearch();
         }
     }
 
@@ -598,7 +638,23 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    partial void OnSearchTextChanged(string value) => ScheduleTreePreparation();
+    partial void OnSearchTextChanged(string value)
+    {
+        if (_isSyncingSearchText)
+        {
+            return;
+        }
+
+        _isSyncingSearchText = true;
+        try
+        {
+            Filter.TextTerm = value;
+        }
+        finally
+        {
+            _isSyncingSearchText = false;
+        }
+    }
 
     private void NotifySelectedItemPropertiesChanged()
     {
@@ -634,10 +690,15 @@ public partial class MainWindowViewModel : ViewModelBase
     private void ApplySearch()
     {
         CancelTreePreparation();
-        TreeItems = _scanRoot is null
-            ? []
-            : DiskItemTreeFilter.Filter(_scanRoot, SearchText);
-        SelectedTreeItem = null;
+
+        var filter = Filter.CurrentFilter;
+        if (_scanRoot is null || !filter.Validate().IsValid)
+        {
+            ApplyEmptyPreparation();
+            return;
+        }
+
+        ApplyPreparation(Prepare(_scanRoot, filter, CancellationToken.None));
     }
 
     private void CancelTreePreparation()
@@ -654,12 +715,12 @@ public partial class MainWindowViewModel : ViewModelBase
         _treePreparationCancellation = cancellation;
         previous?.Cancel();
 
-        TreePreparation = PrepareTreeAsync(_scanRoot, SearchText, cancellation);
+        TreePreparation = PrepareTreeAsync(_scanRoot, Filter.CurrentFilter, cancellation);
     }
 
     private async Task PrepareTreeAsync(
         DiskItem? root,
-        string searchText,
+        DiskItemFilter filter,
         CancellationTokenSource cancellation)
     {
         var token = cancellation.Token;
@@ -671,12 +732,22 @@ public partial class MainWindowViewModel : ViewModelBase
                 await Task.Delay(_searchDebounceInterval, token).ConfigureAwait(false);
             }
 
-            var items = root is null
-                ? []
-                : await Task.Run(
-                        () => DiskItemTreeFilter.Filter(root, searchText),
-                        token)
-                    .ConfigureAwait(false);
+            if (root is null || !filter.Validate().IsValid)
+            {
+                await _uiDispatcher.InvokeAsync(() =>
+                {
+                    if (ReferenceEquals(_treePreparationCancellation, cancellation))
+                    {
+                        ApplyEmptyPreparation();
+                    }
+                }).ConfigureAwait(false);
+                return;
+            }
+
+            var prepared = await Task.Run(
+                    () => Prepare(root, filter, token),
+                    token)
+                .ConfigureAwait(false);
 
             token.ThrowIfCancellationRequested();
 
@@ -687,8 +758,7 @@ public partial class MainWindowViewModel : ViewModelBase
                     return;
                 }
 
-                TreeItems = items;
-                SelectedTreeItem = null;
+                ApplyPreparation(prepared);
             }).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
@@ -704,6 +774,138 @@ public partial class MainWindowViewModel : ViewModelBase
             cancellation.Dispose();
         }
     }
+
+    private PreparedResult Prepare(
+        DiskItem root,
+        DiskItemFilter filter,
+        CancellationToken cancellationToken)
+    {
+        if (!filter.IsActive)
+        {
+            return new PreparedResult(
+                null,
+                DiskItemTreeFilter.Filter(root, searchText: null),
+                _largeFilesService.GetLargestFiles(root),
+                _fileTypeStatisticsService.Calculate(root));
+        }
+
+        var result = _filterEvaluator.Evaluate(root, filter, cancellationToken);
+        return new PreparedResult(
+            result,
+            DiskItemTreeFilter.Filter(root, result),
+            _largeFilesService.GetLargestFiles(result.MatchedFiles),
+            _fileTypeStatisticsService.Calculate(result.MatchedFiles));
+    }
+
+    private void ApplyPreparation(PreparedResult prepared)
+    {
+        _filterResult = prepared.Result;
+        TreeItems = prepared.TreeItems;
+        LargeFiles = prepared.LargeFiles;
+        FileTypeSummaries = prepared.FileTypeSummaries;
+
+        if (prepared.Result is { } result)
+        {
+            Filter.ApplyMatchSummary(result);
+        }
+
+        OnPropertyChanged(nameof(TreeSizeColumnHeader));
+        OnPropertyChanged(nameof(IsFilterActive));
+        RefreshTreemapHighlight();
+        ReconcileSelections();
+    }
+
+    private void ApplyEmptyPreparation()
+    {
+        _filterResult = null;
+        TreeItems = [];
+        LargeFiles = [];
+        FileTypeSummaries = [];
+        OnPropertyChanged(nameof(TreeSizeColumnHeader));
+        OnPropertyChanged(nameof(IsFilterActive));
+        RefreshTreemapHighlight();
+        ReconcileSelections();
+    }
+
+    private void ReconcileSelections()
+    {
+        if (SelectedTreeItem is { } treeItem)
+        {
+            if (!IsVisibleInTree(treeItem.Item))
+            {
+                SelectedTreeItem = null;
+            }
+            else if (FindNode(TreeItems, treeItem.Item) is { } replacement
+                     && !ReferenceEquals(replacement, treeItem))
+            {
+                SelectedTreeItem = replacement;
+            }
+        }
+
+        if (SelectedLargeFile is { } largeFile
+            && !LargeFiles.Any(file => ReferenceEquals(file, largeFile)))
+        {
+            SelectedLargeFile = null;
+        }
+    }
+
+    private bool IsVisibleInTree(DiskItem item) =>
+        _filterResult is not { } result || result.IsVisible(item);
+
+    private static DiskItemTreeNodeViewModel? FindNode(
+        IReadOnlyList<DiskItemTreeNodeViewModel> nodes,
+        DiskItem target)
+    {
+        foreach (var node in nodes)
+        {
+            if (ReferenceEquals(node.Item, target))
+            {
+                return node;
+            }
+
+            if (node.Item.IsDirectory
+                && IsUnder(target.Path, node.Item.Path)
+                && FindNode(node.Children, target) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsUnder(string path, string directoryPath) =>
+        path.Length > directoryPath.Length
+        && path.StartsWith(directoryPath, StringComparison.Ordinal)
+        && (directoryPath.EndsWith(Path.DirectorySeparatorChar)
+            || path[directoryPath.Length] == Path.DirectorySeparatorChar);
+
+    public bool IsFilterActive => _filterResult?.IsFilterActive == true;
+
+    public bool HasScanResult => _scanRoot is not null;
+
+    public bool ShowEmptyFilterResult => HasScanResult && TreeItems.Count == 0;
+
+    public string TreeSizeColumnHeader => IsFilterActive ? "Matched size" : "Size";
+
+    partial void OnTreeItemsChanged(IReadOnlyList<DiskItemTreeNodeViewModel> value)
+    {
+        OnPropertyChanged(nameof(HasScanResult));
+        OnPropertyChanged(nameof(ShowEmptyFilterResult));
+    }
+
+    public bool IsMatched(DiskItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+
+        return _filterResult is not { } result || !result.IsFilterActive || result.Matches(item);
+    }
+
+    private sealed record PreparedResult(
+        FilterResult? Result,
+        IReadOnlyList<DiskItemTreeNodeViewModel> TreeItems,
+        IReadOnlyList<DiskItem> LargeFiles,
+        IReadOnlyList<FileTypeSummary> FileTypeSummaries);
 
     private IReadOnlyList<TreemapRect> LayoutChildren(DiskItem parent)
     {
@@ -744,10 +946,8 @@ public partial class MainWindowViewModel : ViewModelBase
             var parent = FindParent(_scanRoot, item);
             _scanRoot.RemoveDescendant(item);
             _treemapLayoutCache.Clear();
-            ApplySearch();
             TreemapRectangles = LayoutChildren(parent ?? _scanRoot);
-            FileTypeSummaries = _fileTypeStatisticsService.Calculate(_scanRoot);
-            LargeFiles = _largeFilesService.GetLargestFiles(_scanRoot);
+            ApplySearch();
         }
 
         SelectedTreeItem = null;
@@ -795,6 +995,10 @@ public partial class MainWindowViewModel : ViewModelBase
                 .Where(path => !string.IsNullOrWhiteSpace(path))
                 .Take(AppSettings.MaxRecentLocations)
                 .ToArray();
+            Filter.LoadUserPresets(settings.FilterPresets
+                .Select(preset => preset.TryCreatePreset())
+                .Where(preset => preset is not null)
+                .Cast<FilterPreset>());
         }
         finally
         {
@@ -815,7 +1019,10 @@ public partial class MainWindowViewModel : ViewModelBase
             FollowSymbolicLinks = FollowSymbolicLinks,
             TreatPackagesAsDirectories = ExpandApplicationBundles,
             MeasurementMode = MeasurementMode,
-            RecentLocations = RecentLocations.ToList()
+            RecentLocations = RecentLocations.ToList(),
+            FilterPresets = Filter.UserPresets
+                .Select(FilterPresetSettings.FromPreset)
+                .ToList()
         });
     }
 

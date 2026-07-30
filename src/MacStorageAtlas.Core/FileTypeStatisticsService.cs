@@ -10,11 +10,31 @@ public sealed class FileTypeStatisticsService
     {
         ArgumentNullException.ThrowIfNull(root);
 
-        var totals = new Dictionary<string, (long FileCount, long TotalSizeBytes)>(
-            StringComparer.OrdinalIgnoreCase);
+        var totals = CreateTotals();
         AddFiles(root, totals);
 
-        return totals
+        return Summarize(totals);
+    }
+
+    public IReadOnlyList<FileTypeSummary> Calculate(IReadOnlyList<DiskItem> files)
+    {
+        ArgumentNullException.ThrowIfNull(files);
+
+        var totals = CreateTotals();
+        foreach (var file in files)
+        {
+            AddFile(file, totals);
+        }
+
+        return Summarize(totals);
+    }
+
+    private static Dictionary<string, (long FileCount, long TotalSizeBytes)> CreateTotals() =>
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private static IReadOnlyList<FileTypeSummary> Summarize(
+        Dictionary<string, (long FileCount, long TotalSizeBytes)> totals) =>
+        totals
             .Select(pair => new FileTypeSummary(
                 pair.Key,
                 pair.Value.FileCount,
@@ -22,7 +42,6 @@ public sealed class FileTypeStatisticsService
             .OrderByDescending(summary => summary.TotalSizeBytes)
             .ThenBy(summary => summary.Extension, StringComparer.Ordinal)
             .ToArray();
-    }
 
     private static void AddFiles(
         DiskItem item,
@@ -30,12 +49,7 @@ public sealed class FileTypeStatisticsService
     {
         if (!item.IsDirectory)
         {
-            var extension = Path.GetExtension(item.Name);
-            var group = string.IsNullOrEmpty(extension)
-                ? NoExtensionLabel
-                : extension.ToLowerInvariant();
-            totals.TryGetValue(group, out var total);
-            totals[group] = (total.FileCount + 1, total.TotalSizeBytes + item.SizeBytes);
+            AddFile(item, totals);
             return;
         }
 
@@ -43,5 +57,17 @@ public sealed class FileTypeStatisticsService
         {
             AddFiles(child, totals);
         }
+    }
+
+    private static void AddFile(
+        DiskItem file,
+        IDictionary<string, (long FileCount, long TotalSizeBytes)> totals)
+    {
+        var extension = Path.GetExtension(file.Name);
+        var group = string.IsNullOrEmpty(extension)
+            ? NoExtensionLabel
+            : extension.ToLowerInvariant();
+        totals.TryGetValue(group, out var total);
+        totals[group] = (total.FileCount + 1, total.TotalSizeBytes + file.SizeBytes);
     }
 }

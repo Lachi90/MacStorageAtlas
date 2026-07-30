@@ -466,9 +466,15 @@ Requirements:
 
 # 12. Search and Filter
 
+## Status
+
+Delivered. Text search shipped earlier; advanced filters and presets shipped
+with WP-04 (`add-advanced-filters`).
+
 ## Purpose
 
-Allow users to find files or folders by name/path.
+Allow users to find files or folders by name/path, and narrow a completed scan
+to an actionable subset.
 
 ## Acceptance Criteria
 
@@ -476,6 +482,31 @@ Allow users to find files or folders by name/path.
 - Matching items can be selected.
 - Clearing search restores normal view.
 - Search is case-insensitive.
+
+## Delivered filter dimensions
+
+- Name and path text.
+- Minimum and maximum size, compared against the counted size shown for a
+  result, with inclusive bounds.
+- Creation, modification, and last-access date ranges.
+- File extension.
+- File category, from a versioned extension taxonomy covering archives, video,
+  images, audio, documents, disk images and installers, and code.
+- Shared-storage status, selecting results whose storage is counted against
+  another path in the same scan.
+
+Criteria combine with AND. Filters are evaluated against files; directories
+appear only as ancestors of matching files.
+
+## Documented non-goals
+
+- OR, NOT, or grouped boolean composition.
+- Filtering by hidden status, which the `IncludeHiddenFiles` scan option
+  already governs.
+- Filtering by application-package membership.
+- A file-versus-folder dimension, which files-only matching makes redundant.
+- Exporting or acting in bulk on a filtered result. Those belong to WP-05 and
+  WP-07.
 
 ## Affected Projects
 
