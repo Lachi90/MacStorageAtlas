@@ -8,11 +8,13 @@ OpenSpec is the reviewable contract for one concrete change at a time.
 
 - OpenSpec schema: `spec-driven`
 - OpenSpec CLI version used for initialization: `1.6.0`
-- AI integration: Codex
+- AI integrations: Codex and Claude Code
 - Project configuration: `openspec/config.yaml`
 - Current behavior specs: `openspec/specs/`
 - Active changes: `openspec/changes/`
 - Generated Codex skills: `.codex/skills/`
+- Generated Claude Code skills: `.claude/skills/`
+- Generated Claude Code commands: `.claude/commands/opsx/`
 - Integration branch: `codex/storage-feature-roadmap`
 
 Install the CLI if it is not already available:
@@ -23,7 +25,17 @@ openspec --version
 ```
 
 Run `openspec update` after upgrading the global OpenSpec CLI so the generated
-Codex skills stay in sync.
+Codex and Claude Code skills stay in sync.
+
+Both assistants expose the same workflow:
+
+- Codex: `/opsx:propose`, `/opsx:apply`, and the other `/opsx:*` commands.
+- Claude Code: the identical `/opsx:*` commands, plus the
+  `openspec-propose`, `openspec-explore`, `openspec-apply-change`,
+  `openspec-update-change`, `openspec-sync-specs`, and
+  `openspec-archive-change` skills, which Claude may also select on its own when
+  a request matches spec-driven work. Newly generated skills become available
+  after the next Claude Code session starts.
 
 ## Why the roadmap is not imported wholesale
 
@@ -43,8 +55,8 @@ Therefore:
 
 ## Daily workflow
 
-The `/opsx:*` commands below are typed in the Codex chat. The `openspec ...`
-commands are typed in a terminal.
+The `/opsx:*` commands below are typed in the Codex or Claude Code chat. The
+`openspec ...` commands are typed in a terminal.
 
 1. Update and verify the integration branch:
 
@@ -162,4 +174,5 @@ openspec update
 ```
 
 The interactive dashboard is opened with `openspec view`. Slash commands such
-as `/opsx:propose` and `/opsx:apply` belong in the Codex chat, not the terminal.
+as `/opsx:propose` and `/opsx:apply` belong in the Codex or Claude Code chat,
+not the terminal.
