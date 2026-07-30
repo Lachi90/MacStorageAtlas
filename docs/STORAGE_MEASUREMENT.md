@@ -107,6 +107,29 @@ clone failures retain required allocation through the same fallback and report
 partial coverage. Apple Silicon uses the native entry points; Intel preserves
 the 64-bit-inode ABI entry points.
 
+## Exported size fields
+
+A CSV or JSON export reports three byte fields per item plus the mode that
+produced them. One scan produces exactly one measurement basis, so an export
+never reports a logical and an allocated size for the same item.
+
+| Field | Logical mode | Allocated mode | Shared-aware allocated mode |
+| --- | --- | --- | --- |
+| `MeasuredSizeBytes` | Logical length | Allocated size | Allocated size |
+| `CountedSizeBytes` | Logical length | Allocated size | Allocated size minus the bytes attributed to another included path |
+| `SharedSizeBytes` | 0 | 0 | Bytes attributed to another included path |
+| `IsSharedStorage` | false | false | True when `SharedSizeBytes` is above zero |
+
+`MeasurementMode` repeats on every row so a row stays interpretable after a
+spreadsheet sort or after rows from two exports are combined. A directory row
+reports the totals of its own subtree, so summing every row would count each
+file once per ancestor; the metadata byte total sums the file rows only and
+equals the counted size of the scan root.
+
+The same caveats apply to an export as to the on-screen totals: a shared-aware
+number is not a promise of unique physical or reclaimable bytes, and shared
+accounting is limited to the scanned scope.
+
 ## Reproducible macOS fixtures
 
 The integration suite creates isolated temporary fixtures for an ordinary file,

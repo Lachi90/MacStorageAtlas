@@ -37,7 +37,8 @@ public partial class App : Application
                 new AvaloniaTrashConfirmationService(mainWindow),
                 new JsonSettingsService(),
                 new AvaloniaClipboardService(mainWindow),
-                new MacQuickLookService());
+                new MacQuickLookService(),
+                new AvaloniaSaveFilePickerService(mainWindow.StorageProvider));
 
             desktop.MainWindow = mainWindow;
 

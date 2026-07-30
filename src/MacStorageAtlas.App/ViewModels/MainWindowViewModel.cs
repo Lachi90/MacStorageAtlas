@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -31,6 +32,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ITrashConfirmationService _trashConfirmationService;
     private readonly ISettingsService _settingsService;
     private readonly IClipboardService _clipboardService;
+    private readonly ISaveFilePickerService _saveFilePickerService;
     private readonly ITreemapLayoutService _treemapLayoutService = new TreemapLayoutService();
     private readonly FileTypeStatisticsService _fileTypeStatisticsService = new();
     private readonly LargeFilesService _largeFilesService = new();
@@ -42,6 +44,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private DiskItem? _scanRoot;
     private ScanOptions? _resultScanOptions;
     private CancellationTokenSource? _scanCancellation;
+    private CancellationTokenSource? _exportCancellation;
     private CancellationTokenSource? _treePreparationCancellation;
     private FilterResult? _filterResult;
     private bool _isApplyingSettings;
@@ -84,6 +87,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ISettingsService? settingsService = null,
         IClipboardService? clipboardService = null,
         IQuickLookService? quickLookService = null,
+        ISaveFilePickerService? saveFilePickerService = null,
         TimeSpan? searchDebounceInterval = null,
         Func<DateTimeOffset>? referenceTimeProvider = null)
     {
@@ -100,6 +104,7 @@ public partial class MainWindowViewModel : ViewModelBase
             trashConfirmationService ?? new NullTrashConfirmationService();
         _settingsService = settingsService ?? new InMemorySettingsService();
         _clipboardService = clipboardService ?? new NullClipboardService();
+        _saveFilePickerService = saveFilePickerService ?? new NullSaveFilePickerService();
 
         Filter.CriteriaChanged += OnFilterCriteriaChanged;
         Filter.UserPresetsChanged += OnUserPresetsChanged;
@@ -199,6 +204,24 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private IReadOnlyList<ScanError> _scanErrors = [];
+
+    [ObservableProperty]
+    private DateTimeOffset? _scanCompletedAt;
+
+    partial void OnScanCompletedAtChanged(DateTimeOffset? value) =>
+        NotifyExportCommandsCanExecuteChanged();
+
+    [ObservableProperty]
+    private bool _isExporting;
+
+    partial void OnIsExportingChanged(bool value)
+    {
+        NotifyExportCommandsCanExecuteChanged();
+        CancelExportCommand.NotifyCanExecuteChanged();
+    }
+
+    [ObservableProperty]
+    private string? _exportStatusMessage;
 
     [ObservableProperty]
     private ScanError? _selectedScanError;
@@ -524,6 +547,7 @@ public partial class MainWindowViewModel : ViewModelBase
             ResultMeasurementMode = options.MeasurementMode;
             ResultCloneAccountingCoverage = CloneAccountingCoverage.Unavailable;
             ScanErrors = [];
+            ScanCompletedAt = null;
             SelectedScanError = null;
             _scanRoot = null;
             _resultScanOptions = null;
@@ -579,6 +603,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             _scanRoot = progress.Root;
             _resultScanOptions = options;
+            ScanCompletedAt = _referenceTimeProvider();
             SelectedTreeItem = null;
             SelectedTreemapRectangle = null;
             SelectedLargeFile = null;
@@ -994,6 +1019,203 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         ScanFolderCommand.NotifyCanExecuteChanged();
         RescanCommand.NotifyCanExecuteChanged();
+        NotifyExportCommandsCanExecuteChanged();
+    }
+
+    private void NotifyExportCommandsCanExecuteChanged()
+    {
+        ExportCsvCommand.NotifyCanExecuteChanged();
+        ExportJsonCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanExport() =>
+        !IsScanning
+        && !IsExporting
+        && _scanRoot is not null
+        && _resultScanOptions is not null
+        && ScanCompletedAt is not null;
+
+    private bool CanCancelExport() => IsExporting;
+
+    [RelayCommand(CanExecute = nameof(CanCancelExport))]
+    private void CancelExport() => _exportCancellation?.Cancel();
+
+    [RelayCommand(CanExecute = nameof(CanExport))]
+    private Task ExportCsvAsync() => ExportAsync(ScanExportFormat.Csv);
+
+    [RelayCommand(CanExecute = nameof(CanExport))]
+    private Task ExportJsonAsync() => ExportAsync(ScanExportFormat.Json);
+
+    private async Task ExportAsync(ScanExportFormat format)
+    {
+        if (_scanRoot is not { } root
+            || _resultScanOptions is not { } options
+            || ScanCompletedAt is not { } completedAt)
+        {
+            return;
+        }
+
+        var destination = await _saveFilePickerService.SelectSaveFileAsync(
+            format,
+            SuggestedExportFileName(root, format, completedAt));
+
+        if (destination is null)
+        {
+            return;
+        }
+
+        var cancellation = new CancellationTokenSource();
+        _exportCancellation = cancellation;
+        var measurementMode = ResultMeasurementMode;
+        var coverage = ResultCloneAccountingCoverage;
+        var filterResult = _filterResult;
+        var errors = ScanErrors;
+
+        await _uiDispatcher.InvokeAsync(() =>
+        {
+            IsExporting = true;
+            ExportStatusMessage = null;
+        });
+
+        try
+        {
+            var itemCount = await Task.Run(
+                    async () =>
+                    {
+                        var request = ScanExportRequestFactory.Create(
+                            root,
+                            options,
+                            measurementMode,
+                            coverage,
+                            completedAt,
+                            filterResult,
+                            errors,
+                            cancellation.Token);
+
+                        await WriteExportAsync(
+                                request,
+                                destination,
+                                format,
+                                cancellation.Token)
+                            .ConfigureAwait(false);
+
+                        return request.Metadata.ItemCount;
+                    },
+                    cancellation.Token)
+                .ConfigureAwait(false);
+
+            await _uiDispatcher.InvokeAsync(() =>
+                ExportStatusMessage = ExportCompletionMessage(
+                    itemCount,
+                    errors.Count,
+                    destination));
+        }
+        catch (OperationCanceledException)
+        {
+            await _uiDispatcher.InvokeAsync(() =>
+                ExportStatusMessage =
+                    "The export was cancelled. No file was written to the chosen location.");
+        }
+        catch (System.Exception exception)
+        {
+            await _uiDispatcher.InvokeAsync(() =>
+                ExportStatusMessage =
+                    $"The export failed and no file was written: {exception.Message}");
+        }
+        finally
+        {
+            _exportCancellation = null;
+            cancellation.Dispose();
+            await _uiDispatcher.InvokeAsync(() => IsExporting = false);
+        }
+    }
+
+    private static async Task WriteExportAsync(
+        ScanExportRequest request,
+        string destination,
+        ScanExportFormat format,
+        CancellationToken cancellationToken)
+    {
+        var directory = Path.GetDirectoryName(destination);
+        var temporaryPath = Path.Combine(
+            string.IsNullOrEmpty(directory) ? "." : directory,
+            $".{Path.GetFileName(destination)}.{Guid.NewGuid():N}.tmp");
+
+        try
+        {
+            if (format == ScanExportFormat.Csv)
+            {
+                await using var stream = CreateTemporaryStream(temporaryPath);
+                await using var writer = new StreamWriter(
+                    stream,
+                    new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+                await ScanResultCsvWriter.WriteAsync(request, writer, cancellationToken)
+                    .ConfigureAwait(false);
+                await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await using var stream = CreateTemporaryStream(temporaryPath);
+                await ScanResultJsonWriter.WriteAsync(request, stream, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            File.Move(temporaryPath, destination, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+        }
+    }
+
+    private static FileStream CreateTemporaryStream(string temporaryPath) =>
+        new(
+            temporaryPath,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 64 * 1024,
+            useAsync: true);
+
+    private static string SuggestedExportFileName(
+        DiskItem root,
+        ScanExportFormat format,
+        DateTimeOffset completedAt)
+    {
+        var folderName = Path.GetFileName(root.Path.TrimEnd(Path.DirectorySeparatorChar));
+        var label = string.IsNullOrWhiteSpace(folderName) ? "volume" : folderName;
+        var stamp = completedAt.ToLocalTime()
+            .ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        var extension = format == ScanExportFormat.Csv ? "csv" : "json";
+
+        return $"MacStorageAtlas-{label}-{stamp}.{extension}";
+    }
+
+    private static string ExportCompletionMessage(
+        long itemCount,
+        int errorCount,
+        string destination)
+    {
+        var items = itemCount.ToString("N0", CultureInfo.CurrentCulture);
+        var fileName = Path.GetFileName(destination);
+        var message = itemCount == 1
+            ? $"Exported 1 item to {fileName}."
+            : $"Exported {items} items to {fileName}.";
+
+        if (errorCount == 0)
+        {
+            return message;
+        }
+
+        var errors = errorCount.ToString("N0", CultureInfo.CurrentCulture);
+        var unreadable = errorCount == 1
+            ? "1 path could not be read during the scan"
+            : $"{errors} paths could not be read during the scan";
+
+        return $"{message} {unreadable}, so the export does not describe them.";
     }
 
     private void LoadSettings()

@@ -460,26 +460,49 @@ stops a saved age preset from drifting as time passes.
 
 ## WP-05 - CSV and JSON export
 
+### Status
+
+Implemented by `export-scan-results`. The original field list asked for a
+logical size column and an allocated/unique size column side by side. One scan
+produces exactly one measurement basis, so no scan holds both values, and
+reading both per file would add a syscall to the path WP-02 optimized and change
+the measurement semantics defined in `docs/STORAGE_MEASUREMENT.md`. The field
+list below is the amended version that reports the scan's own basis instead.
+
 ### Outcome
 
 Users can analyze, archive, or share scan results outside the app.
 
 ### Scope
 
-- Export the current full scan or current filtered result.
-- CSV fields:
+- Export the current full scan or current filtered result. A filtered export
+  contains matched files only, without directory rows, because a directory's
+  subtree total is not the total of the matched rows beneath it.
+- CSV and JSON carry the same flat, one-record-per-item shape.
+- Fields:
   - Path.
   - Name.
-  - Item type.
-  - Logical size.
-  - Allocated/unique size.
-  - Creation, modification, and access dates.
-  - File category/extension.
+  - Item kind.
+  - Depth below the scan root.
+  - Measurement mode, repeated per row so a row stays self-describing.
+  - Measured size, meaning whatever the mode measured.
+  - Counted size, meaning the bytes charged to that path.
+  - Shared size, meaning the bytes attributed to another path.
   - Shared-storage indicator.
+  - Creation, modification, and access dates.
+  - File category and extension.
 - JSON contains a versioned schema and scan metadata.
-- Include root path, scan time, scan options, total counts, and errors.
+- Include root path, scan completion time, scan options, total counts, and
+  errors. The item total counts every row; the byte total sums the file rows
+  only.
+- Recoverable scan errors are carried by JSON; a CSV export reports their count
+  to the user instead.
+- CSV neutralizes leading spreadsheet formula characters in text fields and is
+  written with a UTF-8 byte order mark. JSON preserves exact values.
 - Use a native save-file picker.
 - Stream large exports instead of building one huge string in memory.
+- Publish the export atomically so a cancelled or failed write leaves no partial
+  file at the chosen destination.
 
 ### Acceptance criteria
 
@@ -1033,7 +1056,7 @@ Update this table when work starts or finishes.
 | WP-02 | Complete | `codex/storage-feature-roadmap` | Measurement definitions (`define-storage-measurement`), hardlink accounting (`deduplicate-hardlinks`), capability-gated verified full-clone accounting (`investigate-apfs-clone-accounting`), and scan benchmark tooling with local baseline verification on 2026-07-29 (`benchmark-and-optimize-scans`) complete |
 | WP-03 | Complete | `codex/storage-feature-roadmap` | Metadata details (`add-file-metadata`) plus Quick Look preview, Space handling, and Command-I details shortcut (`add-quick-look`) complete |
 | WP-04 | Complete | `codex/storage-feature-roadmap` | Preparatory lazy/off-thread result tree (`virtualize-result-tree`) plus advanced filters and presets (`add-advanced-filters`). Scope changes: file-versus-folder, hidden-status, and package-membership dimensions dropped; "large downloads" preset replaced by "Large disk images and installers" because filters evaluate within the current scan root |
-| WP-05 | Planned | `codex/storage-feature-roadmap` | Low-risk quick win |
+| WP-05 | Complete | `codex/storage-feature-roadmap` | CSV and JSON export (`export-scan-results`). Scope change: the logical-plus-allocated size column pair was replaced by the scan's own measurement basis, because one scan produces one basis |
 | WP-06 | Planned | `codex/storage-feature-roadmap` |  |
 | WP-07 | Planned | `codex/storage-feature-roadmap` | Safety review required |
 | WP-08 | Planned | `codex/storage-feature-roadmap` | Depends on cleanup basket |

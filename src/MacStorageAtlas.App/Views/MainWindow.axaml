@@ -313,6 +313,23 @@
                             <TextBlock Text="Move to Trash"/>
                         </StackPanel>
                     </Button>
+
+                    <Border Width="1" Margin="6,2" Background="{DynamicResource DividerBrush}"/>
+
+                    <Button ToolTip.Tip="Export the current result as comma-separated values"
+                            Command="{Binding ExportCsvCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconExport}"/>
+                            <TextBlock Text="Export CSV"/>
+                        </StackPanel>
+                    </Button>
+                    <Button ToolTip.Tip="Export the current result as JSON"
+                            Command="{Binding ExportJsonCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconExport}"/>
+                            <TextBlock Text="Export JSON"/>
+                        </StackPanel>
+                    </Button>
                 </WrapPanel>
             </DockPanel>
         </Border>
@@ -356,6 +373,25 @@
                     Padding="16,8"
                     IsVisible="{Binding TrashStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                 <TextBlock Classes="danger" TextWrapping="Wrap" Text="{Binding TrashStatusMessage}"/>
+            </Border>
+            <Border Background="{DynamicResource ChromeBackgroundBrush}"
+                    Padding="16,8"
+                    IsVisible="{Binding IsExporting}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <TextBlock Grid.Column="0"
+                               VerticalAlignment="Center"
+                               TextWrapping="Wrap"
+                               Text="Exporting the current result…"/>
+                    <Button Grid.Column="1"
+                            Content="Cancel export"
+                            VerticalAlignment="Center"
+                            Command="{Binding CancelExportCommand}"/>
+                </Grid>
+            </Border>
+            <Border Background="{DynamicResource ChromeBackgroundBrush}"
+                    Padding="16,8"
+                    IsVisible="{Binding ExportStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock TextWrapping="Wrap" Text="{Binding ExportStatusMessage}"/>
             </Border>
         </StackPanel>
 

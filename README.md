@@ -92,6 +92,12 @@ between runs.
   criteria match and whether they have been edited since.
 - See the number of matching files, their total matched size, and how many
   files were excluded because a required date was unknown.
+- Export the current result as CSV or JSON to a location you choose. Exporting
+  with a filter active writes the matched files only. JSON preserves paths
+  exactly and carries the scan's unreadable-path list; CSV is written for
+  spreadsheets, with a UTF-8 byte order mark and leading formula characters
+  neutralized so no cell executes on open. A cancelled or failed export never
+  leaves a partial file behind.
 - Reveal items in Finder or move them safely to the Trash.
 - Inspect files and folders that couldn't be scanned, and copy their paths to
   the clipboard.

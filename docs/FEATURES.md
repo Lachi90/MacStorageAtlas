@@ -1198,3 +1198,63 @@ Requirements:
 - Add unit and macOS integration tests for identity-aware and full-clone
   measurement.
 ```
+
+---
+
+# 30. Scan Result Export
+
+## Status
+
+Delivered by WP-05 (`export-scan-results`).
+
+## Purpose
+
+Let users analyze, archive, or share a completed scan outside the app, so a
+result survives the next scan and can be opened in a spreadsheet or read by a
+script.
+
+## Acceptance Criteria
+
+- The current result can be written to a local CSV or JSON file through the
+  system save-file interface.
+- With no filter active the export contains every scanned file and directory,
+  and each directory row reports its subtree totals.
+- With a filter active the export contains the matched files only, without
+  directory rows, and records the filter that produced it.
+- Both formats carry the same flat, one-record-per-item shape.
+- Byte fields report the scan's own measurement basis, and every row states
+  which mode produced them.
+- Scan metadata accompanies every export: schema version, root path, completion
+  time, scan options, measurement mode, clone-accounting coverage, scope,
+  filter, and totals.
+- JSON carries the recoverable scan errors; a CSV export reports their count to
+  the user instead.
+- Row order is fully determined by the result, so exporting twice produces
+  identical files.
+- CSV parses correctly for paths containing commas, quotation marks, and line
+  breaks, displays non-ASCII names correctly, and does not let a leading formula
+  character execute.
+- JSON preserves exact values and reads back into the same metadata and rows.
+- Exports stream, keep the UI responsive, and can be cancelled.
+- A cancelled or failed export leaves no partial file at the destination, and an
+  existing file there is untouched unless the export completes.
+
+## Documented non-goals
+
+- Exporting the file-type summary or largest-files list as separate documents.
+- Importing an export back into the app. Scan history and comparison are WP-09.
+- Export presets, scheduled exports, or command-line export.
+- Reporting both a logical and an allocated size for one scan.
+
+## Affected Projects
+
+- `MacStorageAtlas.Core`
+- `MacStorageAtlas.App`
+- `MacStorageAtlas.Tests`
+
+## Implementation Notes
+
+Core owns the row and metadata models, row enumeration and ordering, and both
+writers, which target a supplied `TextWriter` or `Stream` rather than a path.
+The App owns the save-file picker abstraction, the export commands, and atomic
+publication through a temporary file in the destination directory.
