@@ -38,7 +38,8 @@ public partial class App : Application
                 new JsonSettingsService(),
                 new AvaloniaClipboardService(mainWindow),
                 new MacQuickLookService(),
-                new AvaloniaSaveFilePickerService(mainWindow.StorageProvider));
+                new AvaloniaSaveFilePickerService(mainWindow.StorageProvider),
+                new MacFullDiskAccessService());
 
             desktop.MainWindow = mainWindow;
 

@@ -1,3 +1,4 @@
+using System;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
@@ -7,9 +8,49 @@ namespace MacStorageAtlas.App.Views;
 
 public partial class MainWindow : Window
 {
+    private bool _isApplyingSavedSize;
+
     public MainWindow()
     {
         InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
+        SizeChanged += OnSizeChanged;
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e) =>
+        ApplySavedWindowSize();
+
+    private void ApplySavedWindowSize()
+    {
+        if (DataContext is not MainWindowViewModel viewModel ||
+            viewModel.InitialWindowWidth is not { } width ||
+            viewModel.InitialWindowHeight is not { } height)
+        {
+            return;
+        }
+
+        _isApplyingSavedSize = true;
+        try
+        {
+            Width = Math.Max(width, MinWidth);
+            Height = Math.Max(height, MinHeight);
+        }
+        finally
+        {
+            _isApplyingSavedSize = false;
+        }
+    }
+
+    private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (_isApplyingSavedSize ||
+            WindowState != WindowState.Normal ||
+            DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        viewModel.SaveWindowSize(Bounds.Width, Bounds.Height);
     }
 
     protected override void OnKeyDown(KeyEventArgs e)

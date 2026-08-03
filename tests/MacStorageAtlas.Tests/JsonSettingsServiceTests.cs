@@ -54,7 +54,9 @@ public class JsonSettingsServiceTests
             FollowSymbolicLinks = true,
             TreatPackagesAsDirectories = false,
             MeasurementMode = StorageMeasurementMode.Allocated,
-            RecentLocations = ["/Users/test/A", "/Users/test/B"]
+            RecentLocations = ["/Users/test/A", "/Users/test/B"],
+            WindowWidth = 1280,
+            WindowHeight = 760
         };
         new JsonSettingsService(_settingsFilePath).Save(settings);
 
@@ -70,6 +72,8 @@ public class JsonSettingsServiceTests
                 loaded.EffectiveMeasurementMode,
                 Is.EqualTo(StorageMeasurementMode.Allocated));
             Assert.That(loaded.RecentLocations, Is.EqualTo(new[] { "/Users/test/A", "/Users/test/B" }));
+            Assert.That(loaded.WindowWidth, Is.EqualTo(1280));
+            Assert.That(loaded.WindowHeight, Is.EqualTo(760));
             Assert.That(
                 File.ReadAllText(_settingsFilePath),
                 Does.Contain("\"MeasurementMode\": \"Allocated\""));

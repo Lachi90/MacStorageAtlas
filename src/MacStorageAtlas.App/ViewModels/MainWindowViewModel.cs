@@ -33,6 +33,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ISettingsService _settingsService;
     private readonly IClipboardService _clipboardService;
     private readonly ISaveFilePickerService _saveFilePickerService;
+    private readonly IFullDiskAccessService _fullDiskAccessService;
+    private readonly AccessGuidanceClassifier _accessGuidanceClassifier = new();
     private readonly ITreemapLayoutService _treemapLayoutService = new TreemapLayoutService();
     private readonly FileTypeStatisticsService _fileTypeStatisticsService = new();
     private readonly LargeFilesService _largeFilesService = new();
@@ -47,6 +49,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private CancellationTokenSource? _exportCancellation;
     private CancellationTokenSource? _treePreparationCancellation;
     private FilterResult? _filterResult;
+    private double? _windowWidth;
+    private double? _windowHeight;
     private bool _isApplyingSettings;
     private bool _isSyncingSearchText;
 
@@ -88,6 +92,7 @@ public partial class MainWindowViewModel : ViewModelBase
         IClipboardService? clipboardService = null,
         IQuickLookService? quickLookService = null,
         ISaveFilePickerService? saveFilePickerService = null,
+        IFullDiskAccessService? fullDiskAccessService = null,
         TimeSpan? searchDebounceInterval = null,
         Func<DateTimeOffset>? referenceTimeProvider = null)
     {
@@ -105,6 +110,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _settingsService = settingsService ?? new InMemorySettingsService();
         _clipboardService = clipboardService ?? new NullClipboardService();
         _saveFilePickerService = saveFilePickerService ?? new NullSaveFilePickerService();
+        _fullDiskAccessService = fullDiskAccessService ?? new NullFullDiskAccessService();
 
         Filter.CriteriaChanged += OnFilterCriteriaChanged;
         Filter.UserPresetsChanged += OnUserPresetsChanged;
@@ -135,6 +141,10 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     public string ApplicationName { get; } = "MacStorageAtlas";
+
+    public double? InitialWindowWidth => _windowWidth;
+
+    public double? InitialWindowHeight => _windowHeight;
 
     public IReadOnlyList<StorageMeasurementMode> MeasurementModes { get; } =
     [
@@ -257,6 +267,16 @@ public partial class MainWindowViewModel : ViewModelBase
     private string? _trashStatusMessage;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsAccessGuidanceVisible))]
+    [NotifyPropertyChangedFor(nameof(AccessGuidanceStatus))]
+    [NotifyPropertyChangedFor(nameof(InaccessiblePathCount))]
+    [NotifyPropertyChangedFor(nameof(AccessGuidanceTitle))]
+    [NotifyPropertyChangedFor(nameof(AccessGuidanceMessage))]
+    [NotifyPropertyChangedFor(nameof(FullDiskAccessManualFallback))]
+    [NotifyPropertyChangedFor(nameof(ShowFullDiskAccessManualFallback))]
+    private AccessGuidance _accessGuidance = AccessGuidance.None;
+
+    [ObservableProperty]
     private int _selectedResultsTabIndex;
 
     [ObservableProperty]
@@ -324,6 +344,58 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool SelectedItemIsCountedElsewhere =>
         SelectedItem?.IsSizeCountedElsewhere == true;
 
+    public bool IsAccessGuidanceVisible =>
+        AccessGuidance.Status != AccessGuidanceStatus.None;
+
+    public AccessGuidanceStatus AccessGuidanceStatus => AccessGuidance.Status;
+
+    public int InaccessiblePathCount => AccessGuidance.InaccessiblePathCount;
+
+    public string AccessGuidanceTitle =>
+        AccessGuidance.Status switch
+        {
+            AccessGuidanceStatus.LikelyMissingFullDiskAccess =>
+                "Full Disk Access may be needed",
+            AccessGuidanceStatus.IncompleteScan =>
+                "Some paths could not be scanned",
+            AccessGuidanceStatus.Indeterminate =>
+                "Access status is unclear",
+            AccessGuidanceStatus.SettingsOpenFailure =>
+                "Open Full Disk Access manually",
+            AccessGuidanceStatus.None => string.Empty,
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(AccessGuidance.Status),
+                AccessGuidance.Status,
+                null)
+        };
+
+    public string AccessGuidanceMessage =>
+        AccessGuidance.Status switch
+        {
+            AccessGuidanceStatus.LikelyMissingFullDiskAccess =>
+                InaccessiblePathMessage(
+                    "macOS blocked access to protected locations. Grant Full Disk Access to MacStorageAtlas, restart the app if macOS asks, then rescan this location."),
+            AccessGuidanceStatus.IncompleteScan =>
+                InaccessiblePathMessage(
+                    "The scan result may be incomplete. Some failures can be normal file permissions, removed files, removable media, or protected macOS locations."),
+            AccessGuidanceStatus.Indeterminate =>
+                "MacStorageAtlas cannot confirm whether macOS access is sufficient for this scan. If protected folders are missing, grant Full Disk Access, restart if needed, and rescan.",
+            AccessGuidanceStatus.SettingsOpenFailure =>
+                "System Settings could not be opened automatically. Use the manual path below to grant access, then restart MacStorageAtlas if macOS asks and rescan.",
+            AccessGuidanceStatus.None => string.Empty,
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(AccessGuidance.Status),
+                AccessGuidance.Status,
+                null)
+        };
+
+    public string FullDiskAccessManualFallback =>
+        "System Settings > Privacy & Security > Full Disk Access";
+
+    public bool ShowFullDiskAccessManualFallback =>
+        AccessGuidance.Status == AccessGuidanceStatus.SettingsOpenFailure
+        || AccessGuidance.ShowsManualSettingsFallback;
+
     [RelayCommand]
     private async Task SelectFolderAsync()
     {
@@ -348,6 +420,8 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         NotifyScanCommandsCanExecuteChanged();
         StopScanCommand.NotifyCanExecuteChanged();
+        OpenFullDiskAccessSettingsCommand.NotifyCanExecuteChanged();
+        RescanAfterFullDiskAccessCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnIncludeHiddenFilesChanged(bool value) => SaveSettings();
@@ -357,6 +431,18 @@ public partial class MainWindowViewModel : ViewModelBase
     partial void OnMeasurementModeChanged(StorageMeasurementMode value) => SaveSettings();
 
     partial void OnExpandApplicationBundlesChanged(bool value) => SaveSettings();
+
+    public void SaveWindowSize(double width, double height)
+    {
+        if (!IsUsableWindowSize(width, height))
+        {
+            return;
+        }
+
+        _windowWidth = Math.Max(width, AppSettings.MinimumWindowWidth);
+        _windowHeight = Math.Max(height, AppSettings.MinimumWindowHeight);
+        SaveSettings();
+    }
 
     private bool CanRevealInFinder() => SelectedItem is not null;
 
@@ -377,6 +463,39 @@ public partial class MainWindowViewModel : ViewModelBase
 
     partial void OnSelectedScanErrorChanged(ScanError? value) =>
         CopyErrorPathCommand.NotifyCanExecuteChanged();
+
+    partial void OnAccessGuidanceChanged(AccessGuidance value)
+    {
+        OpenFullDiskAccessSettingsCommand.NotifyCanExecuteChanged();
+        RescanAfterFullDiskAccessCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanOpenFullDiskAccessSettings() =>
+        IsAccessGuidanceVisible && !IsScanning;
+
+    [RelayCommand(CanExecute = nameof(CanOpenFullDiskAccessSettings))]
+    private void OpenFullDiskAccessSettings()
+    {
+        if (!IsAccessGuidanceVisible || IsScanning)
+        {
+            return;
+        }
+
+        AccessGuidance = _fullDiskAccessService.OpenSettings() switch
+        {
+            FullDiskAccessSettingsResult.OpenedDirectly =>
+                AccessGuidance with { ShowsManualSettingsFallback = false },
+            FullDiskAccessSettingsResult.OpenedFallback =>
+                AccessGuidance with { ShowsManualSettingsFallback = true },
+            FullDiskAccessSettingsResult.Failed =>
+                AccessGuidance with
+                {
+                    Status = AccessGuidanceStatus.SettingsOpenFailure,
+                    ShowsManualSettingsFallback = true
+                },
+            _ => throw new ArgumentOutOfRangeException()
+        };
+    }
 
     [RelayCommand(CanExecute = nameof(CanRevealInFinder))]
     private void RevealInFinder()
@@ -483,6 +602,23 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(CanScanFolder))]
     private Task RescanAsync() => ScanFolderAsync();
 
+    private bool CanRescanAfterFullDiskAccess() =>
+        IsAccessGuidanceVisible
+        && !IsScanning
+        && _scanRoot is not null
+        && _resultScanOptions is not null;
+
+    [RelayCommand(CanExecute = nameof(CanRescanAfterFullDiskAccess))]
+    private Task RescanAfterFullDiskAccessAsync()
+    {
+        if (_scanRoot is not { } root || _resultScanOptions is not { } options)
+        {
+            return Task.CompletedTask;
+        }
+
+        return RunScanAsync(root.Path, options, addRecentLocation: false);
+    }
+
     [RelayCommand]
     private async Task ScanRecentLocationAsync(string? path)
     {
@@ -562,6 +698,7 @@ public partial class MainWindowViewModel : ViewModelBase
             TrashStatusMessage = null;
             QuickLookStatusMessage = null;
             RecentLocationStatusMessage = null;
+            AccessGuidance = AccessGuidance.None;
         });
 
         try
@@ -572,8 +709,11 @@ public partial class MainWindowViewModel : ViewModelBase
                                    .ScanAsync(rootPath, options, cancellation.Token)
                                    .ConfigureAwait(false))
                 {
+                    var accessAssessment = progress.IsCompleted
+                        ? CheckFullDiskAccess(rootPath)
+                        : null;
                     await _uiDispatcher.InvokeAsync(
-                            () => ApplyProgress(progress, options))
+                            () => ApplyProgress(progress, options, accessAssessment))
                         .ConfigureAwait(false);
                 }
             }).ConfigureAwait(false);
@@ -589,7 +729,10 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private void ApplyProgress(ScanProgress progress, ScanOptions options)
+    private void ApplyProgress(
+        ScanProgress progress,
+        ScanOptions options,
+        FullDiskAccessAssessment? accessAssessment)
     {
         CurrentPath = progress.CurrentPath;
         FilesScanned = progress.FilesScanned;
@@ -608,7 +751,22 @@ public partial class MainWindowViewModel : ViewModelBase
             SelectedTreemapRectangle = null;
             SelectedLargeFile = null;
             TreemapRectangles = LayoutChildren(progress.Root);
+            AccessGuidance = _accessGuidanceClassifier.Classify(
+                progress.Errors,
+                accessAssessment ?? FullDiskAccessAssessment.Indeterminate);
             ApplySearch();
+        }
+    }
+
+    private FullDiskAccessAssessment CheckFullDiskAccess(string rootPath)
+    {
+        try
+        {
+            return _fullDiskAccessService.CheckAccess(rootPath);
+        }
+        catch (System.Exception)
+        {
+            return FullDiskAccessAssessment.Indeterminate;
         }
     }
 
@@ -1019,7 +1177,17 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         ScanFolderCommand.NotifyCanExecuteChanged();
         RescanCommand.NotifyCanExecuteChanged();
+        RescanAfterFullDiskAccessCommand.NotifyCanExecuteChanged();
         NotifyExportCommandsCanExecuteChanged();
+    }
+
+    private string InaccessiblePathMessage(string suffix)
+    {
+        var pathText = InaccessiblePathCount == 1
+            ? "1 path was inaccessible."
+            : $"{InaccessiblePathCount.ToString(CultureInfo.CurrentCulture)} paths were inaccessible.";
+
+        return $"{pathText} {suffix}";
     }
 
     private void NotifyExportCommandsCanExecuteChanged()
@@ -1229,6 +1397,12 @@ public partial class MainWindowViewModel : ViewModelBase
             FollowSymbolicLinks = settings.FollowSymbolicLinks;
             ExpandApplicationBundles = settings.TreatPackagesAsDirectories;
             MeasurementMode = settings.EffectiveMeasurementMode;
+            _windowWidth = ValidWindowDimension(
+                settings.WindowWidth,
+                AppSettings.MinimumWindowWidth);
+            _windowHeight = ValidWindowDimension(
+                settings.WindowHeight,
+                AppSettings.MinimumWindowHeight);
             RecentLocations = settings.RecentLocations
                 .Where(path => !string.IsNullOrWhiteSpace(path))
                 .Take(AppSettings.MaxRecentLocations)
@@ -1260,9 +1434,25 @@ public partial class MainWindowViewModel : ViewModelBase
             RecentLocations = RecentLocations.ToList(),
             FilterPresets = Filter.UserPresets
                 .Select(FilterPresetSettings.FromPreset)
-                .ToList()
+                .ToList(),
+            WindowWidth = _windowWidth,
+            WindowHeight = _windowHeight
         });
     }
+
+    private static bool IsUsableWindowSize(double width, double height) =>
+        double.IsFinite(width)
+        && double.IsFinite(height)
+        && width >= AppSettings.MinimumWindowWidth
+        && height >= AppSettings.MinimumWindowHeight;
+
+    private static double? ValidWindowDimension(double? value, double minimum) =>
+        value is { } dimension
+        && double.IsFinite(dimension)
+        && dimension >= minimum
+        && dimension <= 10_000
+            ? dimension
+            : null;
 
     private void AddRecentLocation(string path)
     {

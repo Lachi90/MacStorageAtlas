@@ -60,12 +60,12 @@ The repository already provides:
 - Finder reveal and move-to-Trash actions.
 - Logical-size and allocated-size measurement.
 - Options for hidden files, symbolic links, and application bundles.
+- Full Disk Access guidance for permission-related incomplete scans.
 - Recent scan locations and persisted settings.
 - Self-contained arm64 and x64 DMG packaging.
 
 The main gaps are trusted distribution, exact physical-size accounting,
-metadata-based analysis, multi-item cleanup, Full Disk Access guidance, and
-long-term comparison workflows.
+metadata-based analysis, multi-item cleanup, and long-term comparison workflows.
 
 ## Priority and dependency overview
 
@@ -1057,7 +1057,7 @@ Update this table when work starts or finishes.
 | WP-03 | Complete | `codex/storage-feature-roadmap` | Metadata details (`add-file-metadata`) plus Quick Look preview, Space handling, and Command-I details shortcut (`add-quick-look`) complete |
 | WP-04 | Complete | `codex/storage-feature-roadmap` | Preparatory lazy/off-thread result tree (`virtualize-result-tree`) plus advanced filters and presets (`add-advanced-filters`). Scope changes: file-versus-folder, hidden-status, and package-membership dimensions dropped; "large downloads" preset replaced by "Large disk images and installers" because filters evaluate within the current scan root |
 | WP-05 | Complete | `codex/storage-feature-roadmap` | CSV and JSON export (`export-scan-results`). Scope change: the logical-plus-allocated size column pair was replaced by the scan's own measurement basis, because one scan produces one basis |
-| WP-06 | Planned | `codex/storage-feature-roadmap` |  |
+| WP-06 | Complete | `codex/storage-feature-roadmap` | Full Disk Access guidance (`guide-full-disk-access`) complete with conservative access classification, settings fallback, and same-root rescan |
 | WP-07 | Planned | `codex/storage-feature-roadmap` | Safety review required |
 | WP-08 | Planned | `codex/storage-feature-roadmap` | Depends on cleanup basket |
 | WP-09 | Planned | `codex/storage-feature-roadmap` |  |

@@ -1235,7 +1235,9 @@ public class MainWindowViewModelTests
             FollowSymbolicLinks = true,
             TreatPackagesAsDirectories = false,
             MeasurementMode = StorageMeasurementMode.Allocated,
-            RecentLocations = ["/Users/test/A"]
+            RecentLocations = ["/Users/test/A"],
+            WindowWidth = 1280,
+            WindowHeight = 760
         });
 
         var viewModel = CreateScanningViewModel(
@@ -1251,6 +1253,65 @@ public class MainWindowViewModelTests
                 viewModel.MeasurementMode,
                 Is.EqualTo(StorageMeasurementMode.Allocated));
             Assert.That(viewModel.RecentLocations, Is.EqualTo(new[] { "/Users/test/A" }));
+            Assert.That(viewModel.InitialWindowWidth, Is.EqualTo(1280));
+            Assert.That(viewModel.InitialWindowHeight, Is.EqualTo(760));
+        });
+    }
+
+    [Test]
+    public void InvalidSavedWindowSizeIsIgnored()
+    {
+        var settingsService = new InMemorySettingsService();
+        settingsService.Save(new AppSettings
+        {
+            WindowWidth = 600,
+            WindowHeight = 400
+        });
+
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.InitialWindowWidth, Is.Null);
+            Assert.That(viewModel.InitialWindowHeight, Is.Null);
+        });
+    }
+
+    [Test]
+    public void SaveWindowSizePersistsUsableDimensions()
+    {
+        var settingsService = new InMemorySettingsService();
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        viewModel.SaveWindowSize(1320, 820);
+
+        var saved = settingsService.Load();
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved.WindowWidth, Is.EqualTo(1320));
+            Assert.That(saved.WindowHeight, Is.EqualTo(820));
+        });
+    }
+
+    [Test]
+    public void SaveWindowSizeIgnoresDimensionsBelowMinimum()
+    {
+        var settingsService = new InMemorySettingsService();
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        viewModel.SaveWindowSize(900, 600);
+
+        var saved = settingsService.Load();
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved.WindowWidth, Is.Null);
+            Assert.That(saved.WindowHeight, Is.Null);
         });
     }
 

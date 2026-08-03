@@ -8,6 +8,8 @@ namespace MacStorageAtlas.App.Models;
 public sealed class AppSettings
 {
     public const int MaxRecentLocations = 10;
+    public const double MinimumWindowWidth = 1060;
+    public const double MinimumWindowHeight = 680;
 
     public bool IncludeHiddenFiles { get; set; }
 
@@ -23,6 +25,10 @@ public sealed class AppSettings
     public List<string> RecentLocations { get; set; } = [];
 
     public List<FilterPresetSettings> FilterPresets { get; set; } = [];
+
+    public double? WindowWidth { get; set; }
+
+    public double? WindowHeight { get; set; }
 
     public StorageMeasurementMode EffectiveMeasurementMode =>
         MeasurementMode is { } measurementMode && Enum.IsDefined(measurementMode)

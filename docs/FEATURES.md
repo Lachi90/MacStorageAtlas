@@ -200,6 +200,45 @@ Requirements:
 
 ---
 
+# 4a. Full Disk Access Guidance
+
+## Purpose
+
+Help users understand incomplete macOS scans when protected locations cannot be
+read, and guide them to grant Full Disk Access manually.
+
+## Acceptance Criteria
+
+- App shows guidance when a completed scan has permission-related inaccessible
+  paths.
+- Guidance states the scan may be incomplete and shows the inaccessible path
+  count.
+- Guidance keeps the normal scan errors view visible.
+- App can open macOS Privacy & Security settings or show the manual path:
+  System Settings > Privacy & Security > Full Disk Access.
+- Guidance explains that the user grants access manually and may need to restart
+  the app before rescanning.
+- App can rescan the same root with the same scan options after access changes.
+- Guidance does not treat inaccessible paths as purgeable, free, available, or
+  safe-to-delete space.
+- App does not request administrator credentials or read file contents for
+  access checks.
+
+## Affected Projects
+
+- `MacStorageAtlas.App`
+- `MacStorageAtlas.Platform.Mac`
+- `MacStorageAtlas.Core`
+- `MacStorageAtlas.Tests`
+
+## Implementation Notes
+
+Keep scanner errors factual and platform-neutral. Interpret likely Full Disk
+Access issues in the App layer, and keep macOS settings and metadata-only access
+checks in Platform.Mac.
+
+---
+
 # 5. Folder Tree View
 
 ## Purpose

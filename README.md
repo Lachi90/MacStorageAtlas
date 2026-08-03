@@ -101,6 +101,9 @@ between runs.
 - Reveal items in Finder or move them safely to the Trash.
 - Inspect files and folders that couldn't be scanned, and copy their paths to
   the clipboard.
+- Get Full Disk Access guidance when macOS-protected locations make a scan
+  appear incomplete, with a shortcut to Privacy & Security, manual fallback
+  instructions, and a rescan action.
 - Configurable scanning: hidden files, symbolic links, `.app` package
   expansion, and logical, per-path allocated, or shared-aware allocated size
   measurement.
@@ -214,6 +217,19 @@ pick the DMG that matches the target Mac.
 >
 > Only do this for builds you trust and compiled yourself.
 
+## Full Disk Access
+
+macOS can block third-party apps from reading protected locations such as some
+Mail, Messages, Safari, Time Machine, and administrative data. When a completed
+scan has permission-related inaccessible paths, MacStorageAtlas shows guidance
+that the result may be incomplete, keeps the detailed errors visible, and offers
+to open Privacy & Security.
+
+Grant access manually in **System Settings > Privacy & Security > Full Disk
+Access**, add or enable MacStorageAtlas, restart the app if macOS asks, then
+rescan the same location. Inaccessible paths are not purgeable space, free
+space, or files that MacStorageAtlas says are safe to delete.
+
 ## Project structure
 
 ```text
@@ -221,7 +237,7 @@ src/
   MacStorageAtlas.App              Avalonia UI and MVVM shell
   MacStorageAtlas.Core             disk scanning and domain logic
   MacStorageAtlas.Rendering        treemap layout logic
-  MacStorageAtlas.Platform.Mac     macOS-specific integrations (reveal, trash, dock icon)
+  MacStorageAtlas.Platform.Mac     macOS-specific integrations (reveal, trash, dock icon, access guidance)
 
 tests/
   MacStorageAtlas.Tests            NUnit tests
@@ -235,6 +251,7 @@ tools/
 - Product backlog and feature specifications: [`docs/FEATURES.md`](docs/FEATURES.md)
 - Market-driven implementation roadmap: [`docs/IMPLEMENTATION_ROADMAP.md`](docs/IMPLEMENTATION_ROADMAP.md)
 - Storage measurement semantics and verification: [`docs/STORAGE_MEASUREMENT.md`](docs/STORAGE_MEASUREMENT.md)
+- Troubleshooting: [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)
 - Scan benchmark commands and representative results: [`docs/SCAN_BENCHMARKS.md`](docs/SCAN_BENCHMARKS.md)
 - OpenSpec feature workflow: [`docs/OPENSPEC_WORKFLOW.md`](docs/OPENSPEC_WORKFLOW.md)
 - macOS packaging and distribution: [`docs/PACKAGING.md`](docs/PACKAGING.md)

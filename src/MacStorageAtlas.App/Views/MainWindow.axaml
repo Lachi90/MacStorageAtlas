@@ -11,7 +11,7 @@
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/app.ico"
         Width="1060" Height="720"
-        MinWidth="820" MinHeight="540"
+        MinWidth="1060" MinHeight="680"
         Background="{DynamicResource AppBackgroundBrush}"
         Title="{Binding ApplicationName}">
 
@@ -75,10 +75,10 @@
                 BorderBrush="{DynamicResource DividerBrush}"
                 BorderThickness="0,0,0,1"
                 Padding="16,10">
-            <DockPanel>
+            <StackPanel Spacing="8">
 
-<StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8"
-                            VerticalAlignment="Center" Margin="12,0,0,0">
+<StackPanel Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Center" HorizontalAlignment="Right">
                     <Button ToolTip.Tip="Scan options">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <PathIcon Data="{StaticResource IconOptions}"/>
@@ -331,7 +331,7 @@
                         </StackPanel>
                     </Button>
                 </WrapPanel>
-            </DockPanel>
+            </StackPanel>
         </Border>
 
 <StackPanel DockPanel.Dock="Top" Spacing="0">
@@ -357,6 +357,41 @@
                             Content="Clear filter"
                             VerticalAlignment="Center"
                             Command="{Binding Filter.ClearFilterCommand}"/>
+                </Grid>
+            </Border>
+            <Border Background="{DynamicResource ChromeBackgroundBrush}"
+                    BorderBrush="{DynamicResource DividerBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="16,10"
+                    IsVisible="{Binding IsAccessGuidanceVisible}">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                    <StackPanel Grid.Column="0" Spacing="3">
+                        <TextBlock Classes="section-header"
+                                   Text="{Binding AccessGuidanceTitle}"/>
+                        <TextBlock Classes="subtle"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding AccessGuidanceMessage}"/>
+                        <TextBlock Classes="caption"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding FullDiskAccessManualFallback}"
+                                   IsVisible="{Binding ShowFullDiskAccessManualFallback}"/>
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Command="{Binding OpenFullDiskAccessSettingsCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconOptions}"/>
+                            <TextBlock Text="Open Settings"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Grid.Column="2"
+                            VerticalAlignment="Center"
+                            Command="{Binding RescanAfterFullDiskAccessCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconRefresh}"/>
+                            <TextBlock Text="Rescan"/>
+                        </StackPanel>
+                    </Button>
                 </Grid>
             </Border>
             <Border Background="{DynamicResource ChromeBackgroundBrush}"
@@ -469,16 +504,22 @@
 
 <StackPanel Spacing="6" IsVisible="{Binding RecentLocations.Count}">
                         <TextBlock Classes="label" Text="Recent locations" HorizontalAlignment="Center"/>
-                        <ItemsControl ItemsSource="{Binding RecentLocations}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="x:String">
-                                    <Button Classes="ghost"
-                                            Content="{Binding}"
-                                            Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ScanRecentLocationCommand}"
-                                            CommandParameter="{Binding}"/>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ScrollViewer MaxHeight="220"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding RecentLocations}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <Button Classes="ghost"
+                                                Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ScanRecentLocationCommand}"
+                                                CommandParameter="{Binding}">
+                                            <TextBlock Text="{Binding}"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
                         <TextBlock Classes="danger"
                                    TextWrapping="Wrap"
                                    Text="{Binding RecentLocationStatusMessage}"
