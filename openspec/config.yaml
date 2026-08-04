@@ -11,7 +11,7 @@ context: |
   - MacStorageAtlas.Rendering owns treemap layout logic.
   - MacStorageAtlas.Platform.Mac owns macOS-specific integrations.
   - MacStorageAtlas.App owns Avalonia UI, view models, and app services.
-  - MacStorageAtlas.Tests owns NUnit tests.
+  - Tests are split into assembly-aligned NUnit projects under tests/.
   Product roadmap: docs/IMPLEMENTATION_ROADMAP.md.
   Original feature backlog: docs/FEATURES.md.
   Integration branch: codex/storage-feature-roadmap. Feature work is committed

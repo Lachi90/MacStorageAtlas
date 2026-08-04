@@ -21,7 +21,8 @@ synchronized.
   macOS-specific integrations.
 - `src/MacStorageAtlas.App` owns Avalonia views, application services,
   ViewModels, and the composition root.
-- `tests/MacStorageAtlas.Tests` contains NUnit unit and integration tests.
+- NUnit tests live in assembly-aligned projects under `tests/`: Core, Rendering,
+  Platform.Mac, App, and Benchmarks.
 - Keep dependencies flowing toward Core. Do not add UI dependencies to Core or
   platform dependencies to Rendering.
 

@@ -243,7 +243,11 @@ src/
   MacStorageAtlas.Platform.Mac     macOS-specific integrations (reveal, trash, dock icon, access guidance)
 
 tests/
-  MacStorageAtlas.Tests            NUnit tests
+  MacStorageAtlas.Core.Tests       Core NUnit tests
+  MacStorageAtlas.Rendering.Tests  Rendering NUnit tests
+  MacStorageAtlas.Platform.Mac.Tests macOS integration NUnit tests
+  MacStorageAtlas.App.Tests        App and ViewModel NUnit tests
+  MacStorageAtlas.Benchmarks.Tests benchmark tooling NUnit tests
 
 tools/
   MacStorageAtlas.Benchmarks       developer scan benchmark command

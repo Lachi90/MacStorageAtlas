@@ -19,7 +19,11 @@ src/
   MacStorageAtlas.Platform.Mac     macOS-specific integrations
 
 tests/
-  MacStorageAtlas.Tests            NUnit tests
+  MacStorageAtlas.Core.Tests       Core NUnit tests
+  MacStorageAtlas.Rendering.Tests  Rendering NUnit tests
+  MacStorageAtlas.Platform.Mac.Tests macOS integration NUnit tests
+  MacStorageAtlas.App.Tests        App and ViewModel NUnit tests
+  MacStorageAtlas.Benchmarks.Tests benchmark tooling NUnit tests
 ```
 
 ## Backlog Rules
@@ -95,7 +99,7 @@ Scan the selected folder recursively and calculate file and folder sizes.
 ## Affected Projects
 
 - `MacStorageAtlas.Core`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -178,7 +182,7 @@ Track paths that could not be scanned because of missing permissions or IO error
 
 - `MacStorageAtlas.Core`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -229,7 +233,7 @@ read, and guide them to grant Full Disk Access manually.
 - `MacStorageAtlas.App`
 - `MacStorageAtlas.Platform.Mac`
 - `MacStorageAtlas.Core`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -293,7 +297,7 @@ Show largest folders and files first.
 
 - `MacStorageAtlas.Core`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -328,7 +332,7 @@ Display byte sizes in readable units.
 ## Affected Projects
 
 - `MacStorageAtlas.Core`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -365,7 +369,7 @@ Calculate proportional rectangles for disk usage visualization.
 ## Affected Projects
 
 - `MacStorageAtlas.Rendering`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -480,7 +484,7 @@ Summarize disk usage by file extension.
 
 - `MacStorageAtlas.Core`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -673,7 +677,7 @@ Control whether macOS packages such as `.app` are scanned as folders or treated 
 
 - `MacStorageAtlas.Core`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -710,7 +714,7 @@ Allow users to include or exclude hidden files.
 
 - `MacStorageAtlas.Core`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -747,7 +751,7 @@ Avoid accidental recursion loops and misleading size calculations.
 
 - `MacStorageAtlas.Core`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -858,7 +862,7 @@ Show the largest files found in the scan.
 
 - `MacStorageAtlas.Core`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -1007,7 +1011,7 @@ Ensure scanner behavior stays correct.
 
 ## Affected Projects
 
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 - `MacStorageAtlas.Core`
 
 ## Implementation Notes
@@ -1049,7 +1053,7 @@ Ensure treemap layout is deterministic and bounded.
 
 ## Affected Projects
 
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 - `MacStorageAtlas.Rendering`
 
 ## Implementation Notes
@@ -1217,7 +1221,7 @@ not counted at full size.
 - `MacStorageAtlas.Core`
 - `MacStorageAtlas.Platform.Mac`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -1296,7 +1300,7 @@ script.
 
 - `MacStorageAtlas.Core`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
