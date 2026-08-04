@@ -313,6 +313,22 @@
                             <TextBlock Text="Move to Trash"/>
                         </StackPanel>
                     </Button>
+                    <Button ToolTip.Tip="Add the selected scan item to the cleanup basket"
+                            AutomationProperties.Name="Add selected item to cleanup basket"
+                            Command="{Binding AddSelectedItemToCleanupBasketCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconTrash}"/>
+                            <TextBlock Text="Add to basket"/>
+                        </StackPanel>
+                    </Button>
+                    <Button ToolTip.Tip="Remove the selected scan item from the cleanup basket"
+                            AutomationProperties.Name="Remove selected item from cleanup basket"
+                            Command="{Binding RemoveSelectedItemFromCleanupBasketCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconTrash}"/>
+                            <TextBlock Text="Remove from basket"/>
+                        </StackPanel>
+                    </Button>
 
                     <Border Width="1" Margin="6,2" Background="{DynamicResource DividerBrush}"/>
 
@@ -408,6 +424,72 @@
                     Padding="16,8"
                     IsVisible="{Binding TrashStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                 <TextBlock Classes="danger" TextWrapping="Wrap" Text="{Binding TrashStatusMessage}"/>
+            </Border>
+            <Border Background="{DynamicResource ChromeBackgroundBrush}"
+                    BorderBrush="{DynamicResource DividerBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="16,10"
+                    IsVisible="{Binding HasScanResult}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Grid.Column="0" Spacing="4">
+                        <StackPanel Orientation="Horizontal" Spacing="14">
+                            <TextBlock Classes="label">
+                                <Run Text="Basket:"/><Run Text=" "/><Run Text="{Binding CleanupBasketItemCount}"/>
+                            </TextBlock>
+                            <TextBlock Classes="caption">
+                                <Run Text="Logical "/><Run Text="{Binding FormattedCleanupBasketTotalLogicalSize}"/>
+                            </TextBlock>
+                            <TextBlock Classes="caption">
+                                <Run Text="Expected reclaimable "/><Run Text="{Binding FormattedCleanupBasketExpectedReclaimableSize}"/>
+                            </TextBlock>
+                            <TextBlock Classes="caption"
+                                       IsVisible="{Binding HasBlockedCleanupBasketItems}">
+                                <Run Text="Ready "/><Run Text="{Binding ExecutableCleanupBasketItemCount}"/>
+                            </TextBlock>
+                        </StackPanel>
+                        <TextBlock Classes="caption"
+                                   TextWrapping="Wrap"
+                                   Text="No items selected"
+                                   IsVisible="{Binding !HasCleanupBasketItems}"/>
+                        <TextBlock Classes="danger"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding CleanupBasketStatusMessage}"
+                                   IsVisible="{Binding CleanupBasketStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        <TextBlock Classes="caption"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding CleanupBasketOperationResults.Count}">
+                            <Run Text="Moved "/><Run Text="{Binding CleanupBasketSucceededCount}"/>
+                            <Run Text=", failed "/><Run Text="{Binding CleanupBasketFailedCount}"/>
+                            <Run Text=", not attempted "/><Run Text="{Binding CleanupBasketUnattemptedCount}"/>
+                        </TextBlock>
+                    </StackPanel>
+                    <WrapPanel Grid.Column="1"
+                               Orientation="Horizontal"
+                               ItemSpacing="8"
+                               LineSpacing="8"
+                               VerticalAlignment="Center">
+                        <Button Classes="danger"
+                                Command="{Binding MoveCleanupBasketToTrashCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconTrash}"/>
+                                <TextBlock Text="Review basket"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding CancelCleanupBasketMoveCommand}"
+                                IsVisible="{Binding IsMovingCleanupBasketToTrash}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconStop}"/>
+                                <TextBlock Text="Cancel"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding ClearCleanupBasketCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconTrash}"/>
+                                <TextBlock Text="Clear basket"/>
+                            </StackPanel>
+                        </Button>
+                    </WrapPanel>
+                </Grid>
             </Border>
             <Border Background="{DynamicResource ChromeBackgroundBrush}"
                     Padding="16,8"

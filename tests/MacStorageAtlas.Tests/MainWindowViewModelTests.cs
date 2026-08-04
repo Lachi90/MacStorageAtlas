@@ -1151,6 +1151,498 @@ public class MainWindowViewModelTests
     }
 
     [Test]
+    public async Task CleanupBasketAddAndRemoveSelectedTreeItemWithoutTrashOperation()
+    {
+        var root = BasketRoot();
+        var trashService = Substitute.For<ITrashService>();
+        var viewModel = CreateScannedTrashViewModel(root, trashService);
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.CleanupBasketItems, Has.Count.EqualTo(1));
+            Assert.That(viewModel.CleanupBasketItemCount, Is.EqualTo(1));
+            Assert.That(viewModel.CleanupBasketTotalLogicalSize, Is.EqualTo(1024));
+            Assert.That(viewModel.CleanupBasketExpectedReclaimableSize, Is.EqualTo(4096));
+            Assert.That(root.Children, Has.Count.EqualTo(2));
+        });
+        await trashService.DidNotReceive().MoveToTrashAsync(
+            Arg.Any<string>(),
+            Arg.Any<CancellationToken>());
+
+        viewModel.RemoveSelectedItemFromCleanupBasketCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.CleanupBasketItems, Is.Empty);
+            Assert.That(viewModel.CleanupBasketItemCount, Is.Zero);
+            Assert.That(viewModel.CleanupBasketTotalLogicalSize, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketAddsSelectedTreemapAndLargeFileItems()
+    {
+        var root = BasketRoot();
+        var viewModel = CreateScannedTrashViewModel(root, Substitute.For<ITrashService>());
+        await ScanPathAsync(viewModel, root.Path);
+        var first = root.Children[0];
+        var second = root.Children[1];
+
+        viewModel.SelectedTreemapRectangle = viewModel.TreemapRectangles.Single(
+            rectangle => ReferenceEquals(rectangle.Item.Item, first));
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+        viewModel.SelectedLargeFile = second;
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                viewModel.CleanupBasketItems.Select(item => item.Item),
+                Is.EqualTo(new[] { first, second }));
+            Assert.That(viewModel.CleanupBasketItemCount, Is.EqualTo(2));
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketCanAddItemVisibleThroughFilter()
+    {
+        var root = BasketRoot();
+        var viewModel = CreateScannedTrashViewModel(root, Substitute.For<ITrashService>());
+        await ScanPathAsync(viewModel, root.Path);
+
+        viewModel.Filter.ExtensionsText = ".mov";
+        await viewModel.TreePreparation;
+        viewModel.SelectedLargeFile = viewModel.LargeFiles.Single();
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.CleanupBasketItems, Has.Count.EqualTo(1));
+            Assert.That(viewModel.CleanupBasketItems[0].Item.Name, Is.EqualTo("movie.mov"));
+        });
+    }
+
+    [Test]
+    public async Task FilteringSelectionRevealAndQuickLookDoNotPopulateCleanupBasket()
+    {
+        var root = BasketRoot();
+        var revealService = Substitute.For<IFileRevealService>();
+        revealService.Reveal(Arg.Any<string>()).Returns(true);
+        var quickLookService = Substitute.For<IQuickLookService>();
+        quickLookService.Preview(Arg.Any<string>()).Returns(true);
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            new StubDiskScanner(_ => CompletedScanAsync(root)),
+            new RecordingUiDispatcher(),
+            revealService,
+            Substitute.For<ITrashService>(),
+            Substitute.For<ITrashConfirmationService>(),
+            quickLookService: quickLookService)
+        {
+            SelectedFolderPath = root.Path
+        };
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        viewModel.Filter.ExtensionsText = ".mov";
+        await viewModel.TreePreparation;
+        viewModel.SelectedLargeFile = viewModel.LargeFiles.Single();
+        viewModel.SelectedResultsTabIndex = 1;
+        viewModel.RevealInFinderCommand.Execute(null);
+        viewModel.QuickLookCommand.Execute(null);
+
+        Assert.That(viewModel.CleanupBasketItems, Is.Empty);
+    }
+
+    [Test]
+    public async Task CleanupBasketPersistsAcrossFilterAndTabChangesAndClearsOnRescan()
+    {
+        var firstRoot = BasketRoot();
+        var secondRoot = new DiskItem("second", "/scan/second", isDirectory: true);
+        var scanner = new CapturingDiskScanner(
+            (scanCount, _, _) => CompletedScanAsync(scanCount == 1 ? firstRoot : secondRoot));
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            scanner,
+            new RecordingUiDispatcher())
+        {
+            SelectedFolderPath = firstRoot.Path
+        };
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        viewModel.Filter.ExtensionsText = ".mov";
+        await viewModel.TreePreparation;
+        viewModel.SelectedResultsTabIndex = 2;
+        var countAfterFilterAndTab = viewModel.CleanupBasketItemCount;
+
+        viewModel.SelectedFolderPath = secondRoot.Path;
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(countAfterFilterAndTab, Is.EqualTo(1));
+            Assert.That(viewModel.CleanupBasketItems, Is.Empty);
+            Assert.That(viewModel.CleanupBasketItemCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketReviewCancellationPerformsNoTrashOperation()
+    {
+        var root = BasketRoot();
+        var trashService = Substitute.For<ITrashService>();
+        var reviewService = new FakeCleanupBasketReviewService(confirm: false);
+        var metadataReader = new FakeCleanupMetadataReader(
+            Snapshot(root.Children[0]));
+        var viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            reviewService,
+            metadataReader);
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(reviewService.ReviewCount, Is.EqualTo(1));
+            Assert.That(viewModel.CleanupBasketStatusMessage, Is.EqualTo("Cleanup cancelled."));
+            Assert.That(viewModel.CleanupBasketItems, Has.Count.EqualTo(1));
+            Assert.That(root.Children, Has.Count.EqualTo(2));
+        });
+        await trashService.DidNotReceive().MoveToTrashAsync(
+            Arg.Any<string>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task CleanupBasketReviewBlocksInvalidItemsBeforeTrashOperation()
+    {
+        var root = BasketRoot();
+        var missing = root.Children[0];
+        var replaced = root.Children[1];
+        var changed = new DiskItem("changed.bin", "/scan/root/changed.bin", isDirectory: false)
+        {
+            SizeBytes = 128,
+            MeasuredSizeBytes = 128
+        };
+        root.AddChild(changed);
+        var trashService = Substitute.For<ITrashService>();
+        var reviewService = new FakeCleanupBasketReviewService(confirm: true);
+        var metadataReader = new FakeCleanupMetadataReader(
+            new CleanupFileSystemSnapshot(
+                replaced.Path,
+                IsDirectory: false,
+                replaced.SizeBytes,
+                replaced.MeasuredSizeBytes,
+                new FileIdentity(9, 10)),
+            new CleanupFileSystemSnapshot(
+                changed.Path,
+                IsDirectory: false,
+                SizeBytes: 256,
+                MeasuredSizeBytes: 256));
+        var viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            reviewService,
+            metadataReader);
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.CleanupBasketItems =
+        [
+            new CleanupBasketItem(
+                missing,
+                CleanupItemSnapshot.FromDiskItem(missing),
+                CleanupProtectionStatus.NotProtected),
+            new CleanupBasketItem(
+                replaced,
+                CleanupItemSnapshot.FromDiskItem(replaced) with
+                {
+                    Identity = new FileIdentity(9, 9)
+                },
+                CleanupProtectionStatus.NotProtected),
+            new CleanupBasketItem(
+                changed,
+                CleanupItemSnapshot.FromDiskItem(changed),
+                CleanupProtectionStatus.NotProtected),
+            new CleanupBasketItem(
+                root,
+                CleanupItemSnapshot.FromDiskItem(root),
+                CleanupProtectionStatus.NotProtected)
+        ];
+        viewModel.CleanupBasketSummary = new CleanupBasketSummary(4, 3200, 8320);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(reviewService.ReviewCount, Is.Zero);
+            Assert.That(viewModel.CleanupBasketPreflightResults, Has.Count.EqualTo(4));
+            Assert.That(
+                viewModel.CleanupBasketPreflightResults.Select(result => result.Status.Kind),
+                Is.EqualTo(new[]
+                {
+                    CleanupPreflightStatusKind.Missing,
+                    CleanupPreflightStatusKind.IdentityChanged,
+                    CleanupPreflightStatusKind.SizeChanged,
+                    CleanupPreflightStatusKind.Protected
+                }));
+            Assert.That(viewModel.ExecutableCleanupBasketItemCount, Is.Zero);
+            Assert.That(viewModel.HasBlockedCleanupBasketItems, Is.True);
+        });
+        await trashService.DidNotReceive().MoveToTrashAsync(
+            Arg.Any<string>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task CleanupBasketTrashExecutionMovesAllExecutableItems()
+    {
+        var root = BasketRoot();
+        var expectedPaths = root.Children.Select(item => item.Path).ToArray();
+        var trashService = new RecordingTrashService();
+        var viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            new FakeCleanupBasketReviewService(confirm: true),
+            new FakeCleanupMetadataReader(root.Children.Select(Snapshot).ToArray()));
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+        viewModel.SelectedLargeFile = root.Children[1];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(trashService.MovedPaths, Is.EqualTo(expectedPaths));
+            Assert.That(viewModel.CleanupBasketSucceededCount, Is.EqualTo(2));
+            Assert.That(viewModel.CleanupBasketFailedCount, Is.Zero);
+            Assert.That(viewModel.CleanupBasketUnattemptedCount, Is.Zero);
+            Assert.That(viewModel.CleanupBasketItems, Is.Empty);
+            Assert.That(root.Children, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketTrashExecutionReportsSingleFailureAndKeepsFailedItem()
+    {
+        var root = BasketRoot();
+        var failed = root.Children[1];
+        var trashService = new RecordingTrashService(
+            path => path == failed.Path
+                ? Task.FromException(new InvalidOperationException("Trash refused it."))
+                : Task.CompletedTask);
+        var viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            new FakeCleanupBasketReviewService(confirm: true),
+            new FakeCleanupMetadataReader(root.Children.Select(Snapshot).ToArray()));
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+        viewModel.SelectedLargeFile = failed;
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.CleanupBasketSucceededCount, Is.EqualTo(1));
+            Assert.That(viewModel.CleanupBasketFailedCount, Is.EqualTo(1));
+            Assert.That(viewModel.CleanupBasketItems.Select(item => item.Item), Is.EqualTo(new[] { failed }));
+            Assert.That(root.Children, Is.EqualTo(new[] { failed }));
+            Assert.That(viewModel.CleanupBasketStatusMessage, Does.Contain("Failed: 1"));
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketTrashExecutionReportsMultipleFailures()
+    {
+        var root = BasketRoot();
+        var trashService = new RecordingTrashService(
+            _ => Task.FromException(new InvalidOperationException("Trash failed.")));
+        var viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            new FakeCleanupBasketReviewService(confirm: true),
+            new FakeCleanupMetadataReader(root.Children.Select(Snapshot).ToArray()));
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+        viewModel.SelectedLargeFile = root.Children[1];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.CleanupBasketSucceededCount, Is.Zero);
+            Assert.That(viewModel.CleanupBasketFailedCount, Is.EqualTo(2));
+            Assert.That(viewModel.CleanupBasketItems, Has.Count.EqualTo(2));
+            Assert.That(root.Children, Has.Count.EqualTo(2));
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketTrashExecutionCancelsAfterPartialSuccess()
+    {
+        var root = BasketRootWithThreeFiles();
+        var first = root.Children[0];
+        var second = root.Children[1];
+        var third = root.Children[2];
+        MainWindowViewModel? viewModel = null;
+        var trashService = new RecordingTrashService((path, cancellationToken) =>
+        {
+            if (path == second.Path)
+            {
+                viewModel!.CancelCleanupBasketMoveCommand.Execute(null);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            return Task.CompletedTask;
+        });
+        viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            new FakeCleanupBasketReviewService(confirm: true),
+            new FakeCleanupMetadataReader(root.Children.Select(Snapshot).ToArray()));
+        await ScanPathAsync(viewModel, root.Path);
+        foreach (var child in root.Children.ToArray())
+        {
+            viewModel.SelectedLargeFile = child;
+            viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+        }
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.CleanupBasketSucceededCount, Is.EqualTo(1));
+            Assert.That(viewModel.CleanupBasketFailedCount, Is.Zero);
+            Assert.That(viewModel.CleanupBasketUnattemptedCount, Is.EqualTo(2));
+            Assert.That(
+                viewModel.CleanupBasketItems.Select(item => item.Item),
+                Is.EqualTo(new[] { second, third }));
+            Assert.That(root.Children.Select(item => item.Name), Is.EqualTo(["second.bin", "third.bin"]));
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketSharedAwareResultRefreshesAfterSuccessfulTrash()
+    {
+        var firstRoot = BasketRoot();
+        var refreshedRoot = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(
+            (scanCount, _, _) => CompletedScanAsync(
+                scanCount == 1 ? firstRoot : refreshedRoot,
+                StorageMeasurementMode.SharedAwareAllocated));
+        var trashService = new RecordingTrashService();
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            scanner,
+            new RecordingUiDispatcher(),
+            Substitute.For<IFileRevealService>(),
+            trashService,
+            Substitute.For<ITrashConfirmationService>(),
+            cleanupBasketReviewService: new FakeCleanupBasketReviewService(confirm: true),
+            cleanupFileSystemMetadataReader: new FakeCleanupMetadataReader(
+                firstRoot.Children.Select(Snapshot).ToArray()))
+        {
+            SelectedFolderPath = firstRoot.Path
+        };
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(scanner.ScanCount, Is.EqualTo(2));
+            Assert.That(viewModel.TreeItems.Single().Item, Is.SameAs(refreshedRoot));
+            Assert.That(viewModel.CleanupBasketSucceededCount, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketSharedAwareResultDoesNotRefreshWhenNoItemSucceeds()
+    {
+        var root = BasketRoot();
+        var scanner = new CapturingDiskScanner(
+            (_, _, _) => CompletedScanAsync(
+                root,
+                StorageMeasurementMode.SharedAwareAllocated));
+        var trashService = new RecordingTrashService(
+            _ => Task.FromException(new InvalidOperationException("Trash failed.")));
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            scanner,
+            new RecordingUiDispatcher(),
+            Substitute.For<IFileRevealService>(),
+            trashService,
+            Substitute.For<ITrashConfirmationService>(),
+            cleanupBasketReviewService: new FakeCleanupBasketReviewService(confirm: true),
+            cleanupFileSystemMetadataReader: new FakeCleanupMetadataReader(
+                root.Children.Select(Snapshot).ToArray()))
+        {
+            SelectedFolderPath = root.Path
+        };
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(scanner.ScanCount, Is.EqualTo(1));
+            Assert.That(viewModel.TreeItems.Single().Item, Is.SameAs(root));
+            Assert.That(viewModel.CleanupBasketFailedCount, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketRootEntryIsBlockedInsteadOfClearingScanResult()
+    {
+        var root = BasketRoot();
+        var trashService = new RecordingTrashService();
+        var viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            new FakeCleanupBasketReviewService(confirm: true),
+            new FakeCleanupMetadataReader(Snapshot(root)));
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.CleanupBasketItems =
+        [
+            new CleanupBasketItem(
+                root,
+                CleanupItemSnapshot.FromDiskItem(root),
+                CleanupProtectionStatus.NotProtected)
+        ];
+        viewModel.CleanupBasketSummary = new CleanupBasketSummary(1, root.SizeBytes, root.MeasuredSizeBytes);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(trashService.MovedPaths, Is.Empty);
+            Assert.That(viewModel.HasScanResult, Is.True);
+            Assert.That(viewModel.TreeItems.Single().Item, Is.SameAs(root));
+            Assert.That(
+                viewModel.CleanupBasketPreflightResults.Single().Status.Kind,
+                Is.EqualTo(CleanupPreflightStatusKind.Protected));
+        });
+    }
+
+    [Test]
     public void RescanCommandIsDisabledWithoutASelectedFolder()
     {
         var viewModel = new MainWindowViewModel(
@@ -1482,6 +1974,96 @@ public class MainWindowViewModelTests
             trashService,
             confirmationService);
 
+    private static MainWindowViewModel CreateScannedTrashViewModel(
+        DiskItem root,
+        ITrashService trashService) =>
+        new(
+            Substitute.For<IFolderPickerService>(),
+            new StubDiskScanner(_ => CompletedScanAsync(
+                root,
+                StorageMeasurementMode.Allocated)),
+            new RecordingUiDispatcher(),
+            Substitute.For<IFileRevealService>(),
+            trashService,
+            Substitute.For<ITrashConfirmationService>())
+        {
+            SelectedFolderPath = root.Path
+        };
+
+    private static MainWindowViewModel CreateReviewViewModel(
+        DiskItem root,
+        ITrashService trashService,
+        ICleanupBasketReviewService reviewService,
+        ICleanupFileSystemMetadataReader metadataReader) =>
+        new(
+            Substitute.For<IFolderPickerService>(),
+            new StubDiskScanner(_ => CompletedScanAsync(
+                root,
+                StorageMeasurementMode.Allocated)),
+            new RecordingUiDispatcher(),
+            Substitute.For<IFileRevealService>(),
+            trashService,
+            Substitute.For<ITrashConfirmationService>(),
+            cleanupBasketReviewService: reviewService,
+            cleanupFileSystemMetadataReader: metadataReader)
+        {
+            SelectedFolderPath = root.Path
+        };
+
+    private static CleanupFileSystemSnapshot Snapshot(DiskItem item) =>
+        new(
+            item.Path,
+            item.IsDirectory,
+            item.SizeBytes,
+            item.MeasuredSizeBytes);
+
+    private static DiskItem BasketRoot()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true)
+        {
+            SizeBytes = 3072,
+            MeasuredSizeBytes = 8192
+        };
+        root.AddChild(new DiskItem("file.bin", "/scan/root/file.bin", isDirectory: false)
+        {
+            SizeBytes = 1024,
+            MeasuredSizeBytes = 4096
+        });
+        root.AddChild(new DiskItem("movie.mov", "/scan/root/movie.mov", isDirectory: false)
+        {
+            SizeBytes = 2048,
+            MeasuredSizeBytes = 4096
+        });
+        return root;
+    }
+
+    private static DiskItem BasketRootWithThreeFiles()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true)
+        {
+            SizeBytes = 3072,
+            MeasuredSizeBytes = 3072
+        };
+
+        for (var index = 1; index <= 3; index++)
+        {
+            root.AddChild(new DiskItem(
+                index == 1
+                    ? "first.bin"
+                    : index == 2
+                        ? "second.bin"
+                        : "third.bin",
+                $"/scan/root/file-{index}.bin",
+                isDirectory: false)
+            {
+                SizeBytes = 1024,
+                MeasuredSizeBytes = 1024
+            });
+        }
+
+        return root;
+    }
+
     private static DiskItem SharedAwareRoot()
     {
         var root = new DiskItem("root", "/scan/root", isDirectory: true)
@@ -1668,6 +2250,67 @@ public class MainWindowViewModelTests
         {
             LastText = text;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeCleanupBasketReviewService(bool confirm)
+        : ICleanupBasketReviewService
+    {
+        public int ReviewCount { get; private set; }
+
+        public CleanupBasketReview? LastReview { get; private set; }
+
+        public Task<bool> ConfirmCleanupAsync(CleanupBasketReview review)
+        {
+            ReviewCount++;
+            LastReview = review;
+            return Task.FromResult(confirm);
+        }
+    }
+
+    private sealed class FakeCleanupMetadataReader(params CleanupFileSystemSnapshot[] snapshots)
+        : ICleanupFileSystemMetadataReader
+    {
+        private readonly Dictionary<string, CleanupFileSystemSnapshot> _snapshots =
+            snapshots.ToDictionary(
+                snapshot => CleanupProtectedPathPolicy.NormalizePath(snapshot.Path),
+                StringComparer.Ordinal);
+
+        public bool TryReadSnapshot(
+            string path,
+            out CleanupFileSystemSnapshot snapshot) =>
+            _snapshots.TryGetValue(
+                CleanupProtectedPathPolicy.NormalizePath(path),
+                out snapshot!);
+    }
+
+    private sealed class RecordingTrashService : ITrashService
+    {
+        private readonly Func<string, CancellationToken, Task> _move;
+
+        public RecordingTrashService()
+            : this((_, _) => Task.CompletedTask)
+        {
+        }
+
+        public RecordingTrashService(Func<string, Task> move)
+            : this((path, _) => move(path))
+        {
+        }
+
+        public RecordingTrashService(Func<string, CancellationToken, Task> move)
+        {
+            _move = move;
+        }
+
+        public List<string> MovedPaths { get; } = [];
+
+        public async Task MoveToTrashAsync(
+            string path,
+            CancellationToken cancellationToken = default)
+        {
+            MovedPaths.Add(path);
+            await _move(path, cancellationToken);
         }
     }
 

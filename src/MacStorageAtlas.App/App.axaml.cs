@@ -39,7 +39,8 @@ public partial class App : Application
                 new AvaloniaClipboardService(mainWindow),
                 new MacQuickLookService(),
                 new AvaloniaSaveFilePickerService(mainWindow.StorageProvider),
-                new MacFullDiskAccessService());
+                new MacFullDiskAccessService(),
+                new AvaloniaCleanupBasketReviewService(mainWindow));
 
             desktop.MainWindow = mainWindow;
 

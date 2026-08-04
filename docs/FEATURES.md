@@ -619,10 +619,13 @@ Safely remove unwanted files by moving them to macOS Trash.
 ## Acceptance Criteria
 
 - User can move selected item to Trash.
+- User can collect multiple scanned items into a cleanup basket.
+- User can review basket totals and item paths before moving basket items to Trash.
+- App blocks protected or stale basket items from cleanup.
 - App asks for confirmation first.
 - App does not permanently delete files.
 - UI updates after successful trash operation.
-- Errors are shown clearly.
+- Partial failures and errors are shown clearly per affected item.
 
 ## Affected Projects
 
@@ -646,6 +649,10 @@ Requirements:
 - Disable the command when no item is selected.
 - After successful trash operation, remove or mark the item in the UI.
 - Show a clear error message if the operation fails.
+- Add a cleanup basket for explicit multi-item review.
+- Prevent duplicate or overlapping basket entries from overstating totals.
+- Block protected, missing, or changed basket items before Trash execution.
+- Report partial basket failures without hiding failed or unattempted items.
 ```
 
 ---

@@ -1058,7 +1058,7 @@ Update this table when work starts or finishes.
 | WP-04 | Complete | `codex/storage-feature-roadmap` | Preparatory lazy/off-thread result tree (`virtualize-result-tree`) plus advanced filters and presets (`add-advanced-filters`). Scope changes: file-versus-folder, hidden-status, and package-membership dimensions dropped; "large downloads" preset replaced by "Large disk images and installers" because filters evaluate within the current scan root |
 | WP-05 | Complete | `codex/storage-feature-roadmap` | CSV and JSON export (`export-scan-results`). Scope change: the logical-plus-allocated size column pair was replaced by the scan's own measurement basis, because one scan produces one basis |
 | WP-06 | Complete | `codex/storage-feature-roadmap` | Full Disk Access guidance (`guide-full-disk-access`) complete with conservative access classification, settings fallback, and same-root rescan |
-| WP-07 | Planned | `codex/storage-feature-roadmap` | Safety review required |
+| WP-07 | Complete | `codex/storage-feature-roadmap` | Cleanup basket and reviewed multi-item Trash workflow (`add-cleanup-basket`) complete; move/copy destinations remain WP-08 |
 | WP-08 | Planned | `codex/storage-feature-roadmap` | Depends on cleanup basket |
 | WP-09 | Planned | `codex/storage-feature-roadmap` |  |
 | WP-10 | Planned | `codex/storage-feature-roadmap` | Exact matches only |
