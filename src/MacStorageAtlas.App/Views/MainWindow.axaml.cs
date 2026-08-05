@@ -8,11 +8,14 @@ namespace MacStorageAtlas.App.Views;
 
 public partial class MainWindow : Window
 {
+    internal const double FullToolbarActionThreshold = 2_240;
+
     private bool _isApplyingSavedSize;
 
     public MainWindow()
     {
         InitializeComponent();
+        UpdateToolbarActionPresentation();
         DataContextChanged += OnDataContextChanged;
         SizeChanged += OnSizeChanged;
     }
@@ -43,6 +46,8 @@ public partial class MainWindow : Window
 
     private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
     {
+        UpdateToolbarActionPresentation();
+
         if (_isApplyingSavedSize ||
             WindowState != WindowState.Normal ||
             DataContext is not MainWindowViewModel viewModel)
@@ -51,6 +56,22 @@ public partial class MainWindow : Window
         }
 
         viewModel.SaveWindowSize(Bounds.Width, Bounds.Height);
+    }
+
+    private void UpdateToolbarActionPresentation()
+    {
+        var width = Bounds.Width > 0 ? Bounds.Width : Width;
+        var showFullActions = width >= FullToolbarActionThreshold;
+
+        if (this.FindControl<Control>("FullActionGroup") is { } fullActionGroup)
+        {
+            fullActionGroup.IsVisible = showFullActions;
+        }
+
+        if (this.FindControl<Control>("CompactActionsButton") is { } compactActionsButton)
+        {
+            compactActionsButton.IsVisible = !showFullActions;
+        }
     }
 
     protected override void OnKeyDown(KeyEventArgs e)

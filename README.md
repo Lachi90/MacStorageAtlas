@@ -77,8 +77,8 @@ between runs.
 - Browse results as a folder tree sorted by size, or as an interactive treemap.
 - Inspect selected file and folder metadata captured during the scan, including
   item kind and available created or modified dates.
-- Preview the selected item with Quick Look using the toolbar or Space, and use
-  Command-I to jump back to item details.
+- Preview the selected item with Quick Look using the toolbar or its Actions
+  menu, and use Space or Command-I shortcuts for inspection.
 - See storage broken down by file type and a list of the largest files.
 - Search and filter scanned items by name or path, and press Command-F to jump
   to the search box.
