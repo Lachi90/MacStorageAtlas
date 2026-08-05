@@ -6,5 +6,6 @@ public enum CleanupProtectionReason
     ScanRoot,
     SystemPath,
     TrashLocation,
-    OutsideScanResult
+    OutsideScanResult,
+    SensitiveLocation
 }

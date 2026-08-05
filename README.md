@@ -52,10 +52,11 @@ counts, sizes, and full paths.
 ### 🔎 Preview, reveal, or move to Trash — safely
 
 Found something to inspect? Preview the selected item with Quick Look, reveal it
-in Finder, move one item to the Trash after a confirmation, or collect multiple
-scanned items in the cleanup basket for a final review. Files are never
-permanently deleted — approved cleanup items go to the macOS Trash, and partial
-failures identify the item that could not be moved.
+in Finder, move an eligible item to the Trash after a confirmation, or collect
+multiple scanned items in the cleanup basket for a final review. Broad or
+sensitive containers are blocked from in-app cleanup with an explanation. Files
+are never permanently deleted — approved cleanup items go to the macOS Trash,
+and partial failures identify the item that could not be moved.
 
 ### ⚙️ Configurable scanning
 
@@ -100,8 +101,9 @@ between runs.
   spreadsheets, with a UTF-8 byte order mark and leading formula characters
   neutralized so no cell executes on open. A cancelled or failed export never
   leaves a partial file behind.
-- Reveal items in Finder, move one item to Trash, or review a multi-item cleanup
-  basket before moving approved items to Trash.
+- Reveal items in Finder, move one eligible item to Trash, or review a
+  multi-item cleanup basket before moving approved items to Trash. Broad or
+  sensitive containers are blocked from in-app cleanup with an explanation.
 - Inspect files and folders that couldn't be scanned, and copy their paths to
   the clipboard.
 - Get Full Disk Access guidance when macOS-protected locations make a scan

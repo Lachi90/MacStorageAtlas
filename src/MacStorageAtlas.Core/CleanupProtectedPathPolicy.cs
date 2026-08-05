@@ -14,6 +14,27 @@ public sealed class CleanupProtectedPathPolicy
         "/var"
     ];
 
+    private static readonly string[] StandardUserContainers =
+    [
+        "Desktop",
+        "Documents",
+        "Downloads",
+        "Library",
+        "Movies",
+        "Music",
+        "Pictures"
+    ];
+
+    private static readonly string[] SensitiveLibrarySubtrees =
+    [
+        "Mail",
+        "Messages",
+        "Safari",
+        "Containers",
+        "Group Containers",
+        "Application Support"
+    ];
+
     private readonly string _scanRootPath;
     private readonly HashSet<string> _scannedPaths;
 
@@ -42,7 +63,7 @@ public sealed class CleanupProtectedPathPolicy
         {
             return new CleanupProtectionStatus(
                 CleanupProtectionReason.ScanRoot,
-                "The scan root is protected from basket cleanup.");
+                "The scan root is protected from cleanup.");
         }
 
         if (!_scannedPaths.Contains(normalizedPath))
@@ -56,14 +77,21 @@ public sealed class CleanupProtectedPathPolicy
         {
             return new CleanupProtectionStatus(
                 CleanupProtectionReason.TrashLocation,
-                "Trash locations are protected from basket cleanup.");
+                "Trash locations are protected from cleanup.");
         }
 
         if (IsSystemPath(normalizedPath))
         {
             return new CleanupProtectionStatus(
                 CleanupProtectionReason.SystemPath,
-                "macOS system locations are protected from basket cleanup.");
+                "macOS system locations are protected from cleanup.");
+        }
+
+        if (IsSensitiveUserLocation(normalizedPath))
+        {
+            return new CleanupProtectionStatus(
+                CleanupProtectionReason.SensitiveLocation,
+                "Broad or sensitive user data locations are protected from cleanup.");
         }
 
         return CleanupProtectionStatus.NotProtected;
@@ -93,6 +121,49 @@ public sealed class CleanupProtectedPathPolicy
             string.Equals(segment, ".Trash", StringComparison.Ordinal)
             || string.Equals(segment, ".Trashes", StringComparison.Ordinal));
     }
+
+    private static bool IsSensitiveUserLocation(string path)
+    {
+        var segments = GetPathSegments(path);
+        var usersIndex = Array.FindIndex(
+            segments,
+            segment => string.Equals(segment, "Users", StringComparison.Ordinal));
+        if (usersIndex < 0 || usersIndex + 1 >= segments.Length)
+        {
+            return false;
+        }
+
+        var relativeSegmentCount = segments.Length - usersIndex - 2;
+        if (relativeSegmentCount == 0)
+        {
+            return true;
+        }
+
+        var firstRelativeSegment = segments[usersIndex + 2];
+        if (relativeSegmentCount == 1
+            && StandardUserContainers.Contains(
+                firstRelativeSegment,
+                StringComparer.Ordinal))
+        {
+            return true;
+        }
+
+        if (!string.Equals(firstRelativeSegment, "Library", StringComparison.Ordinal)
+            || relativeSegmentCount < 2)
+        {
+            return false;
+        }
+
+        var libraryChild = segments[usersIndex + 3];
+        return SensitiveLibrarySubtrees.Contains(
+            libraryChild,
+            StringComparer.Ordinal);
+    }
+
+    private static string[] GetPathSegments(string path) =>
+        path.Split(
+            Path.DirectorySeparatorChar,
+            StringSplitOptions.RemoveEmptyEntries);
 
     internal static string NormalizePath(string path)
     {

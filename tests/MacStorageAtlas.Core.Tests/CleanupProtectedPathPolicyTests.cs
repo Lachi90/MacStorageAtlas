@@ -90,6 +90,115 @@ public class CleanupProtectedPathPolicyTests
     }
 
     [Test]
+    public void ClassifyBlocksUserHomeWhenItIsInScanResult()
+    {
+        var root = Directory("root", "/");
+        var home = Directory("test", "/Users/test");
+        root.AddChild(home);
+        var policy = new CleanupProtectedPathPolicy(root);
+
+        var status = policy.Classify(home);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(status.IsProtected, Is.True);
+            Assert.That(status.Reason, Is.EqualTo(CleanupProtectionReason.SensitiveLocation));
+            Assert.That(status.Message, Does.Contain("user data"));
+        });
+    }
+
+    [TestCase("Desktop")]
+    [TestCase("Documents")]
+    [TestCase("Downloads")]
+    [TestCase("Library")]
+    [TestCase("Movies")]
+    [TestCase("Music")]
+    [TestCase("Pictures")]
+    public void ClassifyBlocksStandardUserFolderContainer(string folderName)
+    {
+        var root = Directory("home", "/Users/test");
+        var folder = Directory(folderName, $"/Users/test/{folderName}");
+        root.AddChild(folder);
+        var policy = new CleanupProtectedPathPolicy(root);
+
+        var status = policy.Classify(folder);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(status.IsProtected, Is.True);
+            Assert.That(status.Reason, Is.EqualTo(CleanupProtectionReason.SensitiveLocation));
+            Assert.That(status.Message, Does.Contain("user data"));
+        });
+    }
+
+    [Test]
+    public void ClassifyAllowsOrdinaryDescendantOfStandardUserFolder()
+    {
+        var root = Directory("home", "/Users/test");
+        var documents = Directory("Documents", "/Users/test/Documents");
+        var file = File("old.dmg", "/Users/test/Documents/old.dmg", 10, 20);
+        documents.AddChild(file);
+        root.AddChild(documents);
+        var policy = new CleanupProtectedPathPolicy(root);
+
+        var status = policy.Classify(file);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(status.IsProtected, Is.False);
+            Assert.That(status.Reason, Is.EqualTo(CleanupProtectionReason.None));
+        });
+    }
+
+    [TestCase("Mail")]
+    [TestCase("Messages")]
+    [TestCase("Safari")]
+    [TestCase("Containers")]
+    [TestCase("Group Containers")]
+    [TestCase("Application Support")]
+    public void ClassifyBlocksSensitiveUserLibrarySubtreeDescendant(string subtreeName)
+    {
+        var root = Directory("home", "/Users/test");
+        var library = Directory("Library", "/Users/test/Library");
+        var subtree = Directory(subtreeName, $"/Users/test/Library/{subtreeName}");
+        var file = File("data.bin", $"/Users/test/Library/{subtreeName}/data.bin", 10, 20);
+        subtree.AddChild(file);
+        library.AddChild(subtree);
+        root.AddChild(library);
+        var policy = new CleanupProtectedPathPolicy(root);
+
+        var status = policy.Classify(file);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(status.IsProtected, Is.True);
+            Assert.That(status.Reason, Is.EqualTo(CleanupProtectionReason.SensitiveLocation));
+            Assert.That(status.Message, Does.Contain("user data"));
+        });
+    }
+
+    [Test]
+    public void ClassifyAllowsNonSensitiveUserLibrarySubtreeDescendant()
+    {
+        var root = Directory("home", "/Users/test");
+        var library = Directory("Library", "/Users/test/Library");
+        var caches = Directory("Caches", "/Users/test/Library/Caches");
+        var file = File("tool.cache", "/Users/test/Library/Caches/tool.cache", 10, 20);
+        caches.AddChild(file);
+        library.AddChild(caches);
+        root.AddChild(library);
+        var policy = new CleanupProtectedPathPolicy(root);
+
+        var status = policy.Classify(file);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(status.IsProtected, Is.False);
+            Assert.That(status.Reason, Is.EqualTo(CleanupProtectionReason.None));
+        });
+    }
+
+    [Test]
     public void PlannerRejectsProtectedItem()
     {
         var root = Directory("scan", "/Users/test/scan");

@@ -625,7 +625,7 @@ Safely remove unwanted files by moving them to macOS Trash.
 - User can move selected item to Trash.
 - User can collect multiple scanned items into a cleanup basket.
 - User can review basket totals and item paths before moving basket items to Trash.
-- App blocks protected or stale basket items from cleanup.
+- App blocks protected selected items and protected or stale basket items from cleanup.
 - App asks for confirmation first.
 - App does not permanently delete files.
 - UI updates after successful trash operation.
@@ -655,7 +655,7 @@ Requirements:
 - Show a clear error message if the operation fails.
 - Add a cleanup basket for explicit multi-item review.
 - Prevent duplicate or overlapping basket entries from overstating totals.
-- Block protected, missing, or changed basket items before Trash execution.
+- Block protected selected items and protected, missing, or changed basket items before Trash execution.
 - Report partial basket failures without hiding failed or unattempted items.
 ```
 

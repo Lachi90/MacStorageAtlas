@@ -46,6 +46,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly TimeSpan _searchDebounceInterval;
     private readonly Func<DateTimeOffset> _referenceTimeProvider;
     private CleanupBasketPlanner? _cleanupBasketPlanner;
+    private CleanupProtectedPathPolicy? _cleanupProtectedPathPolicy;
     private DiskItem? _scanRoot;
     private ScanOptions? _resultScanOptions;
     private CancellationTokenSource? _scanCancellation;
@@ -654,6 +655,14 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         TrashStatusMessage = null;
+        var protectionStatus = _cleanupProtectedPathPolicy?.Classify(item)
+            ?? CleanupProtectionStatus.NotProtected;
+        if (protectionStatus.IsProtected)
+        {
+            TrashStatusMessage = protectionStatus.Message;
+            return;
+        }
+
         if (!await _trashConfirmationService.ConfirmMoveToTrashAsync(item))
         {
             return;
@@ -990,6 +999,7 @@ public partial class MainWindowViewModel : ViewModelBase
             ScanCompletedAt = null;
             SelectedScanError = null;
             _scanRoot = null;
+            _cleanupProtectedPathPolicy = null;
             _resultScanOptions = null;
             _treemapLayoutCache.Clear();
             TreeItems = [];
@@ -1051,10 +1061,11 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             _scanRoot = progress.Root;
             _resultScanOptions = options;
+            _cleanupProtectedPathPolicy = new CleanupProtectedPathPolicy(progress.Root);
             _cleanupBasketPlanner = new CleanupBasketPlanner(
                 progress.Root,
                 progress.MeasurementMode,
-                new CleanupProtectedPathPolicy(progress.Root));
+                _cleanupProtectedPathPolicy);
             RefreshCleanupBasketState();
             ScanCompletedAt = _referenceTimeProvider();
             SelectedTreeItem = null;
@@ -1471,6 +1482,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (ReferenceEquals(_scanRoot, item))
         {
             _scanRoot = null;
+            _cleanupProtectedPathPolicy = null;
             _resultScanOptions = null;
             _treemapLayoutCache.Clear();
             TreeItems = [];
@@ -1482,6 +1494,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             var parent = FindParent(_scanRoot, item);
             _scanRoot.RemoveDescendant(item);
+            _cleanupProtectedPathPolicy = new CleanupProtectedPathPolicy(_scanRoot);
             _treemapLayoutCache.Clear();
             TreemapRectangles = LayoutChildren(parent ?? _scanRoot);
             ApplySearch();

@@ -923,6 +923,7 @@ public class MainWindowViewModelTests
 
         await viewModel.MoveToTrashCommand.ExecuteAsync(null);
 
+        await confirmation.Received(1).ConfirmMoveToTrashAsync(item);
         await trashService.Received(1).MoveToTrashAsync(item.Path);
         Assert.Multiple(() =>
         {
@@ -1053,7 +1054,7 @@ public class MainWindowViewModelTests
     }
 
     [Test]
-    public async Task MoveToTrashCommandClearsHardlinkAwareResultWhenRootIsMoved()
+    public async Task MoveToTrashCommandBlocksScanRootBeforeConfirmation()
     {
         var root = SharedAwareRoot();
         var scanner = new CapturingDiskScanner((_, _, _) => CompletedScanAsync(root));
@@ -1075,13 +1076,46 @@ public class MainWindowViewModelTests
 
         await viewModel.MoveToTrashCommand.ExecuteAsync(null);
 
+        await confirmation.DidNotReceive().ConfirmMoveToTrashAsync(Arg.Any<DiskItem>());
+        await trashService.DidNotReceive().MoveToTrashAsync(Arg.Any<string>());
         Assert.Multiple(() =>
         {
             Assert.That(scanner.ScanCount, Is.EqualTo(1));
-            Assert.That(viewModel.TreeItems, Is.Empty);
-            Assert.That(viewModel.TreemapRectangles, Is.Empty);
-            Assert.That(viewModel.FileTypeSummaries, Is.Empty);
-            Assert.That(viewModel.LargeFiles, Is.Empty);
+            Assert.That(viewModel.TreeItems.Single().Item, Is.SameAs(root));
+            Assert.That(viewModel.TrashStatusMessage, Does.Contain("scan root"));
+        });
+    }
+
+    [Test]
+    public async Task MoveToTrashCommandBlocksSensitiveSelectedPathBeforeConfirmation()
+    {
+        var root = new DiskItem("home", "/Users/test", isDirectory: true);
+        var documents = new DiskItem("Documents", "/Users/test/Documents", isDirectory: true);
+        root.AddChild(documents);
+        var scanner = new CapturingDiskScanner((_, _, _) => CompletedScanAsync(root));
+        var trashService = Substitute.For<ITrashService>();
+        var confirmation = Substitute.For<ITrashConfirmationService>();
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher(),
+            Substitute.For<IFileRevealService>(),
+            trashService,
+            confirmation);
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children.Single();
+
+        await viewModel.MoveToTrashCommand.ExecuteAsync(null);
+
+        await confirmation.DidNotReceive().ConfirmMoveToTrashAsync(Arg.Any<DiskItem>());
+        await trashService.DidNotReceive().MoveToTrashAsync(Arg.Any<string>());
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.SelectedItem, Is.SameAs(documents));
+            Assert.That(viewModel.TrashStatusMessage, Does.Contain("user data"));
         });
     }
 
@@ -1181,6 +1215,29 @@ public class MainWindowViewModelTests
             Assert.That(viewModel.CleanupBasketItemCount, Is.Zero);
             Assert.That(viewModel.CleanupBasketTotalLogicalSize, Is.Zero);
         });
+    }
+
+    [Test]
+    public async Task CleanupBasketBlocksSensitiveSelectedContainer()
+    {
+        var root = UserHomeRootWithDocuments();
+        var documents = root.Children.Single();
+        var trashService = Substitute.For<ITrashService>();
+        var viewModel = CreateScannedTrashViewModel(root, trashService);
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children.Single();
+
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.CleanupBasketItems, Is.Empty);
+            Assert.That(viewModel.CleanupBasketStatusMessage, Does.Contain("user data"));
+            Assert.That(documents.Name, Is.EqualTo("Documents"));
+        });
+        await trashService.DidNotReceive().MoveToTrashAsync(
+            Arg.Any<string>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Test]
@@ -1643,6 +1700,45 @@ public class MainWindowViewModelTests
     }
 
     [Test]
+    public async Task CleanupBasketSensitiveEntryIsBlockedBeforeTrashExecution()
+    {
+        var root = UserHomeRootWithDocuments();
+        var documents = root.Children.Single();
+        var trashService = new RecordingTrashService();
+        var reviewService = new FakeCleanupBasketReviewService(confirm: true);
+        var viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            reviewService,
+            new FakeCleanupMetadataReader(Snapshot(documents)));
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.CleanupBasketItems =
+        [
+            new CleanupBasketItem(
+                documents,
+                CleanupItemSnapshot.FromDiskItem(documents),
+                CleanupProtectionStatus.NotProtected)
+        ];
+        viewModel.CleanupBasketSummary =
+            new CleanupBasketSummary(1, documents.SizeBytes, documents.MeasuredSizeBytes);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(reviewService.ReviewCount, Is.Zero);
+            Assert.That(trashService.MovedPaths, Is.Empty);
+            Assert.That(viewModel.CleanupBasketItems.Single().Item, Is.SameAs(documents));
+            Assert.That(
+                viewModel.CleanupBasketPreflightResults.Single().Status.Kind,
+                Is.EqualTo(CleanupPreflightStatusKind.Protected));
+            Assert.That(
+                viewModel.CleanupBasketPreflightResults.Single().Status.Message,
+                Does.Contain("user data"));
+        });
+    }
+
+    [Test]
     public void RescanCommandIsDisabledWithoutASelectedFolder()
     {
         var viewModel = new MainWindowViewModel(
@@ -2061,6 +2157,21 @@ public class MainWindowViewModelTests
             });
         }
 
+        return root;
+    }
+
+    private static DiskItem UserHomeRootWithDocuments()
+    {
+        var root = new DiskItem("home", "/Users/test", isDirectory: true)
+        {
+            SizeBytes = 1024,
+            MeasuredSizeBytes = 4096
+        };
+        root.AddChild(new DiskItem("Documents", "/Users/test/Documents", isDirectory: true)
+        {
+            SizeBytes = 1024,
+            MeasuredSizeBytes = 4096
+        });
         return root;
     }
 
