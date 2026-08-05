@@ -58,6 +58,17 @@ sensitive containers are blocked from in-app cleanup with an explanation. Files
 are never permanently deleted — approved cleanup items go to the macOS Trash,
 and partial failures identify the item that could not be moved.
 
+### 📦 Archive instead of delete
+
+Short on space but not ready to let go? Move or copy the reviewed cleanup basket
+to an external or network volume instead of the Trash. The review names the
+operation and the destination, and reports the expected locally reclaimed size —
+zero for a copy, since a copy frees nothing. Nothing at the destination is ever
+replaced: an item whose name already exists there is blocked with a reason
+rather than overwritten or auto-renamed. A move across volumes copies first,
+verifies the copy, and only then removes the original, so a failed or cancelled
+transfer always leaves the source in place.
+
 ### ⚙️ Configurable scanning
 
 Fine-tune what gets counted: scan inside `.app` bundles (or treat them as single
@@ -104,6 +115,11 @@ between runs.
 - Reveal items in Finder, move one eligible item to Trash, or review a
   multi-item cleanup basket before moving approved items to Trash. Broad or
   sensitive containers are blocked from in-app cleanup with an explanation.
+- Move or copy the reviewed cleanup basket to another volume instead of the
+  Trash. Destination free space, read-only destinations, and moves into an
+  item's own subtree are checked before the review, colliding names are blocked
+  rather than overwritten, and a cross-volume move only removes the original
+  after the copy is verified.
 - Inspect files and folders that couldn't be scanned, and copy their paths to
   the clipboard.
 - Get Full Disk Access guidance when macOS-protected locations make a scan

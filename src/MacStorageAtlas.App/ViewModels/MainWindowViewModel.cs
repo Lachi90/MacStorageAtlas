@@ -36,6 +36,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IFullDiskAccessService _fullDiskAccessService;
     private readonly ICleanupBasketReviewService _cleanupBasketReviewService;
     private readonly ICleanupFileSystemMetadataReader _cleanupFileSystemMetadataReader;
+    private readonly IItemRelocationService _itemRelocationService;
+    private readonly IRelocationDestinationProbe _relocationDestinationProbe;
     private readonly AccessGuidanceClassifier _accessGuidanceClassifier = new();
     private readonly ITreemapLayoutService _treemapLayoutService = new TreemapLayoutService();
     private readonly FileTypeStatisticsService _fileTypeStatisticsService = new();
@@ -100,6 +102,8 @@ public partial class MainWindowViewModel : ViewModelBase
         IFullDiskAccessService? fullDiskAccessService = null,
         ICleanupBasketReviewService? cleanupBasketReviewService = null,
         ICleanupFileSystemMetadataReader? cleanupFileSystemMetadataReader = null,
+        IItemRelocationService? itemRelocationService = null,
+        IRelocationDestinationProbe? relocationDestinationProbe = null,
         TimeSpan? searchDebounceInterval = null,
         Func<DateTimeOffset>? referenceTimeProvider = null)
     {
@@ -122,6 +126,9 @@ public partial class MainWindowViewModel : ViewModelBase
             cleanupBasketReviewService ?? new NullCleanupBasketReviewService();
         _cleanupFileSystemMetadataReader =
             cleanupFileSystemMetadataReader ?? new CleanupFileSystemMetadataReader();
+        _itemRelocationService = itemRelocationService ?? new MacItemRelocationService();
+        _relocationDestinationProbe =
+            relocationDestinationProbe ?? new FileSystemRelocationDestinationProbe();
 
         Filter.CriteriaChanged += OnFilterCriteriaChanged;
         Filter.UserPresetsChanged += OnUserPresetsChanged;
@@ -298,13 +305,21 @@ public partial class MainWindowViewModel : ViewModelBase
     private IReadOnlyList<CleanupPreflightResult> _cleanupBasketPreflightResults = [];
 
     [ObservableProperty]
-    private bool _isMovingCleanupBasketToTrash;
+    private bool _isRunningCleanupBasketOperation;
 
-    partial void OnIsMovingCleanupBasketToTrashChanged(bool value)
+    partial void OnIsRunningCleanupBasketOperationChanged(bool value)
     {
         MoveCleanupBasketToTrashCommand.NotifyCanExecuteChanged();
+        MoveCleanupBasketToLocationCommand.NotifyCanExecuteChanged();
+        CopyCleanupBasketToLocationCommand.NotifyCanExecuteChanged();
         CancelCleanupBasketMoveCommand.NotifyCanExecuteChanged();
     }
+
+    [ObservableProperty]
+    private string? _cleanupBasketDestinationPath;
+
+    [ObservableProperty]
+    private string? _cleanupBasketProgressMessage;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CleanupBasketSucceededCount))]
@@ -540,10 +555,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private bool CanClearCleanupBasket() => HasCleanupBasketItems;
 
-    private bool CanMoveCleanupBasketToTrash() =>
-        HasCleanupBasketItems && !IsMovingCleanupBasketToTrash;
+    private bool CanRunCleanupBasketOperation() =>
+        HasCleanupBasketItems && !IsRunningCleanupBasketOperation;
 
-    private bool CanCancelCleanupBasketMove() => IsMovingCleanupBasketToTrash;
+    private bool CanCancelCleanupBasketMove() => IsRunningCleanupBasketOperation;
 
     private bool CanCopyErrorPath() => SelectedScanError is not null;
 
@@ -739,7 +754,7 @@ public partial class MainWindowViewModel : ViewModelBase
         RefreshCleanupBasketState();
     }
 
-    [RelayCommand(CanExecute = nameof(CanMoveCleanupBasketToTrash))]
+    [RelayCommand(CanExecute = nameof(CanRunCleanupBasketOperation))]
     private async Task MoveCleanupBasketToTrashAsync()
     {
         if (_scanRoot is null || !HasCleanupBasketItems)
@@ -747,15 +762,11 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        IsMovingCleanupBasketToTrash = true;
-        CleanupBasketStatusMessage = null;
+        BeginCleanupBasketOperation();
 
         try
         {
-            var validator = new CleanupPreflightValidator(
-                new CleanupProtectedPathPolicy(_scanRoot),
-                _cleanupFileSystemMetadataReader);
-            var results = validator.Validate(CleanupBasketItems);
+            var results = CreateSourceValidator().Validate(CleanupBasketItems);
             CleanupBasketPreflightResults = results;
 
             if (!results.Any(result => result.CanExecute))
@@ -772,14 +783,118 @@ public partial class MainWindowViewModel : ViewModelBase
                 return;
             }
 
-            await ExecuteCleanupBasketTrashAsync(results);
+            await ExecuteCleanupBasketOperationAsync(
+                results,
+                CleanupOperationKind.Trash,
+                (item, cancellationToken) =>
+                    _trashService.MoveToTrashAsync(item.Snapshot.Path, cancellationToken));
         }
         finally
         {
-            IsMovingCleanupBasketToTrash = false;
-            _cleanupBasketCancellation?.Dispose();
-            _cleanupBasketCancellation = null;
+            EndCleanupBasketOperation();
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRunCleanupBasketOperation))]
+    private Task MoveCleanupBasketToLocationAsync() =>
+        RunCleanupBasketRelocationAsync(CleanupOperationKind.Move);
+
+    [RelayCommand(CanExecute = nameof(CanRunCleanupBasketOperation))]
+    private Task CopyCleanupBasketToLocationAsync() =>
+        RunCleanupBasketRelocationAsync(CleanupOperationKind.Copy);
+
+    private async Task RunCleanupBasketRelocationAsync(CleanupOperationKind operation)
+    {
+        if (_scanRoot is null || !HasCleanupBasketItems)
+        {
+            return;
+        }
+
+        var selectedPath = await _folderPickerService.SelectFolderAsync();
+        if (string.IsNullOrWhiteSpace(selectedPath))
+        {
+            CleanupBasketStatusMessage = "Destination selection cancelled.";
+            return;
+        }
+
+        BeginCleanupBasketOperation();
+
+        try
+        {
+            var destination = RelocationDestination.FromPath(selectedPath);
+            CleanupBasketDestinationPath = destination.Path;
+
+            var summary = _cleanupBasketPlanner?.GetSummary(operation)
+                ?? CleanupBasketSummary.Empty;
+            var destinationValidation =
+                new RelocationDestinationValidator(_relocationDestinationProbe)
+                    .Validate(destination, summary.TotalLogicalSizeBytes);
+            if (!destinationValidation.CanExecute)
+            {
+                CleanupBasketStatusMessage = destinationValidation.Message;
+                return;
+            }
+
+            var results = new RelocationPreflightValidator(
+                    CreateSourceValidator(),
+                    _relocationDestinationProbe)
+                .Validate(CleanupBasketItems, destination, operation);
+            CleanupBasketPreflightResults = results;
+
+            if (!results.Any(result => result.CanExecute))
+            {
+                CleanupBasketStatusMessage = operation == CleanupOperationKind.Copy
+                    ? "No cleanup basket items are ready to copy to the destination."
+                    : "No cleanup basket items are ready to move to the destination.";
+                return;
+            }
+
+            var review = new CleanupBasketReview(summary, results, operation, destination);
+            if (!await _cleanupBasketReviewService.ConfirmCleanupAsync(review))
+            {
+                CleanupBasketStatusMessage = operation == CleanupOperationKind.Copy
+                    ? "Copy cancelled."
+                    : "Move cancelled.";
+                return;
+            }
+
+            await ExecuteCleanupBasketOperationAsync(
+                results,
+                operation,
+                (item, cancellationToken) => operation == CleanupOperationKind.Copy
+                    ? _itemRelocationService.CopyAsync(
+                        item.Snapshot.Path,
+                        destination.NormalizedPath,
+                        cancellationToken)
+                    : _itemRelocationService.MoveAsync(
+                        item.Snapshot.Path,
+                        destination.NormalizedPath,
+                        cancellationToken));
+        }
+        finally
+        {
+            EndCleanupBasketOperation();
+        }
+    }
+
+    private CleanupPreflightValidator CreateSourceValidator() =>
+        new(
+            _cleanupProtectedPathPolicy ?? new CleanupProtectedPathPolicy(_scanRoot!),
+            _cleanupFileSystemMetadataReader);
+
+    private void BeginCleanupBasketOperation()
+    {
+        IsRunningCleanupBasketOperation = true;
+        CleanupBasketStatusMessage = null;
+        CleanupBasketProgressMessage = null;
+    }
+
+    private void EndCleanupBasketOperation()
+    {
+        IsRunningCleanupBasketOperation = false;
+        CleanupBasketProgressMessage = null;
+        _cleanupBasketCancellation?.Dispose();
+        _cleanupBasketCancellation = null;
     }
 
     [RelayCommand(CanExecute = nameof(CanCancelCleanupBasketMove))]
@@ -788,8 +903,10 @@ public partial class MainWindowViewModel : ViewModelBase
         _cleanupBasketCancellation?.Cancel();
     }
 
-    private async Task ExecuteCleanupBasketTrashAsync(
-        IReadOnlyList<CleanupPreflightResult> preflightResults)
+    private async Task ExecuteCleanupBasketOperationAsync(
+        IReadOnlyList<CleanupPreflightResult> preflightResults,
+        CleanupOperationKind operation,
+        Func<CleanupBasketItem, CancellationToken, Task> executeItemAsync)
     {
         var operationResults = new List<CleanupOperationItemResult>();
         var executableResults = preflightResults
@@ -816,11 +933,15 @@ public partial class MainWindowViewModel : ViewModelBase
                 break;
             }
 
+            CleanupBasketProgressMessage = FormatCleanupBasketProgressMessage(
+                operation,
+                result.Item.Snapshot.Name,
+                index,
+                executableResults.Length);
+
             try
             {
-                await _trashService.MoveToTrashAsync(
-                    result.Item.Snapshot.Path,
-                    cancellationToken);
+                await executeItemAsync(result.Item, cancellationToken);
                 operationResults.Add(new CleanupOperationItemResult(
                     result.Item,
                     CleanupOperationItemStatus.Succeeded));
@@ -831,7 +952,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 operationResults.Add(new CleanupOperationItemResult(
                     result.Item,
                     CleanupOperationItemStatus.Cancelled,
-                    "Cleanup was cancelled."));
+                    "The operation was cancelled."));
                 AddUnattemptedResults(
                     operationResults,
                     executableResults[(index + 1)..]);
@@ -847,8 +968,31 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         CleanupBasketOperationResults = operationResults;
-        await ReconcileCleanupBasketSuccessesAsync(successfulItems);
-        CleanupBasketStatusMessage = FormatCleanupBasketOperationMessage(operationResults);
+
+        if (operation != CleanupOperationKind.Copy)
+        {
+            await ReconcileCleanupBasketSuccessesAsync(successfulItems);
+        }
+
+        CleanupBasketStatusMessage = FormatCleanupBasketOperationMessage(
+            operation,
+            operationResults);
+    }
+
+    private static string FormatCleanupBasketProgressMessage(
+        CleanupOperationKind operation,
+        string itemName,
+        int completedCount,
+        int totalCount)
+    {
+        var verb = operation switch
+        {
+            CleanupOperationKind.Move => "Moving",
+            CleanupOperationKind.Copy => "Copying",
+            _ => "Moving to Trash"
+        };
+
+        return $"{verb} “{itemName}” ({completedCount} of {totalCount} completed).";
     }
 
     private static void AddUnattemptedResults(
@@ -894,6 +1038,7 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     private static string FormatCleanupBasketOperationMessage(
+        CleanupOperationKind operation,
         IReadOnlyList<CleanupOperationItemResult> results)
     {
         var succeeded = results.Count(
@@ -904,12 +1049,19 @@ public partial class MainWindowViewModel : ViewModelBase
             result => result.Status is CleanupOperationItemStatus.Cancelled
                 or CleanupOperationItemStatus.Unattempted);
 
+        var outcome = operation switch
+        {
+            CleanupOperationKind.Move => $"Moved {succeeded} item(s) to the destination.",
+            CleanupOperationKind.Copy => $"Copied {succeeded} item(s) to the destination.",
+            _ => $"Moved {succeeded} item(s) to Trash."
+        };
+
         if (failed == 0 && unattempted == 0)
         {
-            return $"Moved {succeeded} item(s) to Trash.";
+            return outcome;
         }
 
-        return $"Moved {succeeded} item(s) to Trash. Failed: {failed}. Not attempted: {unattempted}.";
+        return $"{outcome} Failed: {failed}. Not attempted: {unattempted}.";
     }
 
     [RelayCommand(CanExecute = nameof(CanScanFolder))]

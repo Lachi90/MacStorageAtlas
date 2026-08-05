@@ -630,6 +630,18 @@ Users can build and review one safe cleanup operation across all result views.
 
 Users can reclaim local space by archiving large data instead of deleting it.
 
+### Status
+
+Implemented by `move-and-copy-items`. Move and Copy run on the reviewed cleanup
+basket with destination preflight, per-item revalidation, itemized cancellable
+execution, and cross-volume copy-then-verified-delete.
+
+The collision policy was narrowed deliberately. The scope below lists skip,
+rename, and replace; the delivered behavior blocks a colliding item at preflight
+with a visible reason and never overwrites, merges into, or auto-renames an item
+at the destination. Rename and replace policies are deferred to a later change
+and were not implemented.
+
 ### Scope
 
 - Add Move and Copy actions to the cleanup basket.
@@ -1059,8 +1071,8 @@ Update this table when work starts or finishes.
 | WP-04 | Complete | `codex/storage-feature-roadmap` | Preparatory lazy/off-thread result tree (`virtualize-result-tree`) plus advanced filters and presets (`add-advanced-filters`). Scope changes: file-versus-folder, hidden-status, and package-membership dimensions dropped; "large downloads" preset replaced by "Large disk images and installers" because filters evaluate within the current scan root |
 | WP-05 | Complete | `codex/storage-feature-roadmap` | CSV and JSON export (`export-scan-results`). Scope change: the logical-plus-allocated size column pair was replaced by the scan's own measurement basis, because one scan produces one basis |
 | WP-06 | Complete | `codex/storage-feature-roadmap` | Full Disk Access guidance (`guide-full-disk-access`) complete with conservative access classification, settings fallback, and same-root rescan |
-| WP-07 | Complete | `codex/storage-feature-roadmap` | Cleanup basket and reviewed multi-item Trash workflow (`add-cleanup-basket`) plus shared sensitive-path cleanup protection (`protect-sensitive-paths`) complete; move/copy destinations remain WP-08 |
-| WP-08 | Planned | `codex/storage-feature-roadmap` | Depends on cleanup basket |
+| WP-07 | Complete | `codex/storage-feature-roadmap` | Cleanup basket and reviewed multi-item Trash workflow (`add-cleanup-basket`) plus shared sensitive-path cleanup protection (`protect-sensitive-paths`) complete |
+| WP-08 | Complete | `codex/storage-feature-roadmap` | Basket move and copy with destination preflight and cross-volume copy-then-verified-delete (`move-and-copy-items`); rename and replace collision policies deliberately deferred |
 | WP-09 | Planned | `codex/storage-feature-roadmap` |  |
 | WP-10 | Planned | `codex/storage-feature-roadmap` | Exact matches only |
 | WP-11 | Planned | `codex/storage-feature-roadmap` | Maintain versioned rule catalog |

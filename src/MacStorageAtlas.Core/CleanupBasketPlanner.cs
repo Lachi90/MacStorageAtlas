@@ -19,7 +19,10 @@ public sealed class CleanupBasketPlanner
 
     public IReadOnlyList<CleanupBasketItem> Items => _items;
 
-    public CleanupBasketSummary Summary => CreateSummary();
+    public CleanupBasketSummary Summary => CreateSummary(CleanupOperationKind.Trash);
+
+    public CleanupBasketSummary GetSummary(CleanupOperationKind operation) =>
+        CreateSummary(operation);
 
     public CleanupBasketAddResult Add(DiskItem item)
     {
@@ -95,7 +98,7 @@ public sealed class CleanupBasketPlanner
 
     public void Clear() => _items.Clear();
 
-    private CleanupBasketSummary CreateSummary()
+    private CleanupBasketSummary CreateSummary(CleanupOperationKind operation)
     {
         if (_items.Count == 0)
         {
@@ -105,7 +108,9 @@ public sealed class CleanupBasketPlanner
         return new CleanupBasketSummary(
             _items.Count,
             _items.Sum(item => item.Snapshot.SizeBytes),
-            _items.Sum(GetExpectedReclaimableSize));
+            operation == CleanupOperationKind.Copy
+                ? 0
+                : _items.Sum(GetExpectedReclaimableSize));
     }
 
     private long GetExpectedReclaimableSize(CleanupBasketItem item) =>

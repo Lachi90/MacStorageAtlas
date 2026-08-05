@@ -552,14 +552,23 @@
                                    TextWrapping="Wrap"
                                    Text="No items selected"
                                    IsVisible="{Binding !HasCleanupBasketItems}"/>
+                        <TextBlock Classes="caption"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding CleanupBasketDestinationPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                            <Run Text="Destination "/><Run Text="{Binding CleanupBasketDestinationPath}"/>
+                        </TextBlock>
                         <TextBlock Classes="danger"
                                    TextWrapping="Wrap"
                                    Text="{Binding CleanupBasketStatusMessage}"
                                    IsVisible="{Binding CleanupBasketStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                         <TextBlock Classes="caption"
                                    TextWrapping="Wrap"
+                                   Text="{Binding CleanupBasketProgressMessage}"
+                                   IsVisible="{Binding CleanupBasketProgressMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        <TextBlock Classes="caption"
+                                   TextWrapping="Wrap"
                                    IsVisible="{Binding CleanupBasketOperationResults.Count}">
-                            <Run Text="Moved "/><Run Text="{Binding CleanupBasketSucceededCount}"/>
+                            <Run Text="Succeeded "/><Run Text="{Binding CleanupBasketSucceededCount}"/>
                             <Run Text=", failed "/><Run Text="{Binding CleanupBasketFailedCount}"/>
                             <Run Text=", not attempted "/><Run Text="{Binding CleanupBasketUnattemptedCount}"/>
                         </TextBlock>
@@ -576,8 +585,20 @@
                                 <TextBlock Text="Review basket"/>
                             </StackPanel>
                         </Button>
+                        <Button Command="{Binding MoveCleanupBasketToLocationCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconRename}"/>
+                                <TextBlock Text="Move to…"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding CopyCleanupBasketToLocationCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconCopy}"/>
+                                <TextBlock Text="Copy to…"/>
+                            </StackPanel>
+                        </Button>
                         <Button Command="{Binding CancelCleanupBasketMoveCommand}"
-                                IsVisible="{Binding IsMovingCleanupBasketToTrash}">
+                                IsVisible="{Binding IsRunningCleanupBasketOperation}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource IconStop}"/>
                                 <TextBlock Text="Cancel"/>

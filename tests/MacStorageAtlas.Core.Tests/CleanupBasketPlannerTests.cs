@@ -158,6 +158,112 @@ public class CleanupBasketPlannerTests
     }
 
     [Test]
+    public void LogicalMoveSummaryUsesLogicalBytes()
+    {
+        var root = Directory("root", "/scan", 300, 800);
+        var first = File("first.bin", "/scan/first.bin", 100, 400);
+        var second = File("second.bin", "/scan/second.bin", 200, 400);
+        root.AddChild(first);
+        root.AddChild(second);
+        var planner = new CleanupBasketPlanner(root, StorageMeasurementMode.Logical);
+
+        planner.Add(first);
+        planner.Add(second);
+        var summary = planner.GetSummary(CleanupOperationKind.Move);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(summary.ItemCount, Is.EqualTo(2));
+            Assert.That(summary.TotalLogicalSizeBytes, Is.EqualTo(300));
+            Assert.That(summary.ExpectedReclaimableSizeBytes, Is.EqualTo(300));
+        });
+    }
+
+    [Test]
+    public void AllocatedMoveSummaryUsesMeasuredBytes()
+    {
+        var root = Directory("root", "/scan", 300, 800);
+        var first = File("first.bin", "/scan/first.bin", 100, 400);
+        var second = File("second.bin", "/scan/second.bin", 200, 400);
+        root.AddChild(first);
+        root.AddChild(second);
+        var planner = new CleanupBasketPlanner(root, StorageMeasurementMode.Allocated);
+
+        planner.Add(first);
+        planner.Add(second);
+        var summary = planner.GetSummary(CleanupOperationKind.Move);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(summary.ItemCount, Is.EqualTo(2));
+            Assert.That(summary.TotalLogicalSizeBytes, Is.EqualTo(300));
+            Assert.That(summary.ExpectedReclaimableSizeBytes, Is.EqualTo(800));
+        });
+    }
+
+    [Test]
+    public void CopySummaryReclaimsNothingLocally()
+    {
+        var root = Directory("root", "/scan", 300, 800);
+        var first = File("first.bin", "/scan/first.bin", 100, 400);
+        var second = File("second.bin", "/scan/second.bin", 200, 400);
+        root.AddChild(first);
+        root.AddChild(second);
+        var planner = new CleanupBasketPlanner(root, StorageMeasurementMode.Allocated);
+
+        planner.Add(first);
+        planner.Add(second);
+        var summary = planner.GetSummary(CleanupOperationKind.Copy);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(summary.ItemCount, Is.EqualTo(2));
+            Assert.That(summary.TotalLogicalSizeBytes, Is.EqualTo(300));
+            Assert.That(summary.ExpectedReclaimableSizeBytes, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void CopySummaryDoesNotInflateTotalsForCoveredDescendants()
+    {
+        var root = Directory("root", "/scan", 700, 900);
+        var folder = Directory("folder", "/scan/folder", 400, 500);
+        var nested = File("nested.bin", "/scan/folder/nested.bin", 400, 500);
+        var file = File("file.bin", "/scan/file.bin", 300, 400);
+        root.AddChild(folder);
+        folder.AddChild(nested);
+        root.AddChild(file);
+        var planner = new CleanupBasketPlanner(root, StorageMeasurementMode.Allocated);
+
+        planner.Add(nested);
+        planner.Add(folder);
+        planner.Add(file);
+        var summary = planner.GetSummary(CleanupOperationKind.Copy);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(summary.ItemCount, Is.EqualTo(2));
+            Assert.That(summary.TotalLogicalSizeBytes, Is.EqualTo(700));
+            Assert.That(summary.ExpectedReclaimableSizeBytes, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void TrashSummaryMatchesTheDefaultSummary()
+    {
+        var root = Directory("root", "/scan", 300, 800);
+        var first = File("first.bin", "/scan/first.bin", 100, 400);
+        root.AddChild(first);
+        var planner = new CleanupBasketPlanner(root, StorageMeasurementMode.Allocated);
+
+        planner.Add(first);
+
+        Assert.That(
+            planner.GetSummary(CleanupOperationKind.Trash),
+            Is.EqualTo(planner.Summary));
+    }
+
+    [Test]
     public void SharedAwareSummaryUsesMeasuredBytesForZeroByteSharedEntry()
     {
         var root = Directory("root", "/scan", 100, 500);

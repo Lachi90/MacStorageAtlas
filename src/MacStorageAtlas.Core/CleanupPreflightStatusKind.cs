@@ -7,5 +7,8 @@ public enum CleanupPreflightStatusKind
     IdentityChanged,
     SizeChanged,
     Protected,
-    Error
+    Error,
+    DestinationCollision,
+    DestinationInsideSource,
+    AlreadyAtDestination
 }

@@ -200,3 +200,21 @@ included path is moved to Trash. After a successful Trash operation on a
 shared-aware result, the App rescans with the captured options so another
 included path can become the counted representative. Failed or cancelled Trash
 operations leave the existing result unchanged.
+
+## Moving and copying reclaim different amounts
+
+Moving cleanup basket items to another location reclaims local bytes on the
+source volume under the same rules as a Trash operation, so the App reports the
+expected reclaimed size using the completed scan result's measurement mode and
+rescans a shared-aware result after a successful move.
+
+Copying reclaims nothing on the source volume, so the review reports an expected
+reclaimed size of zero and the displayed scan result is left unchanged.
+
+The bytes a copy adds at the destination are not the copied item's logical size
+in every case. The App copies with APFS cloning enabled, so a copy that stays on
+one APFS volume can create a clone that initially consumes almost no additional
+space and only diverges as either copy is modified. A copy to a different volume,
+or to a filesystem that cannot clone, writes the full content. Destination
+free-space preflight compares against logical size, which is the conservative
+figure in both cases.
