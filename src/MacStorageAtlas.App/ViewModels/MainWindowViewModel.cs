@@ -38,6 +38,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ICleanupFileSystemMetadataReader _cleanupFileSystemMetadataReader;
     private readonly IItemRelocationService _itemRelocationService;
     private readonly IRelocationDestinationProbe _relocationDestinationProbe;
+    private readonly IScanHistoryStore _scanHistoryStore;
     private readonly AccessGuidanceClassifier _accessGuidanceClassifier = new();
     private readonly ITreemapLayoutService _treemapLayoutService = new TreemapLayoutService();
     private readonly FileTypeStatisticsService _fileTypeStatisticsService = new();
@@ -55,6 +56,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private CancellationTokenSource? _exportCancellation;
     private CancellationTokenSource? _treePreparationCancellation;
     private CancellationTokenSource? _cleanupBasketCancellation;
+    private CancellationTokenSource? _scanHistoryCancellation;
     private FilterResult? _filterResult;
     private double? _windowWidth;
     private double? _windowHeight;
@@ -104,6 +106,8 @@ public partial class MainWindowViewModel : ViewModelBase
         ICleanupFileSystemMetadataReader? cleanupFileSystemMetadataReader = null,
         IItemRelocationService? itemRelocationService = null,
         IRelocationDestinationProbe? relocationDestinationProbe = null,
+        IScanHistoryStore? scanHistoryStore = null,
+        IScanHistoryClearConfirmationService? scanHistoryClearConfirmationService = null,
         TimeSpan? searchDebounceInterval = null,
         Func<DateTimeOffset>? referenceTimeProvider = null)
     {
@@ -129,6 +133,13 @@ public partial class MainWindowViewModel : ViewModelBase
         _itemRelocationService = itemRelocationService ?? new MacItemRelocationService();
         _relocationDestinationProbe =
             relocationDestinationProbe ?? new FileSystemRelocationDestinationProbe();
+        _scanHistoryStore = scanHistoryStore ?? new NullScanHistoryStore();
+        ScanHistory = new ScanHistoryViewModel(
+            _scanHistoryStore,
+            scanHistoryClearConfirmationService
+                ?? new NullScanHistoryClearConfirmationService(),
+            _uiDispatcher,
+            _fileRevealService);
 
         Filter.CriteriaChanged += OnFilterCriteriaChanged;
         Filter.UserPresetsChanged += OnUserPresetsChanged;
@@ -527,6 +538,58 @@ public partial class MainWindowViewModel : ViewModelBase
     partial void OnMeasurementModeChanged(StorageMeasurementMode value) => SaveSettings();
 
     partial void OnExpandApplicationBundlesChanged(bool value) => SaveSettings();
+
+    [ObservableProperty]
+    private bool _scanHistoryEnabled;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ScanHistorySnapshotLimit))]
+    private int _maxScanHistorySnapshotsPerRoot =
+        ScanHistoryLimits.DefaultMaxSnapshotsPerRoot;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ScanHistoryStoreLimitMegabytes))]
+    private long _maxScanHistoryStoreSizeBytes =
+        ScanHistoryLimits.DefaultMaxTotalSizeBytes;
+
+    public decimal ScanHistorySnapshotLimit
+    {
+        get => MaxScanHistorySnapshotsPerRoot;
+        set => MaxScanHistorySnapshotsPerRoot = (int)Math.Max(1, Math.Round(value));
+    }
+
+    public decimal ScanHistoryStoreLimitMegabytes
+    {
+        get => Math.Round(MaxScanHistoryStoreSizeBytes / (decimal)(1024 * 1024));
+        set => MaxScanHistoryStoreSizeBytes =
+            (long)Math.Max(1, Math.Round(value)) * 1024 * 1024;
+    }
+
+    [ObservableProperty]
+    private string? _scanHistoryStatusMessage;
+
+    partial void OnScanHistoryEnabledChanged(bool value) => SaveSettings();
+
+    partial void OnMaxScanHistorySnapshotsPerRootChanged(int value)
+    {
+        SaveSettings();
+        ApplyScanHistoryLimits();
+    }
+
+    partial void OnMaxScanHistoryStoreSizeBytesChanged(long value)
+    {
+        SaveSettings();
+        ApplyScanHistoryLimits();
+    }
+
+    public ScanHistoryViewModel ScanHistory { get; }
+
+    public string ScanHistoryLocation => _scanHistoryStore.Location;
+
+    private ScanHistoryLimits CurrentScanHistoryLimits =>
+        new(
+            Math.Max(1, MaxScanHistorySnapshotsPerRoot),
+            Math.Max(1, MaxScanHistoryStoreSizeBytes));
 
     public void SaveWindowSize(double width, double height)
     {
@@ -1130,6 +1193,8 @@ public partial class MainWindowViewModel : ViewModelBase
         ScanOptions options,
         bool addRecentLocation)
     {
+        CancelScanHistoryCapture();
+
         var cancellation = new CancellationTokenSource();
         _scanCancellation = cancellation;
 
@@ -1164,9 +1229,12 @@ public partial class MainWindowViewModel : ViewModelBase
             TrashStatusMessage = null;
             QuickLookStatusMessage = null;
             RecentLocationStatusMessage = null;
+            ScanHistoryStatusMessage = null;
             AccessGuidance = AccessGuidance.None;
             ClearCleanupBasketForResultReplacement();
         });
+
+        ScanProgress? completedProgress = null;
 
         try
         {
@@ -1182,17 +1250,194 @@ public partial class MainWindowViewModel : ViewModelBase
                     await _uiDispatcher.InvokeAsync(
                             () => ApplyProgress(progress, options, accessAssessment))
                         .ConfigureAwait(false);
+
+                    if (progress.IsCompleted)
+                    {
+                        completedProgress = progress;
+                    }
                 }
             }).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
+            completedProgress = null;
         }
         finally
         {
             _scanCancellation = null;
             cancellation.Dispose();
             await _uiDispatcher.InvokeAsync(() => IsScanning = false);
+        }
+
+        if (completedProgress is { } completed)
+        {
+            await StartScanHistoryCaptureAsync(completed, options).ConfigureAwait(false);
+        }
+    }
+
+    private void CancelScanHistoryCapture()
+    {
+        var cancellation = _scanHistoryCancellation;
+        _scanHistoryCancellation = null;
+        cancellation?.Cancel();
+    }
+
+    private async Task StartScanHistoryCaptureAsync(
+        ScanProgress progress,
+        ScanOptions options)
+    {
+        if (!ScanHistoryEnabled)
+        {
+            return;
+        }
+
+        var cancellation = new CancellationTokenSource();
+        _scanHistoryCancellation = cancellation;
+
+        var completedAt = ScanCompletedAt ?? _referenceTimeProvider();
+        var completeness = ScanCompletenessClassifier.Classify(
+            AccessGuidance,
+            progress.Errors);
+        var limits = CurrentScanHistoryLimits;
+
+        try
+        {
+            var result = await Task.Run(
+                    () => CaptureScanHistoryAsync(
+                        progress,
+                        options,
+                        completedAt,
+                        completeness,
+                        limits,
+                        cancellation.Token),
+                    cancellation.Token)
+                .ConfigureAwait(false);
+
+            await _uiDispatcher
+                .InvokeAsync(() => ScanHistoryStatusMessage = DescribeCapture(result))
+                .ConfigureAwait(false);
+
+            if (result.IsCaptured)
+            {
+                await ScanHistory.RefreshAsync().ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException)
+        {
+            await _uiDispatcher
+                .InvokeAsync(() => ScanHistoryStatusMessage =
+                    $"The scan was not recorded. {exception.Message}")
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            if (ReferenceEquals(_scanHistoryCancellation, cancellation))
+            {
+                _scanHistoryCancellation = null;
+            }
+
+            cancellation.Dispose();
+        }
+    }
+
+    private Task<ScanHistoryCaptureResult> CaptureScanHistoryAsync(
+        ScanProgress progress,
+        ScanOptions options,
+        DateTimeOffset completedAt,
+        ScanCompleteness completeness,
+        ScanHistoryLimits limits,
+        CancellationToken cancellationToken)
+    {
+        var summary = ScanExportRowSource.Summarize(progress.Root, cancellationToken);
+
+        var metadata = new ScanSnapshotMetadata(
+            ScanSnapshotIdentity.Create(completedAt),
+            _referenceTimeProvider(),
+            progress.Root.Path,
+            completedAt,
+            options,
+            progress.MeasurementMode,
+            progress.CloneAccountingCoverage,
+            summary.ItemCount,
+            summary.TotalCountedSizeBytes,
+            progress.Errors.Count,
+            completeness);
+
+        var request = new ScanSnapshotRequest(
+            metadata,
+            ScanExportRowSource.EnumerateFull(
+                progress.Root,
+                progress.MeasurementMode,
+                cancellationToken),
+            progress.Errors);
+
+        return _scanHistoryStore.CaptureAsync(request, limits, cancellationToken);
+    }
+
+    private static string DescribeCapture(ScanHistoryCaptureResult result)
+    {
+        if (!result.IsCaptured)
+        {
+            return $"The scan was not recorded. {result.Message}";
+        }
+
+        var descriptor = result.Descriptor!;
+        var items = descriptor.ItemCount.ToString("N0", CultureInfo.CurrentCulture);
+        var size = FileSizeFormatter.Format(descriptor.StoredSizeBytes);
+        var message = descriptor.ItemCount == 1
+            ? $"Recorded 1 item to scan history ({size})."
+            : $"Recorded {items} items to scan history ({size}).";
+
+        if (result.PrunedSnapshots.Count == 0)
+        {
+            return message;
+        }
+
+        var pruned = result.PrunedSnapshots.Count == 1
+            ? "Removed the oldest snapshot to stay within the history limits."
+            : $"Removed {result.PrunedSnapshots.Count} older snapshots to stay within "
+              + "the history limits.";
+
+        return $"{message} {pruned}";
+    }
+
+    private void ApplyScanHistoryLimits()
+    {
+        if (_isApplyingSettings)
+        {
+            return;
+        }
+
+        _ = ApplyScanHistoryLimitsAsync();
+    }
+
+    private async Task ApplyScanHistoryLimitsAsync()
+    {
+        try
+        {
+            var pruned = await _scanHistoryStore
+                .ApplyLimitsAsync(CurrentScanHistoryLimits)
+                .ConfigureAwait(false);
+
+            if (pruned.Count == 0)
+            {
+                return;
+            }
+
+            await _uiDispatcher
+                .InvokeAsync(() => ScanHistoryStatusMessage =
+                    $"Removed {pruned.Count} "
+                    + $"{(pruned.Count == 1 ? "snapshot" : "snapshots")} "
+                    + "to stay within the scan history limits.")
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException)
+        {
         }
     }
 
@@ -1900,6 +2145,11 @@ public partial class MainWindowViewModel : ViewModelBase
             FollowSymbolicLinks = settings.FollowSymbolicLinks;
             ExpandApplicationBundles = settings.TreatPackagesAsDirectories;
             MeasurementMode = settings.EffectiveMeasurementMode;
+            ScanHistoryEnabled = settings.ScanHistoryEnabled;
+            MaxScanHistorySnapshotsPerRoot =
+                settings.EffectiveScanHistoryLimits.MaxSnapshotsPerRoot;
+            MaxScanHistoryStoreSizeBytes =
+                settings.EffectiveScanHistoryLimits.MaxTotalSizeBytes;
             _windowWidth = ValidWindowDimension(
                 settings.WindowWidth,
                 AppSettings.MinimumWindowWidth);
@@ -1934,6 +2184,9 @@ public partial class MainWindowViewModel : ViewModelBase
             FollowSymbolicLinks = FollowSymbolicLinks,
             TreatPackagesAsDirectories = ExpandApplicationBundles,
             MeasurementMode = MeasurementMode,
+            ScanHistoryEnabled = ScanHistoryEnabled,
+            MaxScanHistorySnapshotsPerRoot = MaxScanHistorySnapshotsPerRoot,
+            MaxScanHistoryStoreSizeBytes = MaxScanHistoryStoreSizeBytes,
             RecentLocations = RecentLocations.ToList(),
             FilterPresets = Filter.UserPresets
                 .Select(FilterPresetSettings.FromPreset)

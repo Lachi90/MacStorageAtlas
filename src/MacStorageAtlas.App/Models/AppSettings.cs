@@ -30,6 +30,22 @@ public sealed class AppSettings
 
     public double? WindowHeight { get; set; }
 
+    public bool ScanHistoryEnabled { get; set; }
+
+    public int? MaxScanHistorySnapshotsPerRoot { get; set; }
+
+    public long? MaxScanHistoryStoreSizeBytes { get; set; }
+
+    [JsonIgnore]
+    public ScanHistoryLimits EffectiveScanHistoryLimits =>
+        new(
+            MaxScanHistorySnapshotsPerRoot is { } snapshots && snapshots >= 1
+                ? snapshots
+                : ScanHistoryLimits.DefaultMaxSnapshotsPerRoot,
+            MaxScanHistoryStoreSizeBytes is { } storeSize && storeSize >= 1
+                ? storeSize
+                : ScanHistoryLimits.DefaultMaxTotalSizeBytes);
+
     public StorageMeasurementMode EffectiveMeasurementMode =>
         MeasurementMode is { } measurementMode && Enum.IsDefined(measurementMode)
             ? measurementMode

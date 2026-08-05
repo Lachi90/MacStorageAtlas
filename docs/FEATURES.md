@@ -1308,3 +1308,127 @@ Core owns the row and metadata models, row enumeration and ordering, and both
 writers, which target a supplied `TextWriter` or `Stream` rather than a path.
 The App owns the save-file picker abstraction, the export commands, and atomic
 publication through a temporary file in the destination directory.
+
+---
+
+# 31. Scan History
+
+## Status
+
+Persistence delivered by WP-09 (`persist-scan-history`). Comparison between two
+recorded scans is a separate, still outstanding change.
+
+## Purpose
+
+Keep a local record of what storage looked like at earlier points in time, so
+that a later comparison feature can answer which folders grew or shrank and so
+that a user can confirm a cleanup actually held.
+
+## Acceptance Criteria
+
+- Nothing is recorded until the user turns scan history on. It is off by
+  default.
+- Every completed scan is recorded as one snapshot while history is enabled. A
+  cancelled or failed scan is never recorded.
+- A snapshot covers the whole scan result and is not narrowed by the filter
+  that happens to be active when the scan completes.
+- A snapshot records each item's path, name, kind, depth, size fields,
+  shared-storage indicator, extension, category, and creation, modification,
+  and last-access timestamps.
+- A snapshot records the scan root, the completion time, the scan options, the
+  measurement mode, the clone-accounting coverage, the recoverable errors, and
+  a completeness verdict.
+- A snapshot is never truncated to fit a limit. A scan that cannot be recorded
+  at full fidelity within the limits is declined with a stated reason.
+- Retention bounds the store by snapshots per location and by total store size,
+  pruning oldest first and pruning no more than required.
+- The user can view stored snapshots grouped by scan root, delete one snapshot,
+  and clear the whole history without changing scan options, filter presets, or
+  recent locations.
+- An unreadable snapshot is reported and remains deletable without breaking the
+  rest of the history.
+
+## What a snapshot stores, and where
+
+Snapshots live in `~/Library/Application Support/MacStorageAtlas/history/`, next
+to `settings.json`. Each snapshot is one gzip-compressed JSON file named for the
+scan's completion time. You can read one directly:
+
+```shell
+gunzip -c ~/Library/Application\ Support/MacStorageAtlas/history/<name>.msascan.gz
+```
+
+A snapshot stores paths, sizes, and filesystem metadata. It never stores the
+contents of any scanned file, and it is never transmitted anywhere.
+
+Because a snapshot lists every file name under the scanned location, the store
+is treated as private user data. The directory and its files are created
+readable only by their owner, and a `.metadata_never_index` marker keeps
+Spotlight from indexing the history itself. Time Machine will still include the
+store in its backups if the Application Support directory is backed up.
+
+## Defaults and limits
+
+- Recording is off until enabled.
+- At most 10 snapshots are kept per scanned location.
+- The store is capped at 500 MB in total.
+
+Both limits are adjustable. Lowering either one prunes immediately rather than
+waiting for the next scan.
+
+Full-fidelity snapshots compress well because file paths share long prefixes: a
+scan of roughly 500,000 items produces about 12 MB rather than the roughly
+150 MB the same document would occupy uncompressed.
+
+## Removing scan history
+
+- Delete a single recorded scan from the history list.
+- Clear the whole history from the same list. Clearing asks for confirmation
+  first.
+- Use **Show in Finder** in the history panel to open the store directly.
+  `~/Library` is hidden in Finder by default, so this is the practical way to
+  reach the store by hand. The action is unavailable while nothing is recorded.
+- Delete the store directly from Finder or the shell. The store is a flat
+  directory of independent files with no index, so removing any subset of them
+  leaves the rest usable:
+
+  ```shell
+  rm -rf ~/Library/Application\ Support/MacStorageAtlas/history
+  ```
+
+Removing snapshots outside the app is fully supported. MacStorageAtlas treats a
+snapshot that disappears as gone rather than damaged, and recreates the store
+the next time a scan is recorded.
+
+Recorded scans are deleted permanently rather than moved to Trash. Clearing
+history is usually done for privacy, and moving a complete index of a user's
+file names into `~/.Trash` would leave it fully readable on disk.
+
+## Documented non-goals
+
+- Comparing two snapshots, and any added, removed, grown, or shrunk reporting.
+  That is the follow-up change to WP-09.
+- Move and rename detection. Snapshots match items by path only; stable file
+  identity is not recorded, because it exists today only in shared-aware
+  allocated mode and would make identity-based behavior silently depend on the
+  measurement mode.
+- Truncated or summarized snapshots.
+- Opening a snapshot as a browsable scan result.
+- Automatic or scheduled background scans.
+
+## Affected Projects
+
+- `MacStorageAtlas.Core`
+- `MacStorageAtlas.App`
+- `MacStorageAtlas.*.Tests`
+
+## Implementation Notes
+
+Core owns the snapshot model, the gzip JSON writer and reader, the retention
+policy, and the filesystem store, which takes its directory as a constructor
+argument. The App resolves the Application Support location, classifies scan
+completeness from the existing access guidance, starts capture off the UI thread
+after a completed result is displayed, and cancels a capture in progress when a
+new scan starts. Capture writes to a pending file, measures the finished
+compressed size, applies retention, and only then publishes by move, so a
+cancelled or failed capture never leaves a partial snapshot behind.

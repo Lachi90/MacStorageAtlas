@@ -117,6 +117,10 @@
         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
     </Style>
 
+<Style Selector="FlyoutPresenter.wide">
+        <Setter Property="MaxWidth" Value="900"/>
+    </Style>
+
 <Style Selector="TabControl">
         <Setter Property="Padding" Value="0"/>
     </Style>

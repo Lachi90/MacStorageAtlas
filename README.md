@@ -112,6 +112,11 @@ between runs.
   spreadsheets, with a UTF-8 byte order mark and leading formula characters
   neutralized so no cell executes on open. A cancelled or failed export never
   leaves a partial file behind.
+- Optionally record completed scans to a local history, so a later release can
+  show what grew or shrank between two points in time. Recording is off until
+  you turn it on, snapshots stay on your Mac and never include file contents,
+  and the store is capped by snapshot count and total size. You can delete a
+  single recorded scan or clear the whole history at any time.
 - Reveal items in Finder, move one eligible item to Trash, or review a
   multi-item cleanup basket before moving approved items to Trash. Broad or
   sensitive containers are blocked from in-app cleanup with an explanation.

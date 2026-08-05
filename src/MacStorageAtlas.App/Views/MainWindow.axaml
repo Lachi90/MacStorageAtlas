@@ -296,6 +296,144 @@
                         </Button.Flyout>
                     </Button>
 
+                    <Button Name="ScanHistoryButton"
+                            ToolTip.Tip="Scan history"
+                            AutomationProperties.Name="Scan history"
+                            Command="{Binding ScanHistory.RefreshCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconOptions}"/>
+                            <TextBlock Text="History"/>
+                        </StackPanel>
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight"
+                                    FlyoutPresenterClasses="wide">
+                                <ScrollViewer MaxHeight="560"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Spacing="10" MinWidth="400" Margin="4,4,14,4">
+                                        <TextBlock Classes="label" Text="Scan history"/>
+                                        <CheckBox IsChecked="{Binding ScanHistoryEnabled, Mode=TwoWay}"
+                                                  Content="Record completed scans"
+                                                  ToolTip.Tip="When checked, every completed scan is recorded locally so that a later version can compare them. Nothing is recorded until you turn this on."/>
+                                        <TextBlock Classes="caption"
+                                                   TextWrapping="Wrap"
+                                                   Text="Recorded scans store the path, size, and dates of every scanned item. They never store file contents and never leave this Mac."/>
+
+                                        <Grid ColumnDefinitions="*,190" ColumnSpacing="8">
+                                            <TextBlock Grid.Column="0"
+                                                       VerticalAlignment="Center"
+                                                       Text="Keep at most, per location"/>
+                                            <NumericUpDown Grid.Column="1"
+                                                           Minimum="1"
+                                                           Maximum="100"
+                                                           Increment="1"
+                                                           FormatString="0"
+                                                           Value="{Binding ScanHistorySnapshotLimit, Mode=TwoWay}"/>
+                                        </Grid>
+
+                                        <Grid ColumnDefinitions="*,190" ColumnSpacing="8">
+                                            <TextBlock Grid.Column="0"
+                                                       VerticalAlignment="Center"
+                                                       Text="Store limit, megabytes"/>
+                                            <NumericUpDown Grid.Column="1"
+                                                           Minimum="1"
+                                                           Maximum="102400"
+                                                           Increment="50"
+                                                           FormatString="0"
+                                                           Value="{Binding ScanHistoryStoreLimitMegabytes, Mode=TwoWay}"/>
+                                        </Grid>
+
+                                        <Border Height="1" Background="{DynamicResource DividerBrush}"/>
+
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Classes="caption"
+                                                       TextWrapping="NoWrap"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding ScanHistory.StoreLocation}"
+                                                       Text="{Binding ScanHistory.StoreLocation}"/>
+                                            <TextBlock Classes="caption"
+                                                       Text="{Binding ScanHistory.TotalStoreSize, StringFormat='Using {0}'}"/>
+                                            <StackPanel Orientation="Horizontal"
+                                                        Spacing="6"
+                                                        HorizontalAlignment="Right">
+                                                <Button ToolTip.Tip="Show the scan history store in Finder"
+                                                        AutomationProperties.Name="Show scan history store in Finder"
+                                                        Command="{Binding ScanHistory.RevealStoreCommand}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <PathIcon Data="{StaticResource IconReveal}"/>
+                                                        <TextBlock Text="Show in Finder"/>
+                                                    </StackPanel>
+                                                </Button>
+                                                <Button Classes="danger"
+                                                        Content="Clear History"
+                                                        Command="{Binding ScanHistory.ClearCommand}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <TextBlock Classes="caption"
+                                                   TextWrapping="Wrap"
+                                                   IsVisible="{Binding ScanHistory.StatusMessage, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                                   Text="{Binding ScanHistory.StatusMessage}"/>
+
+                                        <TextBlock Classes="caption"
+                                                   TextWrapping="Wrap"
+                                                   IsVisible="{Binding ScanHistory.UnreadableWarning, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                                   Text="{Binding ScanHistory.UnreadableWarning}"/>
+
+                                        <TextBlock Classes="caption"
+                                                   TextWrapping="Wrap"
+                                                   IsVisible="{Binding ScanHistory.IsEmpty}"
+                                                   Text="{Binding ScanHistory.EmptyStateMessage}"/>
+
+                                        <ItemsControl ItemsSource="{Binding ScanHistory.Roots}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:ScanHistoryRootViewModel">
+                                                    <StackPanel Spacing="4" Margin="0,0,0,10">
+                                                        <TextBlock Classes="label"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Text="{Binding Header}"/>
+                                                        <ItemsControl ItemsSource="{Binding Snapshots}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="vm:ScanHistoryEntryViewModel">
+                                                                    <Grid ColumnDefinitions="*,Auto"
+                                                                          ColumnSpacing="8"
+                                                                          Margin="0,2">
+                                                                        <StackPanel Grid.Column="0" Spacing="1">
+                                                                            <TextBlock Text="{Binding CompletedAt}"
+                                                                                       IsVisible="{Binding IsReadable}"/>
+                                                                            <TextBlock Classes="caption"
+                                                                                       TextWrapping="Wrap"
+                                                                                       Text="{Binding Completeness}"/>
+                                                                            <TextBlock Classes="caption"
+                                                                                       IsVisible="{Binding IsReadable}"
+                                                                                       Text="{Binding ItemCount, StringFormat='{}{0} items'}"/>
+                                                                        </StackPanel>
+                                                                        <StackPanel Grid.Column="1"
+                                                                                    Orientation="Horizontal"
+                                                                                    Spacing="6"
+                                                                                    VerticalAlignment="Center">
+                                                                            <TextBlock Classes="caption"
+                                                                                       VerticalAlignment="Center"
+                                                                                       Text="{Binding StoredSize}"/>
+                                                                            <Button Classes="danger"
+                                                                                    Content="Delete"
+                                                                                    Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScanHistory.DeleteSnapshotCommand}"
+                                                                                    CommandParameter="{Binding}"/>
+                                                                        </StackPanel>
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
                     <Button Name="FilterButton"
                             ToolTip.Tip="Result filters"
                             AutomationProperties.Name="Result filters">

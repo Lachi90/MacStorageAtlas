@@ -40,7 +40,11 @@ public partial class App : Application
                 new MacQuickLookService(),
                 new AvaloniaSaveFilePickerService(mainWindow.StorageProvider),
                 new MacFullDiskAccessService(),
-                new AvaloniaCleanupBasketReviewService(mainWindow));
+                new AvaloniaCleanupBasketReviewService(mainWindow),
+                scanHistoryStore: new FileSystemScanHistoryStore(
+                    ScanHistoryStoreLocation.Default()),
+                scanHistoryClearConfirmationService:
+                    new AvaloniaScanHistoryClearConfirmationService(mainWindow));
 
             desktop.MainWindow = mainWindow;
 

@@ -1073,7 +1073,7 @@ Update this table when work starts or finishes.
 | WP-06 | Complete | `codex/storage-feature-roadmap` | Full Disk Access guidance (`guide-full-disk-access`) complete with conservative access classification, settings fallback, and same-root rescan |
 | WP-07 | Complete | `codex/storage-feature-roadmap` | Cleanup basket and reviewed multi-item Trash workflow (`add-cleanup-basket`) plus shared sensitive-path cleanup protection (`protect-sensitive-paths`) complete |
 | WP-08 | Complete | `codex/storage-feature-roadmap` | Basket move and copy with destination preflight and cross-volume copy-then-verified-delete (`move-and-copy-items`); rename and replace collision policies deliberately deferred |
-| WP-09 | Planned | `codex/storage-feature-roadmap` |  |
+| WP-09 | Partial | `codex/storage-feature-roadmap` | Persistence half delivered (`persist-scan-history`): opt-in gzip-compressed full-fidelity snapshots, retention by count and total size, completeness verdict per snapshot, and history listing, deletion, and clearing. Comparison between two snapshots remains outstanding. Scope changes: move and rename detection deferred because stable file identity exists today only in shared-aware allocated mode, and snapshots are never truncated to fit a limit because an omitted item is indistinguishable from a deleted one |
 | WP-10 | Planned | `codex/storage-feature-roadmap` | Exact matches only |
 | WP-11 | Planned | `codex/storage-feature-roadmap` | Maintain versioned rule catalog |
 | WP-12 | Planned | `codex/storage-feature-roadmap` | Opt-in only |
