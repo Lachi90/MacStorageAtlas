@@ -59,13 +59,21 @@ The repository already provides:
 - Scan-error collection.
 - Finder reveal and move-to-Trash actions.
 - Logical-size and allocated-size measurement.
+- Shared-aware allocated-size measurement that counts hardlinks once and counts
+  verified full-clone data once where volume capability permits.
 - Options for hidden files, symbolic links, and application bundles.
 - Full Disk Access guidance for permission-related incomplete scans.
 - Manageable recent scan locations and persisted settings.
+- Advanced filters, saved filter presets, CSV and JSON export, and Quick Look
+  inspection.
+- A cleanup basket with reviewed Trash, move, and copy operations.
+- Opt-in local scan-history persistence.
+- Opt-in exact duplicate detection.
 - Self-contained arm64 and x64 DMG packaging.
 
-The main gaps are trusted distribution, exact physical-size accounting,
-metadata-based analysis, multi-item cleanup, and long-term comparison workflows.
+The main gaps are trusted distribution, scan-history comparison, developer
+storage insights, proactive low-storage monitoring, APFS/Time Machine snapshot
+insights, and optional direct cloud-storage scans.
 
 ## Priority and dependency overview
 
@@ -1050,7 +1058,10 @@ A work package is complete only when:
 9. The completed commits are pushed to `codex/storage-feature-roadmap`.
 10. The roadmap checkbox/status is updated in the same or a follow-up commit.
 
-## Recommended first execution sequence
+## Original recommended execution sequence
+
+This sequence records the roadmap's initial implementation order. The status
+table below is the source of truth for the current branch state.
 
 1. WP-00: correct the comparison documentation.
 2. WP-01: establish signed/notarized release infrastructure.

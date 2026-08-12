@@ -60,6 +60,8 @@ cloud-only placeholders are skipped instead of downloaded. Duplicate entries
 can be selected for Quick Look, Finder reveal, and the existing cleanup basket,
 but MacStorageAtlas never auto-selects a copy for cleanup.
 
+![Exact duplicate review tab with matching paths and reclaimable size](docs/images/07-duplicates.png)
+
 ### 🔎 Preview, reveal, or move to Trash — safely
 
 Found something to inspect? Preview the selected item with Quick Look, reveal it
@@ -79,6 +81,8 @@ replaced: an item whose name already exists there is blocked with a reason
 rather than overwritten or auto-renamed. A move across volumes copies first,
 verifies the copy, and only then removes the original, so a failed or cancelled
 transfer always leaves the source in place.
+
+![Cleanup basket summary with review, move, copy, and clear actions](docs/images/08-cleanup-basket.png)
 
 ### ⚙️ Configurable scanning
 
@@ -155,9 +159,9 @@ remembered between runs.
 - Modern, native-feeling UI that follows the system light/dark appearance, with
   a responsive treemap and a live scan-progress overlay.
 
-> Screenshots above show MacStorageAtlas analyzing its own project folder — build
-> artifacts included — which is why `.pdb`, `.dll`, and `.dmg` files dominate the
-> breakdown.
+> Completed-result screenshots above show MacStorageAtlas analyzing its own
+> project folder — build artifacts included — which is why `.pdb`, `.dll`, and
+> `.dmg` files dominate the breakdown.
 
 > Branding artwork lives under `src/MacStorageAtlas.App/Assets/`: `app.ico` (window
 > icon), `icon.png` (1024×1024 master), and `MacStorageAtlas.icns` for macOS app
@@ -184,7 +188,7 @@ and does not claim unique physical or reclaimable storage. The optional
 per-path mode counts every visited path. DaisyDisk documents full APFS-clone
 detection on macOS 14 Sonoma and later.
 
-Comparison last verified against the linked first-party sources: **2026-07-25**.
+Comparison last verified against the linked first-party sources: **2026-08-12**.
 Prices and capabilities can change; follow the links for current product
 details.
 
