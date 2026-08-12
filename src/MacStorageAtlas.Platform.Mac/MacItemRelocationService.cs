@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Relocation;
 
 namespace MacStorageAtlas.Platform.Mac;
 

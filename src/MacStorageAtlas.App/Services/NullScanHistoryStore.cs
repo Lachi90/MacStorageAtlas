@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.History;
 
 namespace MacStorageAtlas.App.Services;
 

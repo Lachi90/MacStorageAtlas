@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.History;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.App.Models;
 

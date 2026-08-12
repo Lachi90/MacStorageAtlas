@@ -1,6 +1,7 @@
 using System.IO;
 using MacStorageAtlas.App.ViewModels;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Access;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.App.Tests;
 

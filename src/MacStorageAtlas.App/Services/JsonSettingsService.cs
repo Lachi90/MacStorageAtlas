@@ -3,7 +3,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MacStorageAtlas.App.Models;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.App.Services;
 

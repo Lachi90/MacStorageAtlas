@@ -1,6 +1,6 @@
 using System;
 using CommunityToolkit.Mvvm.ComponentModel;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Items;
 
 namespace MacStorageAtlas.App.ViewModels;
 

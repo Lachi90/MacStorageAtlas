@@ -1,7 +1,8 @@
 using System.Text.Json;
 using MacStorageAtlas.App.Models;
 using MacStorageAtlas.App.Services;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Filtering;
+using MacStorageAtlas.Core.Items;
 
 namespace MacStorageAtlas.App.Tests;
 

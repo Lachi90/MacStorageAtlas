@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Export;
 
 namespace MacStorageAtlas.App.Services;
 

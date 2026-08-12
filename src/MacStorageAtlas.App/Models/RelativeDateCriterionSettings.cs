@@ -1,5 +1,5 @@
 using System;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Filtering;
 
 namespace MacStorageAtlas.App.Models;
 

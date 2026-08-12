@@ -1,5 +1,5 @@
-using MacStorageAtlas.Core;
 using MacStorageAtlas.Rendering;
+using MacStorageAtlas.Core.Items;
 
 namespace MacStorageAtlas.Rendering.Tests;
 

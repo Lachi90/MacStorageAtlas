@@ -1,5 +1,5 @@
-using MacStorageAtlas.Core;
 using MacStorageAtlas.Platform.Mac;
+using MacStorageAtlas.Core.Access;
 
 namespace MacStorageAtlas.Platform.Mac.Tests;
 

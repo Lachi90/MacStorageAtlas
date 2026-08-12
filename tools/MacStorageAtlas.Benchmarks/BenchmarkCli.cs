@@ -1,6 +1,6 @@
 using System.Text.Json;
-using MacStorageAtlas.Core;
 using MacStorageAtlas.Platform.Mac;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.Benchmarks;
 

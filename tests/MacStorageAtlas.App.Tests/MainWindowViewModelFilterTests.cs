@@ -1,7 +1,9 @@
 using System.Runtime.CompilerServices;
 using MacStorageAtlas.App.Services;
 using MacStorageAtlas.App.ViewModels;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Filtering;
+using MacStorageAtlas.Core.Items;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.App.Tests;
 

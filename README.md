@@ -261,12 +261,12 @@ space, or files that MacStorageAtlas says are safe to delete.
 ```text
 src/
   MacStorageAtlas.App              Avalonia UI and MVVM shell
-  MacStorageAtlas.Core             disk scanning and domain logic
+  MacStorageAtlas.Core             disk scanning and domain logic, grouped by domain folder
   MacStorageAtlas.Rendering        treemap layout logic
   MacStorageAtlas.Platform.Mac     macOS-specific integrations (reveal, trash, dock icon, access guidance)
 
 tests/
-  MacStorageAtlas.Core.Tests       Core NUnit tests
+  MacStorageAtlas.Core.Tests       Core NUnit tests mirroring Core domain folders
   MacStorageAtlas.Rendering.Tests  Rendering NUnit tests
   MacStorageAtlas.Platform.Mac.Tests macOS integration NUnit tests
   MacStorageAtlas.App.Tests        App and ViewModel NUnit tests

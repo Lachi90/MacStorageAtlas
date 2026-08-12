@@ -11,9 +11,18 @@ using CommunityToolkit.Mvvm.Input;
 using MacStorageAtlas.App.Converters;
 using MacStorageAtlas.App.Models;
 using MacStorageAtlas.App.Services;
-using MacStorageAtlas.Core;
 using MacStorageAtlas.Platform.Mac;
 using MacStorageAtlas.Rendering;
+using MacStorageAtlas.Core.Access;
+using MacStorageAtlas.Core.Cleanup;
+using MacStorageAtlas.Core.Export;
+using MacStorageAtlas.Core.Filtering;
+using MacStorageAtlas.Core.History;
+using MacStorageAtlas.Core.Insights;
+using MacStorageAtlas.Core.Items;
+using MacStorageAtlas.Core.Platform;
+using MacStorageAtlas.Core.Relocation;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.App.ViewModels;
 

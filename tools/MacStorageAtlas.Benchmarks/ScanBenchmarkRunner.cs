@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.Benchmarks;
 

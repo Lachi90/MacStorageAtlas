@@ -2,7 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Access;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.App.ViewModels;
 

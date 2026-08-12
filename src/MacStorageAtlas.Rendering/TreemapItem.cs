@@ -1,4 +1,4 @@
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Items;
 
 namespace MacStorageAtlas.Rendering;
 

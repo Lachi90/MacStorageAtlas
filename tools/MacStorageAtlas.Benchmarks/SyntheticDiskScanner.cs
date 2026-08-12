@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Items;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.Benchmarks;
 

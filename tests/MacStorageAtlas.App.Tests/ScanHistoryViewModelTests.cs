@@ -3,7 +3,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using MacStorageAtlas.App.Services;
 using MacStorageAtlas.App.ViewModels;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.History;
+using MacStorageAtlas.Core.Platform;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.App.Tests;
 

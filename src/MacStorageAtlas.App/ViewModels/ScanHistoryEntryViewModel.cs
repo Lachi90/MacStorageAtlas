@@ -1,7 +1,9 @@
 using System;
 using System.Globalization;
 using MacStorageAtlas.App.Converters;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.History;
+using MacStorageAtlas.Core.Items;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.App.ViewModels;
 

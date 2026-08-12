@@ -2,7 +2,7 @@ using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.Platform.Mac;
 

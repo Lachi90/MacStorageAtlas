@@ -1062,6 +1062,12 @@ A work package is complete only when:
 
 Update this table when work starts or finishes.
 
+Engineering-structure changes that do not advance a roadmap work package are
+tracked here when they affect future development workflow. Completed non-WP
+structure work: `align-test-project-structure` aligned test project boundaries,
+and `structure-core-project-folders` grouped Core and Core tests into
+folder-matching domain namespaces.
+
 | ID | Status | Owner/branch | Notes |
 | --- | --- | --- | --- |
 | WP-00 | Complete | `codex/storage-feature-roadmap` | Comparison corrected and verified 2026-07-24; OpenSpec change: `correct-market-comparison` |

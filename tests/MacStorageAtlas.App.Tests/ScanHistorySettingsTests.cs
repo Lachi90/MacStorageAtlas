@@ -1,7 +1,8 @@
 using System.IO;
 using MacStorageAtlas.App.Models;
 using MacStorageAtlas.App.Services;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.History;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.App.Tests;
 

@@ -7,7 +7,8 @@ context: |
   Tech stack: .NET 10, C#, Avalonia UI, CommunityToolkit.Mvvm, NUnit.
   Supported targets: macOS on Apple Silicon and Intel.
   Repository layout:
-  - MacStorageAtlas.Core owns portable domain and scanning logic.
+  - MacStorageAtlas.Core owns portable domain and scanning logic in
+    folder-matching namespaces grouped by domain responsibility.
   - MacStorageAtlas.Rendering owns treemap layout logic.
   - MacStorageAtlas.Platform.Mac owns macOS-specific integrations.
   - MacStorageAtlas.App owns Avalonia UI, view models, and app services.

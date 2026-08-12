@@ -11,8 +11,9 @@ using Avalonia.Threading;
 using MacStorageAtlas.App.Services;
 using MacStorageAtlas.App.ViewModels;
 using MacStorageAtlas.App.Views;
-using MacStorageAtlas.Core;
 using MacStorageAtlas.Platform.Mac;
+using MacStorageAtlas.Core.History;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.App;
 

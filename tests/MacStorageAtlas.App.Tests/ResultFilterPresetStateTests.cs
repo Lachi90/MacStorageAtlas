@@ -1,5 +1,5 @@
 using MacStorageAtlas.App.ViewModels;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Filtering;
 
 namespace MacStorageAtlas.App.Tests;
 

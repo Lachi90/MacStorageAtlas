@@ -7,7 +7,9 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MacStorageAtlas.App.Services;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.History;
+using MacStorageAtlas.Core.Items;
+using MacStorageAtlas.Core.Platform;
 
 namespace MacStorageAtlas.App.ViewModels;
 

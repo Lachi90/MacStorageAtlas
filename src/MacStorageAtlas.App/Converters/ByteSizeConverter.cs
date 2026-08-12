@@ -2,7 +2,7 @@ using System;
 using System.Globalization;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Items;
 
 namespace MacStorageAtlas.App.Converters;
 

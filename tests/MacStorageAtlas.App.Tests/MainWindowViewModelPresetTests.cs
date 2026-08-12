@@ -2,8 +2,10 @@ using System.Runtime.CompilerServices;
 using MacStorageAtlas.App.Models;
 using MacStorageAtlas.App.Services;
 using MacStorageAtlas.App.ViewModels;
-using MacStorageAtlas.Core;
 using NSubstitute;
+using MacStorageAtlas.Core.Cleanup;
+using MacStorageAtlas.Core.Items;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.App.Tests;
 

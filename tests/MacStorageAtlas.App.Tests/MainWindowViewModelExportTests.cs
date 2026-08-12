@@ -3,7 +3,9 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using MacStorageAtlas.App.Services;
 using MacStorageAtlas.App.ViewModels;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Export;
+using MacStorageAtlas.Core.Items;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.App.Tests;
 

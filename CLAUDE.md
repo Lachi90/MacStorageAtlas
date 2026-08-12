@@ -15,14 +15,21 @@ synchronized.
 ## Repository structure
 
 - `src/MacStorageAtlas.Core` owns scan-domain logic and must remain independent
-  of Avalonia.
+  of Avalonia. Core source files live in domain folders: `Access`, `Cleanup`,
+  `Export`, `Filtering`, `History`, `Insights`, `Items`, `Platform`,
+  `Relocation`, `Scanning`, and `Serialization`.
+- Core namespaces must match those folders, using `MacStorageAtlas.Core.<Folder>`
+  for domain code. Do not add new domain source files directly under
+  `src/MacStorageAtlas.Core`; only `Properties/AssemblyInfo.cs` remains in the
+  project root.
 - `src/MacStorageAtlas.Rendering` owns treemap layout calculations.
 - `src/MacStorageAtlas.Platform.Mac` owns Finder, Trash, Dock, and other
   macOS-specific integrations.
 - `src/MacStorageAtlas.App` owns Avalonia views, application services,
   ViewModels, and the composition root.
 - NUnit tests live in assembly-aligned projects under `tests/`: Core, Rendering,
-  Platform.Mac, App, and Benchmarks.
+  Platform.Mac, App, and Benchmarks. Core tests mirror Core's domain folders and
+  use matching `MacStorageAtlas.Core.Tests.<Folder>` namespaces.
 - Keep dependencies flowing toward Core. Do not add UI dependencies to Core or
   platform dependencies to Rendering.
 

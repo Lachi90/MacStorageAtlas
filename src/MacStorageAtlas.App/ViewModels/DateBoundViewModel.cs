@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Filtering;
 
 namespace MacStorageAtlas.App.ViewModels;
 

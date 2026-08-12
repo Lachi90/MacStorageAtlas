@@ -3,7 +3,8 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Cleanup;
+using MacStorageAtlas.Core.Items;
 
 namespace MacStorageAtlas.App.Services;
 

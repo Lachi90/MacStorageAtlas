@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.App.ViewModels;
 

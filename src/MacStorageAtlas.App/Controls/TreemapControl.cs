@@ -6,8 +6,8 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Styling;
-using MacStorageAtlas.Core;
 using MacStorageAtlas.Rendering;
+using MacStorageAtlas.Core.Items;
 
 namespace MacStorageAtlas.App.Controls;
 

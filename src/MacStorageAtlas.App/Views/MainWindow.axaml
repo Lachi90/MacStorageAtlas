@@ -2,7 +2,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:MacStorageAtlas.App.ViewModels"
         xmlns:controls="using:MacStorageAtlas.App.Controls"
-        xmlns:core="using:MacStorageAtlas.Core"
+        xmlns:coreFiltering="using:MacStorageAtlas.Core.Filtering"
+        xmlns:coreInsights="using:MacStorageAtlas.Core.Insights"
+        xmlns:coreItems="using:MacStorageAtlas.Core.Items"
+        xmlns:coreScanning="using:MacStorageAtlas.Core.Scanning"
         xmlns:conv="using:MacStorageAtlas.App.Converters"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -283,7 +286,7 @@
                                     <ComboBox ItemsSource="{Binding MeasurementModes}"
                                               SelectedItem="{Binding MeasurementMode, Mode=TwoWay}">
                                         <ComboBox.ItemTemplate>
-                                            <DataTemplate x:DataType="core:StorageMeasurementMode">
+                                            <DataTemplate x:DataType="coreScanning:StorageMeasurementMode">
                                                 <TextBlock Text="{Binding Converter={x:Static conv:StorageMeasurementModeLabelConverter.Instance}}"/>
                                             </DataTemplate>
                                         </ComboBox.ItemTemplate>
@@ -452,7 +455,7 @@
                                     <TextBlock Classes="label" Text="Presets"/>
                                     <ItemsControl ItemsSource="{Binding Presets}">
                                         <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="core:FilterPreset">
+                                            <DataTemplate x:DataType="coreFiltering:FilterPreset">
                                                 <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,2">
                                                     <Button Grid.Column="0"
                                                             HorizontalAlignment="Stretch"
@@ -1012,7 +1015,7 @@
                                     <ScrollViewer>
                                         <ItemsControl ItemsSource="{Binding FileTypeSummaries}">
                                             <ItemsControl.ItemTemplate>
-                                                <DataTemplate x:DataType="core:FileTypeSummary">
+                                                <DataTemplate x:DataType="coreInsights:FileTypeSummary">
                                                     <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="16" Margin="0,4">
                                                         <TextBlock Grid.Column="0" Text="{Binding Extension}"/>
                                                         <TextBlock Grid.Column="1" Classes="subtle" Text="{Binding FileCount}" MinWidth="60" TextAlignment="Right"/>
@@ -1035,7 +1038,7 @@
                                              SelectedItem="{Binding SelectedLargeFile, Mode=TwoWay}"
                                              Background="Transparent">
                                         <ListBox.ItemTemplate>
-                                            <DataTemplate x:DataType="core:DiskItem">
+                                            <DataTemplate x:DataType="coreItems:DiskItem">
                                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                                                     <StackPanel Grid.Column="0" Spacing="2">
                                                         <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
@@ -1073,7 +1076,7 @@
                                              SelectedItem="{Binding SelectedScanError, Mode=TwoWay}"
                                              Background="Transparent">
                                         <ListBox.ItemTemplate>
-                                            <DataTemplate x:DataType="core:ScanError">
+                                            <DataTemplate x:DataType="coreScanning:ScanError">
                                                 <Grid ColumnDefinitions="2*,*,3*" ColumnSpacing="12" Margin="0,2">
                                                     <TextBlock Grid.Column="0" Text="{Binding Path}" TextWrapping="Wrap"/>
                                                     <TextBlock Grid.Column="1" Classes="subtle" Text="{Binding ExceptionType}" TextWrapping="Wrap"/>
