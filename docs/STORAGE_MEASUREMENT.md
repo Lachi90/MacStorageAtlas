@@ -25,6 +25,15 @@ contents, hash files, open data forks for clone inspection, enumerate physical
 extents, contact a cloud provider, or request that an undownloaded placeholder
 be materialized.
 
+Exact duplicate analysis is a separate, opt-in post-scan operation. It compares
+current logical byte contents for regular files, so it can identify
+byte-identical files but does not change the scan's measurement basis or prove
+shared physical storage. Known hardlinked paths are reported as linked paths
+rather than reclaimable duplicate copies, and known not-local cloud placeholders
+are skipped instead of downloaded. Files whose cloud-local status cannot be
+determined are treated conservatively and may still fail as skipped candidates
+if opening the current local content is unavailable.
+
 ## Volume-capacity terms
 
 These terms describe a filesystem or APFS volume, not the sum of a scan tree:

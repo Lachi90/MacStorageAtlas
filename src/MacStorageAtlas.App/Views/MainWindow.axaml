@@ -1054,6 +1054,111 @@
                                 </DockPanel>
                             </TabItem>
 
+<TabItem Header="Duplicates">
+                                <DockPanel Margin="0,12,0,0">
+                                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,8">
+                                        <StackPanel Grid.Column="0" Spacing="2">
+                                            <TextBlock>
+                                                <Run Text="{Binding DuplicateGroupCount}"/><Run Text=" groups"/>
+                                                <Run Text=" · "/><Run Text="{Binding FormattedDuplicateReclaimableSize}"/>
+                                            </TextBlock>
+                                            <TextBlock Classes="caption"
+                                                       Text="{Binding DuplicateAnalysisStatusMessage}"
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding DuplicateAnalysisStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                            <TextBlock Classes="caption"
+                                                       Text="{Binding DuplicateAnalysisProgressMessage}"
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding DuplicateAnalysisProgressMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Command="{Binding StartDuplicateAnalysisCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <PathIcon Data="{StaticResource IconSearch}"/>
+                                                <TextBlock Text="Find"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Grid.Column="2"
+                                                Command="{Binding CancelDuplicateAnalysisCommand}"
+                                                IsVisible="{Binding IsAnalyzingDuplicates}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <PathIcon Data="{StaticResource IconStop}"/>
+                                                <TextBlock Text="Cancel"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                    <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="10">
+                                        <TextBlock Grid.Row="0"
+                                                   Classes="subtle"
+                                                   Text="No duplicate analysis result for this scan."
+                                                   IsVisible="{Binding !HasDuplicateGroups}"/>
+                                        <ListBox Grid.Row="1"
+                                                 ItemsSource="{Binding DuplicateGroups}"
+                                                 IsVisible="{Binding HasDuplicateGroups}"
+                                                 Background="Transparent">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate x:DataType="coreInsights:DuplicateGroup">
+                                                    <DockPanel Margin="0,0,0,10">
+                                                        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,0,0,4">
+                                                            <TextBlock Grid.Column="0">
+                                                                <Run Text="{Binding Entries.Count}"/><Run Text=" matching paths"/>
+                                                            </TextBlock>
+                                                            <TextBlock Grid.Column="1"
+                                                                       Text="{Binding ReclaimableSizeBytes, Converter={x:Static conv:ByteSizeConverter.Instance}}"/>
+                                                        </Grid>
+                                                        <ListBox ItemsSource="{Binding Entries}"
+                                                                 SelectedItem="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectedDuplicateEntry, Mode=TwoWay}"
+                                                                 Background="Transparent">
+                                                            <ListBox.ItemTemplate>
+                                                                <DataTemplate x:DataType="coreInsights:DuplicateGroupEntry">
+                                                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10" Margin="0,2">
+                                                                        <StackPanel Grid.Column="0" Spacing="2">
+                                                                            <TextBlock Text="{Binding Item.Name}" TextTrimming="CharacterEllipsis"/>
+                                                                            <TextBlock Classes="caption" Text="{Binding Item.Path}" TextTrimming="CharacterEllipsis"/>
+                                                                        </StackPanel>
+                                                                        <TextBlock Grid.Column="1"
+                                                                                   Classes="caption"
+                                                                                   VerticalAlignment="Center"
+                                                                                   Text="{Binding Kind}"/>
+                                                                        <TextBlock Grid.Column="2"
+                                                                                   VerticalAlignment="Center"
+                                                                                   Text="{Binding LogicalSizeBytes, Converter={x:Static conv:ByteSizeConverter.Instance}}"/>
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ListBox.ItemTemplate>
+                                                        </ListBox>
+                                                    </DockPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <TextBlock Grid.Row="2"
+                                                   Classes="caption"
+                                                   IsVisible="{Binding DuplicateSkippedCandidateCount}">
+                                            <Run Text="Skipped "/><Run Text="{Binding DuplicateSkippedCandidateCount}"/><Run Text=" files"/>
+                                        </TextBlock>
+                                        <ListBox Grid.Row="3"
+                                                 ItemsSource="{Binding DuplicateSkippedCandidates}"
+                                                 IsVisible="{Binding DuplicateSkippedCandidateCount}"
+                                                 MaxHeight="160"
+                                                 Background="Transparent">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate x:DataType="coreInsights:DuplicateSkippedCandidate">
+                                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="0,2">
+                                                        <StackPanel Grid.Column="0" Spacing="2">
+                                                            <TextBlock Text="{Binding Item.Name}" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Classes="caption" Text="{Binding Item.Path}" TextTrimming="CharacterEllipsis"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="1"
+                                                                   Classes="caption"
+                                                                   VerticalAlignment="Center"
+                                                                   Text="{Binding Reason}"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Grid>
+                                </DockPanel>
+                            </TabItem>
+
 <TabItem>
                                 <TabItem.Header>
                                     <TextBlock>

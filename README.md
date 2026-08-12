@@ -49,6 +49,17 @@ counts, sizes, and full paths.
 | --- | --- |
 | ![Storage grouped by file extension](docs/images/03-file-types.png) | ![List of the largest files with paths](docs/images/04-largest-files.png) |
 
+### 🧩 Exact duplicate review
+
+After a scan completes, run an opt-in duplicate analysis to find byte-identical
+regular files. MacStorageAtlas narrows candidates by current logical length,
+samples file edges, hashes surviving content with bounded buffers, and confirms
+matches byte for byte before showing them. Analysis can be cancelled, hardlinked
+paths are shown as linked paths rather than reclaimable copies, and known
+cloud-only placeholders are skipped instead of downloaded. Duplicate entries
+can be selected for Quick Look, Finder reveal, and the existing cleanup basket,
+but MacStorageAtlas never auto-selects a copy for cleanup.
+
 ### 🔎 Preview, reveal, or move to Trash — safely
 
 Found something to inspect? Preview the selected item with Quick Look, reveal it
@@ -91,6 +102,12 @@ between runs.
 - Preview the selected item with Quick Look using the toolbar or its Actions
   menu, and use Space or Command-I shortcuts for inspection.
 - See storage broken down by file type and a list of the largest files.
+- Run opt-in exact duplicate analysis after a scan completes. Duplicate
+  analysis reads local file contents only when candidates survive metadata and
+  sample checks, can be cancelled, skips known cloud-only placeholders, shows
+  hardlinks as linked paths, and lets duplicate entries flow through the same
+  Quick Look, Finder reveal, and cleanup-basket review commands as other
+  scanned items.
 - Search and filter scanned items by name or path, and press Command-F to jump
   to the search box.
 - Narrow a completed scan with advanced filters covering size, creation,

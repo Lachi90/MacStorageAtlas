@@ -1432,3 +1432,61 @@ after a completed result is displayed, and cancels a capture in progress when a
 new scan starts. Capture writes to a pending file, measures the finished
 compressed size, applies retention, and only then publishes by move, so a
 cancelled or failed capture never leaves a partial snapshot behind.
+
+# 32. Exact Duplicate Detection
+
+## Status
+
+Delivered by WP-10 (`detect-exact-duplicates`).
+
+## Purpose
+
+Find regular files whose current contents are byte-identical, while avoiding
+false-positive cleanup guidance and avoiding unnecessary file reads.
+
+## Acceptance Criteria
+
+- Duplicate analysis starts only after a scan result exists and is cancelled
+  independently of scanning.
+- Candidates are narrowed by current logical length before any content stream is
+  opened.
+- Zero-length files are ignored by default.
+- Beginning and ending samples are compared before full-content hashing.
+- Full-content hashing uses bounded buffers and remains cancellable.
+- A final byte-for-byte comparison confirms equality before a group is reported.
+- Known hardlinked paths are shown as linked paths instead of reclaimable
+  duplicate copies.
+- Known not-local cloud placeholders are skipped instead of downloaded.
+- Changed, missing, replaced, unreadable, and not-local candidates are reported
+  without stopping unrelated analysis.
+- Reclaimable totals preserve one retained copy per group.
+- Duplicate entries can be selected for Quick Look, Finder reveal, and
+  cleanup-basket review through the existing selected-item commands.
+- No duplicate copy is automatically selected for cleanup.
+
+## Documented non-goals
+
+- Fuzzy matching, perceptual image or audio matching, and near-duplicate
+  detection.
+- Proving APFS clone or shared-extent relationships from equal contents.
+- Automatically choosing which copy to remove.
+- Downloading cloud-only content to complete duplicate analysis.
+- Persisting duplicate analysis results in scan history snapshots.
+
+## Affected Projects
+
+- `MacStorageAtlas.Core`
+- `MacStorageAtlas.Platform.Mac`
+- `MacStorageAtlas.App`
+- `MacStorageAtlas.*.Tests`
+
+## Implementation Notes
+
+Core owns duplicate models, progress reporting, candidate grouping, sampling,
+streaming hashing, final equality confirmation, hardlink classification, and
+skip reporting. Platform.Mac provides current file length, file identity,
+hardlink count, local-content availability, and read streams. The App composes
+the analyzer after a completed scan, runs it off the UI thread, exposes progress
+and cancellation, clears duplicate results when the scan changes, and presents
+duplicate groups in a dedicated review tab that feeds the existing selected-item
+and cleanup-basket commands.

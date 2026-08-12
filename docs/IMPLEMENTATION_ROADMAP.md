@@ -758,6 +758,11 @@ Users can find byte-identical duplicate files with a low false-positive risk.
 ### Tests and verification
 
 - Known equal and same-size-different-content fixtures.
+- Beginning, middle, and ending difference fixtures.
+- Changed, missing, replaced, unreadable, and not-local candidates.
+- Hardlinks shown as linked paths and excluded from reclaimable totals.
+- View-model coverage for progress, cancellation, selection, cleanup-basket
+  integration, and clearing stale results when a scan is replaced.
 - Changed-while-hashing, read-error, cancellation, and hardlink tests.
 - Large-file streaming test proving contents are not buffered in memory.
 
@@ -1080,7 +1085,7 @@ folder-matching domain namespaces.
 | WP-07 | Complete | `codex/storage-feature-roadmap` | Cleanup basket and reviewed multi-item Trash workflow (`add-cleanup-basket`) plus shared sensitive-path cleanup protection (`protect-sensitive-paths`) complete |
 | WP-08 | Complete | `codex/storage-feature-roadmap` | Basket move and copy with destination preflight and cross-volume copy-then-verified-delete (`move-and-copy-items`); rename and replace collision policies deliberately deferred |
 | WP-09 | Partial | `codex/storage-feature-roadmap` | Persistence half delivered (`persist-scan-history`): opt-in gzip-compressed full-fidelity snapshots, retention by count and total size, completeness verdict per snapshot, and history listing, deletion, and clearing. Comparison between two snapshots remains outstanding. Scope changes: move and rename detection deferred because stable file identity exists today only in shared-aware allocated mode, and snapshots are never truncated to fit a limit because an omitted item is indistinguishable from a deleted one |
-| WP-10 | Planned | `codex/storage-feature-roadmap` | Exact matches only |
+| WP-10 | Complete | `codex/storage-feature-roadmap` | Exact duplicate detection (`detect-exact-duplicates`) complete with opt-in local content reads, byte-for-byte confirmation, hardlink-aware reclaimable totals, cloud-placeholder skips, cancellation, and duplicate review integration |
 | WP-11 | Planned | `codex/storage-feature-roadmap` | Maintain versioned rule catalog |
 | WP-12 | Planned | `codex/storage-feature-roadmap` | Opt-in only |
 | WP-13 | Planned | `codex/storage-feature-roadmap` | Read-only phase first |

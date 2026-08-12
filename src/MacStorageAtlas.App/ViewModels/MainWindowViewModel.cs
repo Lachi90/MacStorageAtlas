@@ -48,6 +48,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IItemRelocationService _itemRelocationService;
     private readonly IRelocationDestinationProbe _relocationDestinationProbe;
     private readonly IScanHistoryStore _scanHistoryStore;
+    private readonly DuplicateAnalyzer _duplicateAnalyzer;
     private readonly AccessGuidanceClassifier _accessGuidanceClassifier = new();
     private readonly ITreemapLayoutService _treemapLayoutService = new TreemapLayoutService();
     private readonly FileTypeStatisticsService _fileTypeStatisticsService = new();
@@ -66,6 +67,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private CancellationTokenSource? _treePreparationCancellation;
     private CancellationTokenSource? _cleanupBasketCancellation;
     private CancellationTokenSource? _scanHistoryCancellation;
+    private CancellationTokenSource? _duplicateAnalysisCancellation;
     private FilterResult? _filterResult;
     private double? _windowWidth;
     private double? _windowHeight;
@@ -117,6 +119,7 @@ public partial class MainWindowViewModel : ViewModelBase
         IRelocationDestinationProbe? relocationDestinationProbe = null,
         IScanHistoryStore? scanHistoryStore = null,
         IScanHistoryClearConfirmationService? scanHistoryClearConfirmationService = null,
+        DuplicateAnalyzer? duplicateAnalyzer = null,
         TimeSpan? searchDebounceInterval = null,
         Func<DateTimeOffset>? referenceTimeProvider = null)
     {
@@ -143,6 +146,18 @@ public partial class MainWindowViewModel : ViewModelBase
         _relocationDestinationProbe =
             relocationDestinationProbe ?? new FileSystemRelocationDestinationProbe();
         _scanHistoryStore = scanHistoryStore ?? new NullScanHistoryStore();
+        if (duplicateAnalyzer is null)
+        {
+            var duplicateCandidateReader = new MacDuplicateCandidateReader();
+            _duplicateAnalyzer = new DuplicateAnalyzer(
+                duplicateCandidateReader,
+                duplicateCandidateReader);
+        }
+        else
+        {
+            _duplicateAnalyzer = duplicateAnalyzer;
+        }
+
         ScanHistory = new ScanHistoryViewModel(
             _scanHistoryStore,
             scanHistoryClearConfirmationService
@@ -384,13 +399,54 @@ public partial class MainWindowViewModel : ViewModelBase
     private IReadOnlyList<FileTypeSummary> _fileTypeSummaries = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDuplicateGroups))]
+    [NotifyPropertyChangedFor(nameof(DuplicateGroupCount))]
+    [NotifyPropertyChangedFor(nameof(FormattedDuplicateReclaimableSize))]
+    private IReadOnlyList<DuplicateGroup> _duplicateGroups = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DuplicateSkippedCandidateCount))]
+    private IReadOnlyList<DuplicateSkippedCandidate> _duplicateSkippedCandidates = [];
+
+    [ObservableProperty]
+    private DuplicateGroupEntry? _selectedDuplicateEntry;
+
+    [ObservableProperty]
+    private bool _isAnalyzingDuplicates;
+
+    partial void OnIsAnalyzingDuplicatesChanged(bool value)
+    {
+        StartDuplicateAnalysisCommand.NotifyCanExecuteChanged();
+        CancelDuplicateAnalysisCommand.NotifyCanExecuteChanged();
+    }
+
+    [ObservableProperty]
+    private string? _duplicateAnalysisStatusMessage;
+
+    [ObservableProperty]
+    private string? _duplicateAnalysisProgressMessage;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedTreemapItem))]
     private TreemapRect? _selectedTreemapRectangle;
 
     public DiskItem? SelectedTreemapItem => SelectedTreemapRectangle?.Item.Item;
 
     public DiskItem? SelectedItem =>
-        SelectedTreeItem?.Item ?? SelectedTreemapItem ?? SelectedLargeFile;
+        SelectedTreeItem?.Item
+        ?? SelectedTreemapItem
+        ?? SelectedLargeFile
+        ?? SelectedDuplicateEntry?.Item;
+
+    public bool HasDuplicateGroups => DuplicateGroups.Count > 0;
+
+    public int DuplicateGroupCount => DuplicateGroups.Count;
+
+    public int DuplicateSkippedCandidateCount => DuplicateSkippedCandidates.Count;
+
+    public string FormattedDuplicateReclaimableSize =>
+        FileSizeFormatter.Format(
+            DuplicateGroups.Sum(group => group.ReclaimableSizeBytes));
 
     public string SelectedItemMeasuredSize => SelectedItem is null
         ? string.Empty
@@ -538,6 +594,7 @@ public partial class MainWindowViewModel : ViewModelBase
         StopScanCommand.NotifyCanExecuteChanged();
         OpenFullDiskAccessSettingsCommand.NotifyCanExecuteChanged();
         RescanAfterFullDiskAccessCommand.NotifyCanExecuteChanged();
+        StartDuplicateAnalysisCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnIncludeHiddenFilesChanged(bool value) => SaveSettings();
@@ -634,6 +691,11 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private bool CanCopyErrorPath() => SelectedScanError is not null;
 
+    private bool CanStartDuplicateAnalysis() =>
+        _scanRoot is not null && !IsScanning && !IsAnalyzingDuplicates;
+
+    private bool CanCancelDuplicateAnalysis() => IsAnalyzingDuplicates;
+
     [RelayCommand(CanExecute = nameof(CanCopyErrorPath))]
     private async Task CopyErrorPathAsync()
     {
@@ -642,6 +704,93 @@ public partial class MainWindowViewModel : ViewModelBase
             await _clipboardService.SetTextAsync(error.Path);
         }
     }
+
+    [RelayCommand(CanExecute = nameof(CanStartDuplicateAnalysis))]
+    private async Task StartDuplicateAnalysisAsync()
+    {
+        if (_scanRoot is not { } root || IsAnalyzingDuplicates)
+        {
+            return;
+        }
+
+        CancelDuplicateAnalysis();
+        var cancellation = new CancellationTokenSource();
+        _duplicateAnalysisCancellation = cancellation;
+
+        await _uiDispatcher.InvokeAsync(() =>
+        {
+            IsAnalyzingDuplicates = true;
+            DuplicateGroups = [];
+            DuplicateSkippedCandidates = [];
+            SelectedDuplicateEntry = null;
+            DuplicateAnalysisStatusMessage = null;
+            DuplicateAnalysisProgressMessage = "Finding duplicate candidates...";
+        });
+
+        var progress = new Progress<DuplicateAnalysisProgress>(
+            value => _ = _uiDispatcher.InvokeAsync(() =>
+                ApplyDuplicateAnalysisProgress(value)));
+
+        try
+        {
+            var result = await Task.Run(
+                    () => _duplicateAnalyzer.AnalyzeAsync(
+                        root,
+                        progress: progress,
+                        cancellationToken: cancellation.Token),
+                    cancellation.Token)
+                .ConfigureAwait(false);
+
+            await _uiDispatcher.InvokeAsync(() =>
+            {
+                DuplicateGroups = result.Groups;
+                DuplicateSkippedCandidates = result.SkippedCandidates;
+                DuplicateAnalysisStatusMessage = DuplicateAnalysisCompletionMessage(result);
+                DuplicateAnalysisProgressMessage = null;
+            }).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            await _uiDispatcher.InvokeAsync(() =>
+            {
+                DuplicateAnalysisStatusMessage = "Duplicate analysis cancelled.";
+                DuplicateAnalysisProgressMessage = null;
+            }).ConfigureAwait(false);
+        }
+        catch (IOException)
+        {
+            await _uiDispatcher.InvokeAsync(() =>
+            {
+                DuplicateAnalysisStatusMessage =
+                    "Duplicate analysis could not read one or more files.";
+                DuplicateAnalysisProgressMessage = null;
+            }).ConfigureAwait(false);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await _uiDispatcher.InvokeAsync(() =>
+            {
+                DuplicateAnalysisStatusMessage =
+                    "Duplicate analysis could not access one or more files.";
+                DuplicateAnalysisProgressMessage = null;
+            }).ConfigureAwait(false);
+        }
+        finally
+        {
+            await _uiDispatcher.InvokeAsync(() =>
+            {
+                IsAnalyzingDuplicates = false;
+                if (ReferenceEquals(_duplicateAnalysisCancellation, cancellation))
+                {
+                    _duplicateAnalysisCancellation = null;
+                }
+            }).ConfigureAwait(false);
+            cancellation.Dispose();
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCancelDuplicateAnalysis))]
+    private void CancelDuplicateAnalysis() => _duplicateAnalysisCancellation?.Cancel();
 
     partial void OnSelectedScanErrorChanged(ScanError? value) =>
         CopyErrorPathCommand.NotifyCanExecuteChanged();
@@ -1202,6 +1351,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ScanOptions options,
         bool addRecentLocation)
     {
+        CancelDuplicateAnalysis();
         CancelScanHistoryCapture();
 
         var cancellation = new CancellationTokenSource();
@@ -1241,6 +1391,7 @@ public partial class MainWindowViewModel : ViewModelBase
             ScanHistoryStatusMessage = null;
             AccessGuidance = AccessGuidance.None;
             ClearCleanupBasketForResultReplacement();
+            ClearDuplicateAnalysisForResultReplacement();
         });
 
         ScanProgress? completedProgress = null;
@@ -1482,7 +1633,49 @@ public partial class MainWindowViewModel : ViewModelBase
                 progress.Errors,
                 accessAssessment ?? FullDiskAccessAssessment.Indeterminate);
             ApplySearch();
+            StartDuplicateAnalysisCommand.NotifyCanExecuteChanged();
         }
+    }
+
+    private void ApplyDuplicateAnalysisProgress(DuplicateAnalysisProgress progress)
+    {
+        DuplicateAnalysisProgressMessage = progress.Stage switch
+        {
+            DuplicateAnalysisStage.CollectingCandidates =>
+                "Finding duplicate candidates...",
+            DuplicateAnalysisStage.SamplingCandidates =>
+                $"Sampling {progress.CandidatesExamined} of {progress.CandidateCount} candidates...",
+            DuplicateAnalysisStage.HashingCandidates =>
+                $"Hashing {progress.CandidatesExamined} of {progress.CandidateCount} candidates...",
+            DuplicateAnalysisStage.ConfirmingEquality =>
+                $"Confirming {progress.CandidatesExamined} of {progress.CandidateCount} candidates...",
+            DuplicateAnalysisStage.Completed =>
+                null,
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(progress),
+                progress.Stage,
+                null)
+        };
+    }
+
+    private static string DuplicateAnalysisCompletionMessage(
+        DuplicateAnalysisResult result)
+    {
+        if (result.Groups.Count == 0 && result.SkippedCandidates.Count == 0)
+        {
+            return "No exact duplicates found.";
+        }
+
+        if (result.Groups.Count == 0)
+        {
+            return $"No exact duplicates found. Skipped {result.SkippedCandidates.Count} files.";
+        }
+
+        var groupText = result.Groups.Count == 1 ? "group" : "groups";
+        var reclaimable = FileSizeFormatter.Format(result.Summary.ReclaimableSizeBytes);
+        return result.SkippedCandidates.Count == 0
+            ? $"Found {result.Groups.Count} exact duplicate {groupText}, preserving one copy per group. Reclaimable: {reclaimable}."
+            : $"Found {result.Groups.Count} exact duplicate {groupText}, preserving one copy per group. Reclaimable: {reclaimable}. Skipped {result.SkippedCandidates.Count} files.";
     }
 
     private FullDiskAccessAssessment CheckFullDiskAccess(string rootPath)
@@ -1513,6 +1706,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             SelectedTreemapRectangle = null;
             SelectedLargeFile = null;
+            SelectedDuplicateEntry = null;
             TreemapRectangles = LayoutChildren(value.Item);
         }
     }
@@ -1533,6 +1727,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             SelectedTreeItem = null;
             SelectedLargeFile = null;
+            SelectedDuplicateEntry = null;
         }
     }
 
@@ -1552,6 +1747,27 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             SelectedTreeItem = null;
             SelectedTreemapRectangle = null;
+            SelectedDuplicateEntry = null;
+        }
+    }
+
+    partial void OnSelectedDuplicateEntryChanged(DuplicateGroupEntry? value)
+    {
+        NotifySelectedItemPropertiesChanged();
+        RevealInFinderCommand.NotifyCanExecuteChanged();
+        QuickLookCommand.NotifyCanExecuteChanged();
+        ShowSelectedItemDetailsCommand.NotifyCanExecuteChanged();
+        MoveToTrashCommand.NotifyCanExecuteChanged();
+        NotifyCleanupBasketCommandsCanExecuteChanged();
+        RevealStatusMessage = null;
+        QuickLookStatusMessage = null;
+        TrashStatusMessage = null;
+
+        if (value is not null)
+        {
+            SelectedTreeItem = null;
+            SelectedTreemapRectangle = null;
+            SelectedLargeFile = null;
         }
     }
 
@@ -1592,6 +1808,17 @@ public partial class MainWindowViewModel : ViewModelBase
         _cleanupBasketPlanner = null;
         CleanupBasketStatusMessage = null;
         RefreshCleanupBasketState();
+    }
+
+    private void ClearDuplicateAnalysisForResultReplacement()
+    {
+        DuplicateGroups = [];
+        DuplicateSkippedCandidates = [];
+        SelectedDuplicateEntry = null;
+        DuplicateAnalysisStatusMessage = null;
+        DuplicateAnalysisProgressMessage = null;
+        StartDuplicateAnalysisCommand.NotifyCanExecuteChanged();
+        CancelDuplicateAnalysisCommand.NotifyCanExecuteChanged();
     }
 
     private void RefreshCleanupBasketState()
@@ -1935,6 +2162,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ScanFolderCommand.NotifyCanExecuteChanged();
         RescanCommand.NotifyCanExecuteChanged();
         RescanAfterFullDiskAccessCommand.NotifyCanExecuteChanged();
+        StartDuplicateAnalysisCommand.NotifyCanExecuteChanged();
         NotifyExportCommandsCanExecuteChanged();
     }
 
