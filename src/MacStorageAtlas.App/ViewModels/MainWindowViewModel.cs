@@ -1315,7 +1315,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (!Directory.Exists(path))
         {
-            RemoveRecentLocation(path);
+            RemoveRecentLocationEntry(path);
             RecentLocationStatusMessage =
                 $"“{path}” no longer exists and was removed from recent locations.";
             return;
@@ -1344,6 +1344,36 @@ public partial class MainWindowViewModel : ViewModelBase
         };
 
         await RunScanAsync(rootPath, options, addRecentLocation: true);
+    }
+
+    [RelayCommand]
+    private void RemoveRecentLocation(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        var removed = RemoveRecentLocationEntry(path);
+        if (removed)
+        {
+            RecentLocationStatusMessage =
+                $"Removed “{path}” from recent locations.";
+        }
+    }
+
+    [RelayCommand]
+    private void ClearRecentLocations()
+    {
+        if (RecentLocations.Count == 0)
+        {
+            RecentLocationStatusMessage = "No recent locations to clear.";
+            return;
+        }
+
+        RecentLocations = [];
+        SaveSettings();
+        RecentLocationStatusMessage = "Cleared recent locations.";
     }
 
     private async Task RunScanAsync(
@@ -2464,12 +2494,20 @@ public partial class MainWindowViewModel : ViewModelBase
         SaveSettings();
     }
 
-    private void RemoveRecentLocation(string path)
+    private bool RemoveRecentLocationEntry(string path)
     {
-        RecentLocations = RecentLocations
+        var updated = RecentLocations
             .Where(existing =>
                 !string.Equals(existing, path, StringComparison.OrdinalIgnoreCase))
             .ToArray();
+
+        if (updated.Length == RecentLocations.Count)
+        {
+            return false;
+        }
+
+        RecentLocations = updated;
         SaveSettings();
+        return true;
     }
 }

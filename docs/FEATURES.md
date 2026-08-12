@@ -970,6 +970,9 @@ Allow users to quickly rescan previous locations.
 - Recent folders are shown in the UI.
 - Missing folders are handled gracefully.
 - Duplicate entries are avoided.
+- Individual recent folders can be removed without scanning them.
+- The entire recent-folder list can be cleared without changing scan history or
+  scanner preferences.
 
 ## Affected Projects
 
@@ -991,6 +994,9 @@ Requirements:
 - Limit recent entries to 10.
 - Allow user to select a recent location for scanning.
 - Handle paths that no longer exist.
+- Allow user to remove one recent location without scanning it.
+- Allow user to clear all recent locations without changing scan history or
+  scanner preferences.
 ```
 
 ---

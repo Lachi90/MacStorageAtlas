@@ -7,6 +7,7 @@ using MacStorageAtlas.App.ViewModels;
 using MacStorageAtlas.Rendering;
 using NSubstitute;
 using MacStorageAtlas.Core.Cleanup;
+using MacStorageAtlas.Core.History;
 using MacStorageAtlas.Core.Items;
 using MacStorageAtlas.Core.Platform;
 using MacStorageAtlas.Core.Scanning;
@@ -2028,6 +2029,243 @@ public class MainWindowViewModelTests
         });
     }
 
+    [Test]
+    public void RemoveRecentLocationCommandRemovesOneLocationAndPreservesOrder()
+    {
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            new InMemorySettingsService());
+        viewModel.RecentLocations = ["/a", "/b", "/c"];
+
+        viewModel.RemoveRecentLocationCommand.Execute("/b");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.RecentLocations, Is.EqualTo(new[] { "/a", "/c" }));
+            Assert.That(viewModel.RecentLocationStatusMessage, Does.Contain("Removed"));
+        });
+    }
+
+    [Test]
+    public void RemoveRecentLocationCommandIgnoresUnknownLocation()
+    {
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            new InMemorySettingsService());
+        viewModel.RecentLocations = ["/a", "/b"];
+
+        viewModel.RemoveRecentLocationCommand.Execute("/c");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.RecentLocations, Is.EqualTo(new[] { "/a", "/b" }));
+            Assert.That(viewModel.RecentLocationStatusMessage, Is.Null);
+        });
+    }
+
+    [Test]
+    public void ClearRecentLocationsCommandClearsAListWithoutStartingScan()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            scanner,
+            new RecordingUiDispatcher());
+        viewModel.RecentLocations = ["/a", "/b"];
+
+        viewModel.ClearRecentLocationsCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.RecentLocations, Is.Empty);
+            Assert.That(scanner.ScanCount, Is.Zero);
+            Assert.That(viewModel.RecentLocationStatusMessage, Is.EqualTo("Cleared recent locations."));
+        });
+    }
+
+    [Test]
+    public void ClearRecentLocationsCommandWithEmptyListDoesNotStartScan()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            scanner,
+            new RecordingUiDispatcher());
+
+        viewModel.ClearRecentLocationsCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.RecentLocations, Is.Empty);
+            Assert.That(scanner.ScanCount, Is.Zero);
+            Assert.That(viewModel.RecentLocationStatusMessage, Is.EqualTo("No recent locations to clear."));
+        });
+    }
+
+    [Test]
+    public async Task ClearRecentLocationsCommandPreservesTheCurrentScanResult()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            scanner,
+            new RecordingUiDispatcher())
+        {
+            SelectedFolderPath = root.Path
+        };
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        var completedAt = viewModel.ScanCompletedAt;
+
+        viewModel.ClearRecentLocationsCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(scanner.ScanCount, Is.EqualTo(1));
+            Assert.That(viewModel.ScanCompletedAt, Is.EqualTo(completedAt));
+            Assert.That(viewModel.TreeItems, Is.Not.Empty);
+            Assert.That(viewModel.CurrentPath, Is.EqualTo(root.Path));
+        });
+    }
+
+    [Test]
+    public void RemoveRecentLocationCommandPersistsAcrossViewModelConstruction()
+    {
+        var settingsService = new InMemorySettingsService();
+        settingsService.Save(new AppSettings
+        {
+            RecentLocations = ["/a", "/b", "/c"]
+        });
+        var first = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        first.RemoveRecentLocationCommand.Execute("/b");
+        var second = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        Assert.That(second.RecentLocations, Is.EqualTo(new[] { "/a", "/c" }));
+    }
+
+    [Test]
+    public void ClearRecentLocationsCommandPersistsAcrossViewModelConstruction()
+    {
+        var settingsService = new InMemorySettingsService();
+        settingsService.Save(new AppSettings
+        {
+            RecentLocations = ["/a", "/b"]
+        });
+        var first = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        first.ClearRecentLocationsCommand.Execute(null);
+        var second = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        Assert.That(second.RecentLocations, Is.Empty);
+    }
+
+    [Test]
+    public async Task RecentLocationCleanupPreservesUnrelatedSettingsAndStoredHistory()
+    {
+        var settingsService = new InMemorySettingsService();
+        settingsService.Save(new AppSettings
+        {
+            IncludeHiddenFiles = true,
+            FollowSymbolicLinks = true,
+            TreatPackagesAsDirectories = false,
+            MeasurementMode = StorageMeasurementMode.Allocated,
+            ScanHistoryEnabled = true,
+            MaxScanHistorySnapshotsPerRoot = 7,
+            MaxScanHistoryStoreSizeBytes = 8192,
+            RecentLocations = ["/a", "/b"],
+            FilterPresets =
+            [
+                new FilterPresetSettings
+                {
+                    Name = "Large",
+                    MinimumSizeBytes = 1024
+                }
+            ],
+            WindowWidth = 1280,
+            WindowHeight = 760
+        });
+        var historyStore = new RecordingScanHistoryStore();
+        historyStore.Entries.Add(ScanHistoryEntry.Unreadable("snapshot", 256, "Unreadable"));
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            new StubDiskScanner(_ => CompletedScanAsync(
+                new DiskItem("root", "/scan/root", isDirectory: true))),
+            new RecordingUiDispatcher(),
+            settingsService: settingsService,
+            scanHistoryStore: historyStore);
+
+        viewModel.ClearRecentLocationsCommand.Execute(null);
+        var settings = settingsService.Load();
+        var entries = await historyStore.ListAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(settings.IncludeHiddenFiles, Is.True);
+            Assert.That(settings.FollowSymbolicLinks, Is.True);
+            Assert.That(settings.TreatPackagesAsDirectories, Is.False);
+            Assert.That(settings.MeasurementMode, Is.EqualTo(StorageMeasurementMode.Allocated));
+            Assert.That(settings.ScanHistoryEnabled, Is.True);
+            Assert.That(settings.MaxScanHistorySnapshotsPerRoot, Is.EqualTo(7));
+            Assert.That(settings.MaxScanHistoryStoreSizeBytes, Is.EqualTo(8192));
+            Assert.That(settings.FilterPresets.Single().Name, Is.EqualTo("Large"));
+            Assert.That(settings.WindowWidth, Is.EqualTo(1280));
+            Assert.That(settings.WindowHeight, Is.EqualTo(760));
+            Assert.That(entries, Has.Count.EqualTo(1));
+            Assert.That(historyStore.ClearCount, Is.Zero);
+            Assert.That(historyStore.DeleteCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void StoredUnavailableRecentLocationLoadsWithoutPruning()
+    {
+        var missingPath = Path.Combine(Path.GetTempPath(), $"MacStorageAtlas-missing-{Guid.NewGuid():N}");
+        var settingsService = new InMemorySettingsService();
+        settingsService.Save(new AppSettings
+        {
+            RecentLocations = [missingPath]
+        });
+
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.RecentLocations, Is.EqualTo(new[] { missingPath }));
+            Assert.That(settingsService.Load().RecentLocations, Is.EqualTo(new[] { missingPath }));
+        });
+    }
+
+    [Test]
+    public void RemoveRecentLocationCommandDoesNotPruneRemainingUnavailableLocations()
+    {
+        var missingPath = Path.Combine(Path.GetTempPath(), $"MacStorageAtlas-missing-{Guid.NewGuid():N}");
+        var settingsService = new InMemorySettingsService();
+        settingsService.Save(new AppSettings
+        {
+            RecentLocations = ["/remove", missingPath]
+        });
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        viewModel.RemoveRecentLocationCommand.Execute("/remove");
+
+        Assert.That(viewModel.RecentLocations, Is.EqualTo(new[] { missingPath }));
+    }
+
     private static MainWindowViewModel CreateScanningViewModel(
         DiskItem root,
         ISettingsService settingsService,
@@ -2396,6 +2634,57 @@ public class MainWindowViewModelTests
             _snapshots.TryGetValue(
                 CleanupProtectedPathPolicy.NormalizePath(path),
                 out snapshot!);
+    }
+
+    private sealed class RecordingScanHistoryStore : IScanHistoryStore
+    {
+        public List<ScanHistoryEntry> Entries { get; } = [];
+
+        public int ClearCount { get; private set; }
+
+        public int DeleteCount { get; private set; }
+
+        public string Location => "/tmp/history";
+
+        public Task<IReadOnlyList<ScanHistoryEntry>> ListAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ScanHistoryEntry>>(Entries.ToArray());
+
+        public Task<long> GetTotalSizeBytesAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(Entries.Sum(entry => entry.StoredSizeBytes));
+
+        public Task<ScanHistoryCaptureResult> CaptureAsync(
+            ScanSnapshotRequest request,
+            ScanHistoryLimits limits,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(ScanHistoryCaptureResult.Failed("not used"));
+
+        public Task<ScanSnapshotReadResult<ScanSnapshotDocument>> ReadAsync(
+            string snapshotId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(
+                ScanSnapshotReadResult<ScanSnapshotDocument>.Unreadable("not used"));
+
+        public Task<bool> DeleteAsync(
+            string snapshotId,
+            CancellationToken cancellationToken = default)
+        {
+            DeleteCount++;
+            return Task.FromResult(false);
+        }
+
+        public Task ClearAsync(CancellationToken cancellationToken = default)
+        {
+            ClearCount++;
+            Entries.Clear();
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<ScanSnapshotDescriptor>> ApplyLimitsAsync(
+            ScanHistoryLimits limits,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ScanSnapshotDescriptor>>([]);
     }
 
     private sealed class RecordingTrashService : ITrashService

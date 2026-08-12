@@ -847,20 +847,46 @@
                                Text="{Binding SelectedFolderPath}"
                                IsVisible="{Binding SelectedFolderPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
-<StackPanel Spacing="6" IsVisible="{Binding RecentLocations.Count}">
-                        <TextBlock Classes="label" Text="Recent locations" HorizontalAlignment="Center"/>
+                    <StackPanel Spacing="6" IsVisible="{Binding RecentLocations.Count}">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <TextBlock Grid.Column="1"
+                                       Classes="label"
+                                       Text="Recent locations"
+                                       HorizontalAlignment="Center"/>
+                            <Button Grid.Column="2"
+                                    Classes="ghost"
+                                    ToolTip.Tip="Clear recent locations"
+                                    AutomationProperties.Name="Clear recent locations"
+                                    Command="{Binding ClearRecentLocationsCommand}">
+                                <PathIcon Data="{StaticResource IconTrash}"/>
+                            </Button>
+                        </Grid>
                         <ScrollViewer MaxHeight="220"
                                       HorizontalScrollBarVisibility="Disabled"
                                       VerticalScrollBarVisibility="Auto">
                             <ItemsControl ItemsSource="{Binding RecentLocations}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="x:String">
-                                        <Button Classes="ghost"
-                                                Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ScanRecentLocationCommand}"
-                                                CommandParameter="{Binding}">
-                                            <TextBlock Text="{Binding}"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                        </Button>
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <Button Grid.Column="0"
+                                                    Classes="ghost"
+                                                    HorizontalContentAlignment="Stretch"
+                                                    ToolTip.Tip="{Binding}"
+                                                    AutomationProperties.Name="Scan recent location"
+                                                    Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ScanRecentLocationCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <TextBlock Text="{Binding}"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                            </Button>
+                                            <Button Grid.Column="1"
+                                                    Classes="ghost"
+                                                    ToolTip.Tip="Remove recent location"
+                                                    AutomationProperties.Name="Remove recent location"
+                                                    Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).RemoveRecentLocationCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <PathIcon Data="{StaticResource IconTrash}"/>
+                                            </Button>
+                                        </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

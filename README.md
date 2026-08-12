@@ -89,8 +89,8 @@ and verified full-clone data counts once on capable volumes. Independently
 allocated non-data storage and divergent clone extents remain per identity.
 You can instead choose allocated size per path or logical file length. See
 [Storage measurement semantics](docs/STORAGE_MEASUREMENT.md) for capability
-coverage and scope. Preferences and recent scan locations are remembered
-between runs.
+coverage and scope. Preferences and manageable recent scan locations are
+remembered between runs.
 
 ## Features
 
@@ -150,7 +150,8 @@ between runs.
 - Configurable scanning: hidden files, symbolic links, `.app` package
   expansion, and logical, per-path allocated, or shared-aware allocated size
   measurement.
-- Remembers your scanner preferences and recent scan locations between runs.
+- Remembers your scanner preferences and recent scan locations between runs,
+  with controls to remove individual entries or clear the list.
 - Modern, native-feeling UI that follows the system light/dark appearance, with
   a responsive treemap and a live scan-progress overlay.
 

@@ -61,7 +61,7 @@ The repository already provides:
 - Logical-size and allocated-size measurement.
 - Options for hidden files, symbolic links, and application bundles.
 - Full Disk Access guidance for permission-related incomplete scans.
-- Recent scan locations and persisted settings.
+- Manageable recent scan locations and persisted settings.
 - Self-contained arm64 and x64 DMG packaging.
 
 The main gaps are trusted distribution, exact physical-size accounting,
