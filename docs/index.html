@@ -85,6 +85,10 @@
     header { text-align: center; padding: 64px 20px 40px; }
     h1 { font-size: 2.4rem; margin: 0 0 12px; letter-spacing: -0.02em; }
     .tagline { font-size: 1.25rem; color: var(--muted); max-width: 640px; margin: 0 auto 28px; }
+    .support-line {
+      display: inline-block; margin: 0 0 18px; color: var(--muted); font-size: 0.95rem;
+    }
+    .support-line a { font-weight: 700; }
     .badges { margin: 16px 0 28px; }
     .badges img { height: 20px; margin: 0 3px; vertical-align: middle; }
     .cta { display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
@@ -144,6 +148,8 @@
       <h1>MacStorageAtlas</h1>
       <p class="tagline">See what's eating your disk — at a glance. A free, open-source
       disk space analyzer for macOS.</p>
+      <p class="support-line">Supported by
+      <a href="https://ltsoftware.de/">Lachmann Thiem Software</a></p>
       <div class="badges">
         <img src="https://img.shields.io/badge/platform-macOS-black?logo=apple" alt="Platform: macOS">
         <img src="https://img.shields.io/badge/arch-arm64%20%2B%20x64-informational" alt="Apple Silicon and Intel">
@@ -177,10 +183,18 @@
 
     <section>
       <h2>DaisyDisk alternative</h2>
-      <p>DaisyDisk is polished and commercial; MacStorageAtlas is free and open
-      source. It focuses on transparent scan results, sortable tables, exact
-      duplicate review, local-only metadata, and recoverable cleanup through macOS
-      Trash or an external archive location.</p>
+      <p>DaisyDisk is a commercial macOS disk analyzer; MacStorageAtlas is free
+      and open source. It focuses on transparent scan results, sortable tables,
+      exact duplicate review, local-only metadata, and recoverable cleanup through
+      macOS Trash or an external archive location.</p>
+    </section>
+
+    <section>
+      <h2>Supported by LTSoftware</h2>
+      <p>MacStorageAtlas is supported by
+      <a href="https://ltsoftware.de/">Lachmann Thiem Software</a>, a German
+      software company building practical business and automation software. The
+      project remains free and open source under the MIT License.</p>
     </section>
 
     <section>
@@ -228,7 +242,7 @@
           </tbody>
         </table>
       </div>
-      <p class="note">Comparison last verified against first-party sources on 2026-08-19. These tools do not use one interchangeable definition of physical, allocated, or reclaimable size.</p>
+      <p class="note">Independent comparison last verified against first-party sources on 2026-08-19. Product names belong to their respective owners; MacStorageAtlas is not affiliated with DaisyDisk, GrandPerspective, or WinDirStat. These tools do not use one interchangeable definition of physical, allocated, or reclaimable size.</p>
     </section>
 
     <section>
@@ -298,8 +312,9 @@
         not purgeable space or cleanup recommendations.
       </div>
       <div class="note">
-        <strong>Supported by:</strong> MacStorageAtlas is supported by
-        <a href="https://ltsoftware.de/">Lachmann Thiem Software</a>.
+        <strong>Supported by LTSoftware:</strong> MacStorageAtlas is supported by
+        <a href="https://ltsoftware.de/">Lachmann Thiem Software</a>, while staying
+        free and open source under the MIT License.
       </div>
     </section>
   </main>
