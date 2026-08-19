@@ -4,20 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MacStorageAtlas — Free Disk Space Analyzer for macOS (WinDirStat / DaisyDisk Alternative)</title>
-  <meta name="description" content="MacStorageAtlas is a free, open-source disk space analyzer for macOS. See what is using your disk space with a treemap, folder tree, file-type breakdown, and largest-files list. A native WinDirStat, DaisyDisk, and GrandPerspective alternative for Apple Silicon and Intel Macs.">
+  <meta name="description" content="MacStorageAtlas is a free, open-source disk space analyzer for macOS. See what is using your disk space with a treemap, folder tree, file-type breakdown, largest-files list, exact duplicate review, and safe cleanup. A native WinDirStat, DaisyDisk, and GrandPerspective alternative for Apple Silicon and Intel Macs.">
   <link rel="canonical" href="https://lachi90.github.io/MacStorageAtlas/">
 
   <meta name="google-site-verification" content="8VUmQ0Cg6Dk2vkvYoVgFavq4dSONfYK_zpJeLRgYyxg">
 
-  <!-- Open Graph / social preview -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="MacStorageAtlas — Free Disk Space Analyzer for macOS">
-  <meta property="og:description" content="See what's eating your disk. A free, open-source WinDirStat / DaisyDisk alternative for Mac with treemap, folder tree, and safe cleanup.">
+  <meta property="og:description" content="See what's eating your disk. A free, open-source WinDirStat / DaisyDisk alternative for Mac with treemap, folder tree, exact duplicates, and safe cleanup.">
   <meta property="og:url" content="https://lachi90.github.io/MacStorageAtlas/">
   <meta property="og:image" content="https://lachi90.github.io/MacStorageAtlas/images/01-overview.png">
   <meta name="twitter:card" content="summary_large_image">
 
-  <!-- Structured data helps Google understand this is a software application. -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -25,7 +23,7 @@
     "name": "MacStorageAtlas",
     "applicationCategory": "UtilitiesApplication",
     "operatingSystem": "macOS",
-    "description": "Free, open-source disk space analyzer for macOS. Treemap, folder tree, file-type breakdown, and largest-files list. A WinDirStat / DaisyDisk / GrandPerspective alternative for Apple Silicon and Intel Macs.",
+    "description": "Free, open-source disk space analyzer for macOS. Treemap, folder tree, file-type breakdown, largest-files list, exact duplicate review, and safe cleanup. A WinDirStat / DaisyDisk / GrandPerspective alternative for Apple Silicon and Intel Macs.",
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
     "url": "https://lachi90.github.io/MacStorageAtlas/",
     "downloadUrl": "https://github.com/Lachi90/MacStorageAtlas/releases",
@@ -71,7 +69,6 @@
     }
     img.shot:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,.28); }
 
-    /* Lightbox */
     #lightbox {
       position: fixed; inset: 0; z-index: 100;
       display: none; align-items: center; justify-content: center;
@@ -142,9 +139,18 @@
         <div class="feature"><h3>🗺️ Tree + treemap</h3><p>Two synchronized views: a folder tree sorted by size and a proportional treemap where the biggest blocks are the biggest consumers.</p></div>
         <div class="feature"><h3>⚡ Live progress</h3><p>Async scanning streams paths, file/folder counts, and bytes as it runs. Hundreds of thousands of files stay responsive — cancel anytime.</p></div>
         <div class="feature"><h3>📊 By file type & largest files</h3><p>Dedicated tabs for which file types take the most room and the single biggest files on disk, with counts and full paths.</p></div>
-        <div class="feature"><h3>🧹 Safe cleanup</h3><p>Reveal any item in Finder or move it to the Trash after a confirmation — nothing is permanently deleted by accident.</p></div>
-        <div class="feature"><h3>☁️ Cloud-aware on-disk size</h3><p>Measures the space files actually occupy, so undownloaded iCloud/OneDrive/kDrive placeholders count as roughly zero.</p></div>
-        <div class="feature"><h3>⚙️ Configurable scanning</h3><p>Toggle hidden files, symbolic links, and <code>.app</code> bundle expansion. Preferences and recent locations are remembered.</p></div>
+        <div class="feature"><h3>🧩 Exact duplicates</h3><p>Run opt-in duplicate analysis after a scan. It reads local file contents only after metadata and sample checks, confirms byte-for-byte matches, skips known cloud-only placeholders, and keeps hardlinks out of reclaimable totals.</p></div>
+        <div class="feature"><h3>File metadata</h3><p>Selected-item details show scan-time kind and available created or modified dates, with unavailable dates shown as unknown.</p></div>
+        <div class="feature"><h3>🔎 Quick Look</h3><p>Preview the selected file or folder with native macOS Quick Look from the toolbar or its Actions menu, and use Space or Command-I shortcuts for inspection.</p></div>
+        <div class="feature"><h3>🎛️ Advanced filters</h3><p>Narrow a completed scan by size, dates, extension, file category, and shared storage, with built-in and saved presets. Date bounds can be a fixed date or a span before now, so a saved preset keeps meaning the same span instead of drifting. The treemap keeps its full layout and highlights matches, so proportions stay honest.</p></div>
+        <div class="feature"><h3>📤 CSV &amp; JSON export</h3><p>Write the current result to a file you choose. With a filter active only the matched files are exported. JSON keeps paths exact and lists unreadable paths; CSV is spreadsheet-ready and neutralizes leading formula characters. A cancelled export leaves no partial file.</p></div>
+        <div class="feature"><h3>🕓 Local scan history</h3><p>Optionally record completed scans so a later release can show what grew or shrank. Off until you turn it on. Snapshots stay on your Mac, never include file contents, and are capped by count and total size. Delete one recorded scan or clear the whole history whenever you like.</p></div>
+        <div class="feature"><h3>Full Disk Access guidance</h3><p>When macOS-protected locations make a scan appear incomplete, MacStorageAtlas shows the inaccessible path count, keeps detailed errors visible, opens Privacy &amp; Security when possible, and lets you rescan after granting access.</p></div>
+        <div class="feature"><h3>🧹 Safe cleanup</h3><p>Reveal any item in Finder, move eligible items to Trash, or collect multiple scanned items in a cleanup basket for final review. Broad or sensitive containers are blocked in app, approved cleanup items go to macOS Trash, and partial failures stay visible.</p></div>
+        <div class="feature"><h3>📦 Archive instead of delete</h3><p>Move or copy the reviewed cleanup basket to an external or network volume. The review names the operation and destination, colliding names are blocked instead of overwritten, and a cross-volume move removes the original only after the copy is verified.</p></div>
+        <div class="feature"><h3>☁️ Shared-aware on-disk size</h3><p>Measures local allocation, counts hardlinks once, and counts verified full-clone data once where the volume capability permits. Divergent clone extents remain per file.</p></div>
+        <div class="feature"><h3>⚙️ Configurable scanning</h3><p>Choose shared-aware, per-path allocated, or logical size, and toggle hidden files, symbolic links, and <code>.app</code> bundle expansion.</p></div>
+        <div class="feature"><h3>📈 Reproducible scan benchmarks</h3><p>Developer tooling records scan duration, throughput, progress updates, memory, errors, runtime, architecture, and fixture metadata for repeatable performance checks.</p></div>
       </div>
     </section>
 
@@ -159,10 +165,12 @@
             <tr><td>Treemap view</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
             <tr><td>Folder tree</td><td>✅</td><td>—</td><td>—</td><td>✅</td></tr>
             <tr><td>File-type breakdown</td><td>✅</td><td>—</td><td>—</td><td>✅</td></tr>
-            <tr><td>Real on-disk size (cloud-aware)</td><td>✅</td><td>—</td><td>—</td><td>—</td></tr>
+            <tr><td>Local allocated-size modes</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+            <tr><td>Hardlinks counted once</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
           </tbody>
         </table>
       </div>
+      <p class="note">Comparison last verified against first-party sources on 2026-08-12. These tools do not use one interchangeable definition of physical, allocated, or reclaimable size.</p>
     </section>
 
     <section>
@@ -191,12 +199,35 @@
     </section>
 
     <section>
+      <h2>Review duplicates deliberately</h2>
+      <p>Exact duplicate analysis is opt-in after a scan. It narrows candidates
+      before reading full contents, confirms byte-for-byte equality, reports
+      skipped files, and sends selected duplicate entries through the same
+      Quick Look, Finder reveal, and cleanup-basket review workflow.</p>
+      <img class="shot" src="images/07-duplicates.png" alt="Exact duplicate review tab with matching paths and reclaimable size">
+    </section>
+
+    <section>
+      <h2>Keep cleanup recoverable</h2>
+      <p>Collect scanned items in a basket before acting. MacStorageAtlas blocks
+      broad or sensitive containers, shows the logical and expected reclaimable
+      totals, and can move approved items to Trash or move/copy them to another
+      location without replacing destination files.</p>
+      <img class="shot" src="images/08-cleanup-basket.png" alt="Cleanup basket summary with review, move, copy, and clear actions">
+    </section>
+
+    <section>
       <div class="note">
-        <strong>Note:</strong> builds are not code-signed or notarized (no paid Apple
-        Developer account), so Gatekeeper blocks the app on first launch. Right-click the
-        app in <code>/Applications</code> → <strong>Open</strong>, or run
-        <code>xattr -dr com.apple.quarantine /Applications/MacStorageAtlas.app</code>.
-        Only do this for builds you trust.
+        <strong>Download note:</strong> official GitHub Release DMGs are signed,
+        notarized, stapled, and published with SHA-256 checksums. Local development DMGs
+        built with the default packaging command are unsigned and intended only for
+        builds you created and trust yourself.
+      </div>
+      <div class="note">
+        <strong>Full Disk Access:</strong> if a scan has permission-related inaccessible
+        paths, grant access manually in System Settings → Privacy &amp; Security → Full
+        Disk Access, restart the app if macOS asks, then rescan. Inaccessible paths are
+        not purgeable space or cleanup recommendations.
       </div>
     </section>
   </main>
@@ -237,7 +268,7 @@
         });
       });
       box.addEventListener('click', function (e) {
-        if (e.target === big) return; // clicks on the image itself don't close
+        if (e.target === big) return;
         close();
       });
       document.addEventListener('keydown', function (e) {

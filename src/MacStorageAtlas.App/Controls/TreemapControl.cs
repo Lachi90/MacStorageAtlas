@@ -7,12 +7,10 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Styling;
 using MacStorageAtlas.Rendering;
+using MacStorageAtlas.Core.Items;
 
 namespace MacStorageAtlas.App.Controls;
 
-/// <summary>
-/// Renders a precomputed treemap without creating a control for each rectangle.
-/// </summary>
 public sealed class TreemapControl : Control
 {
     public static readonly StyledProperty<IReadOnlyList<TreemapRect>?> RectanglesProperty =
@@ -28,22 +26,34 @@ public sealed class TreemapControl : Control
             nameof(HoveredRectangle),
             control => control.HoveredRectangle);
 
+    public static readonly StyledProperty<IReadOnlyList<DiskItem>?> HighlightedItemsProperty =
+        AvaloniaProperty.Register<TreemapControl, IReadOnlyList<DiskItem>?>(
+            nameof(HighlightedItems));
+
+    public static readonly StyledProperty<bool> IsHighlightActiveProperty =
+        AvaloniaProperty.Register<TreemapControl, bool>(nameof(IsHighlightActive));
+
+    private const double UnmatchedOpacity = 0.25;
+
     private readonly Dictionary<string, IBrush> _brushes = new(StringComparer.Ordinal);
     private INotifyCollectionChanged? _observableRectangles;
     private TreemapRect? _hoveredRectangle;
     private IPen? _borderPen;
     private IPen? _hoverPen;
     private IPen? _selectionPen;
+    private IPen? _matchPen;
 
     static TreemapControl()
     {
-        AffectsRender<TreemapControl>(RectanglesProperty, SelectedRectangleProperty);
+        AffectsRender<TreemapControl>(
+            RectanglesProperty,
+            SelectedRectangleProperty,
+            HighlightedItemsProperty,
+            IsHighlightActiveProperty);
     }
 
     public TreemapControl()
     {
-        // Rebuild theme-derived pens and the cached block palette whenever the
-        // effective light/dark variant changes so the treemap matches the app.
         ActualThemeVariantChanged += (_, _) =>
         {
             _borderPen = null;
@@ -53,8 +63,6 @@ public sealed class TreemapControl : Control
             InvalidateVisual();
         };
 
-        // The layout is precomputed in an abstract coordinate space and scaled
-        // to fit; repaint whenever the control is resized so it stays filled.
         SizeChanged += (_, _) => InvalidateVisual();
     }
 
@@ -68,6 +76,18 @@ public sealed class TreemapControl : Control
     {
         get => GetValue(SelectedRectangleProperty);
         set => SetValue(SelectedRectangleProperty, value);
+    }
+
+    public IReadOnlyList<DiskItem>? HighlightedItems
+    {
+        get => GetValue(HighlightedItemsProperty);
+        set => SetValue(HighlightedItemsProperty, value);
+    }
+
+    public bool IsHighlightActive
+    {
+        get => GetValue(IsHighlightActiveProperty);
+        set => SetValue(IsHighlightActiveProperty, value);
     }
 
     public TreemapRect? HoveredRectangle => _hoveredRectangle;
@@ -84,6 +104,12 @@ public sealed class TreemapControl : Control
         EnsurePens();
 
         var (scaleX, scaleY) = GetScale(rectangles);
+        var highlightActive = IsHighlightActive;
+        var highlighted = highlightActive
+            ? new HashSet<DiskItem>(
+                HighlightedItems ?? [],
+                ReferenceEqualityComparer.Instance as IEqualityComparer<DiskItem>)
+            : null;
 
         foreach (var rectangle in rectangles)
         {
@@ -93,7 +119,23 @@ public sealed class TreemapControl : Control
             }
 
             var bounds = ToAvaloniaRect(rectangle, scaleX, scaleY);
-            context.DrawRectangle(GetBrush(rectangle), _borderPen, bounds);
+            var isMatch = highlighted is null || highlighted.Contains(rectangle.Item.Item);
+
+            if (isMatch)
+            {
+                context.DrawRectangle(GetBrush(rectangle), _borderPen, bounds);
+                if (highlightActive)
+                {
+                    context.DrawRectangle(null, _matchPen, bounds.Deflate(1));
+                }
+            }
+            else
+            {
+                using (context.PushOpacity(UnmatchedOpacity))
+                {
+                    context.DrawRectangle(GetBrush(rectangle), _borderPen, bounds);
+                }
+            }
 
             if (rectangle.Equals(SelectedRectangle))
             {
@@ -119,6 +161,10 @@ public sealed class TreemapControl : Control
         _borderPen = new Pen(new SolidColorBrush(stroke), 1);
         _hoverPen = new Pen(new SolidColorBrush(highlight), 2);
         _selectionPen = new Pen(new SolidColorBrush(highlight), 3);
+        _matchPen = new Pen(new SolidColorBrush(highlight), 2)
+        {
+            DashStyle = new DashStyle([3, 2], 0)
+        };
     }
 
     private Color ResolveColor(string key, Color fallback) =>
@@ -225,7 +271,6 @@ public sealed class TreemapControl : Control
             return brush;
         }
 
-        // A stable path hash keeps colors consistent across layout recalculations.
         uint hash = 2166136261;
         foreach (var character in key)
         {
@@ -271,11 +316,6 @@ public sealed class TreemapControl : Control
         && rectangle.Width > 0
         && rectangle.Height > 0;
 
-    /// <summary>
-    /// The layout is produced in an abstract coordinate space (see
-    /// <c>MainWindowViewModel</c>). We scale it to the control's actual size so
-    /// the treemap always fills its container and adapts when resized.
-    /// </summary>
     private (double ScaleX, double ScaleY) GetScale(IReadOnlyList<TreemapRect> rectangles)
     {
         double maxRight = 0;

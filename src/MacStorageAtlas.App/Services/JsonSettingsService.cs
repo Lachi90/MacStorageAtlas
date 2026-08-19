@@ -1,15 +1,12 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using MacStorageAtlas.App.Models;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.App.Services;
 
-/// <summary>
-/// Persists <see cref="AppSettings"/> to a JSON file in the user's macOS
-/// application-data directory. Reads recover gracefully from a missing or
-/// malformed file by falling back to default settings.
-/// </summary>
 public sealed class JsonSettingsService : ISettingsService
 {
     private static readonly JsonSerializerOptions SerializerOptions = new()
@@ -17,11 +14,76 @@ public sealed class JsonSettingsService : ISettingsService
         WriteIndented = true
     };
 
+    static JsonSettingsService()
+    {
+        SerializerOptions.Converters.Add(
+            new NullableStorageMeasurementModeJsonConverter());
+        SerializerOptions.Converters.Add(
+            new TolerantFilterPresetListJsonConverter());
+    }
+
     private readonly string _settingsFilePath;
 
     public JsonSettingsService()
         : this(GetDefaultSettingsFilePath())
     {
+    }
+
+    private sealed class NullableStorageMeasurementModeJsonConverter
+        : JsonConverter<StorageMeasurementMode?>
+    {
+        public override StorageMeasurementMode? Read(
+            ref Utf8JsonReader reader,
+            Type typeToConvert,
+            JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.Null)
+            {
+                return null;
+            }
+
+            if (reader.TokenType == JsonTokenType.String
+                && string.Equals(
+                    reader.GetString(),
+                    "HardlinkAwareAllocated",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return StorageMeasurementMode.SharedAwareAllocated;
+            }
+
+            if (reader.TokenType == JsonTokenType.String
+                && Enum.TryParse(
+                    reader.GetString(),
+                    ignoreCase: true,
+                    out StorageMeasurementMode namedMode)
+                && Enum.IsDefined(namedMode))
+            {
+                return namedMode;
+            }
+
+            if (reader.TokenType == JsonTokenType.Number
+                && reader.TryGetInt32(out var numericMode)
+                && Enum.IsDefined((StorageMeasurementMode)numericMode))
+            {
+                return (StorageMeasurementMode)numericMode;
+            }
+
+            return null;
+        }
+
+        public override void Write(
+            Utf8JsonWriter writer,
+            StorageMeasurementMode? value,
+            JsonSerializerOptions options)
+        {
+            if (value is null)
+            {
+                writer.WriteNullValue();
+                return;
+            }
+
+            writer.WriteStringValue(value.Value.ToString());
+        }
     }
 
     public JsonSettingsService(string settingsFilePath)
@@ -48,8 +110,6 @@ public sealed class JsonSettingsService : ISettingsService
                 or UnauthorizedAccessException
                 or JsonException)
         {
-            // A missing, unreadable, or malformed settings file should never stop
-            // the app from starting. Fall back to defaults instead.
             return new AppSettings();
         }
     }
@@ -72,8 +132,6 @@ public sealed class JsonSettingsService : ISettingsService
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException)
         {
-            // Persisting preferences is best-effort; failing to write must not
-            // crash the app.
         }
     }
 

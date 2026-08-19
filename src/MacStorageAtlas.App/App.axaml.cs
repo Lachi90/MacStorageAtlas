@@ -11,8 +11,9 @@ using Avalonia.Threading;
 using MacStorageAtlas.App.Services;
 using MacStorageAtlas.App.ViewModels;
 using MacStorageAtlas.App.Views;
-using MacStorageAtlas.Core;
 using MacStorageAtlas.Platform.Mac;
+using MacStorageAtlas.Core.History;
+using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.App;
 
@@ -30,13 +31,21 @@ public partial class App : Application
             var mainWindow = new MainWindow();
             mainWindow.DataContext = new MainWindowViewModel(
                 new AvaloniaFolderPickerService(mainWindow.StorageProvider),
-                new DiskScanner(),
+                new DiskScanner(new MacFileMetadataReader()),
                 new AvaloniaUiDispatcher(),
                 new MacFileRevealService(),
                 new MacTrashService(),
                 new AvaloniaTrashConfirmationService(mainWindow),
                 new JsonSettingsService(),
-                new AvaloniaClipboardService(mainWindow));
+                new AvaloniaClipboardService(mainWindow),
+                new MacQuickLookService(),
+                new AvaloniaSaveFilePickerService(mainWindow.StorageProvider),
+                new MacFullDiskAccessService(),
+                new AvaloniaCleanupBasketReviewService(mainWindow),
+                scanHistoryStore: new FileSystemScanHistoryStore(
+                    ScanHistoryStoreLocation.Default()),
+                scanHistoryClearConfirmationService:
+                    new AvaloniaScanHistoryClearConfirmationService(mainWindow));
 
             desktop.MainWindow = mainWindow;
 
@@ -46,11 +55,6 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    /// <summary>
-    /// Applies the branding artwork as the macOS Dock icon at runtime. This is
-    /// needed when running as a bare executable (e.g. <c>dotnet run</c>); a
-    /// packaged <c>.app</c> bundle would use the icon from its Info.plist.
-    /// </summary>
     private static void ApplyDockIcon()
     {
         if (!OperatingSystem.IsMacOS())
@@ -66,12 +70,10 @@ public partial class App : Application
             stream.CopyTo(memory);
             var bytes = memory.ToArray();
 
-            // Defer until the run loop is active so NSApplication is ready.
             Dispatcher.UIThread.Post(() => MacDockIcon.TrySet(bytes));
         }
         catch
         {
-            // Cosmetic only — ignore if the asset can't be loaded.
         }
     }
 }

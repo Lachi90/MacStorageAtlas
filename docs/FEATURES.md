@@ -4,17 +4,26 @@ MacStorageAtlas is a macOS disk usage analyzer inspired by WinDirStat-style tool
 
 The app helps users understand what consumes storage on their Mac by scanning folders, visualizing disk usage, and showing large files, folders, file types, and scan errors.
 
+> The market-driven implementation sequence for future work is maintained in
+> [`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md). This file documents
+> the original feature specifications and remains the reference for already
+> implemented baseline behavior.
+
 ## Architecture
 
 ```text
 src/
   MacStorageAtlas.App              Avalonia UI and MVVM shell
-  MacStorageAtlas.Core             disk scanning and domain logic
+  MacStorageAtlas.Core             disk scanning and domain logic, grouped by domain folder
   MacStorageAtlas.Rendering        treemap layout logic
   MacStorageAtlas.Platform.Mac     macOS-specific integrations
 
 tests/
-  MacStorageAtlas.Tests            NUnit tests
+  MacStorageAtlas.Core.Tests       Core NUnit tests mirroring Core domain folders
+  MacStorageAtlas.Rendering.Tests  Rendering NUnit tests
+  MacStorageAtlas.Platform.Mac.Tests macOS integration NUnit tests
+  MacStorageAtlas.App.Tests        App and ViewModel NUnit tests
+  MacStorageAtlas.Benchmarks.Tests benchmark tooling NUnit tests
 ```
 
 ## Backlog Rules
@@ -90,7 +99,7 @@ Scan the selected folder recursively and calculate file and folder sizes.
 ## Affected Projects
 
 - `MacStorageAtlas.Core`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -173,7 +182,7 @@ Track paths that could not be scanned because of missing permissions or IO error
 
 - `MacStorageAtlas.Core`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -192,6 +201,45 @@ Requirements:
 - Add a placeholder error list in the UI.
 - Add tests verifying that scan errors do not stop the scan.
 ```
+
+---
+
+# 4a. Full Disk Access Guidance
+
+## Purpose
+
+Help users understand incomplete macOS scans when protected locations cannot be
+read, and guide them to grant Full Disk Access manually.
+
+## Acceptance Criteria
+
+- App shows guidance when a completed scan has permission-related inaccessible
+  paths.
+- Guidance states the scan may be incomplete and shows the inaccessible path
+  count.
+- Guidance keeps the normal scan errors view visible.
+- App can open macOS Privacy & Security settings or show the manual path:
+  System Settings > Privacy & Security > Full Disk Access.
+- Guidance explains that the user grants access manually and may need to restart
+  the app before rescanning.
+- App can rescan the same root with the same scan options after access changes.
+- Guidance does not treat inaccessible paths as purgeable, free, available, or
+  safe-to-delete space.
+- App does not request administrator credentials or read file contents for
+  access checks.
+
+## Affected Projects
+
+- `MacStorageAtlas.App`
+- `MacStorageAtlas.Platform.Mac`
+- `MacStorageAtlas.Core`
+- `MacStorageAtlas.*.Tests`
+
+## Implementation Notes
+
+Keep scanner errors factual and platform-neutral. Interpret likely Full Disk
+Access issues in the App layer, and keep macOS settings and metadata-only access
+checks in Platform.Mac.
 
 ---
 
@@ -249,7 +297,7 @@ Show largest folders and files first.
 
 - `MacStorageAtlas.Core`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -284,7 +332,7 @@ Display byte sizes in readable units.
 ## Affected Projects
 
 - `MacStorageAtlas.Core`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -321,7 +369,7 @@ Calculate proportional rectangles for disk usage visualization.
 ## Affected Projects
 
 - `MacStorageAtlas.Rendering`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -436,7 +484,7 @@ Summarize disk usage by file extension.
 
 - `MacStorageAtlas.Core`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -461,9 +509,17 @@ Requirements:
 
 # 12. Search and Filter
 
+## Status
+
+Delivered. Text search shipped earlier; advanced filters and presets shipped
+with WP-04 (`add-advanced-filters`). Relative date bounds, preset renaming in the
+filter panel, and applied-preset reporting shipped with
+`improve-filter-presets`.
+
 ## Purpose
 
-Allow users to find files or folders by name/path.
+Allow users to find files or folders by name/path, and narrow a completed scan
+to an actionable subset.
 
 ## Acceptance Criteria
 
@@ -471,6 +527,31 @@ Allow users to find files or folders by name/path.
 - Matching items can be selected.
 - Clearing search restores normal view.
 - Search is case-insensitive.
+
+## Delivered filter dimensions
+
+- Name and path text.
+- Minimum and maximum size, compared against the counted size shown for a
+  result, with inclusive bounds.
+- Creation, modification, and last-access date ranges.
+- File extension.
+- File category, from a versioned extension taxonomy covering archives, video,
+  images, audio, documents, disk images and installers, and code.
+- Shared-storage status, selecting results whose storage is counted against
+  another path in the same scan.
+
+Criteria combine with AND. Filters are evaluated against files; directories
+appear only as ancestors of matching files.
+
+## Documented non-goals
+
+- OR, NOT, or grouped boolean composition.
+- Filtering by hidden status, which the `IncludeHiddenFiles` scan option
+  already governs.
+- Filtering by application-package membership.
+- A file-versus-folder dimension, which files-only matching makes redundant.
+- Exporting or acting in bulk on a filtered result. Those belong to WP-05 and
+  WP-07.
 
 ## Affected Projects
 
@@ -542,10 +623,13 @@ Safely remove unwanted files by moving them to macOS Trash.
 ## Acceptance Criteria
 
 - User can move selected item to Trash.
+- User can collect multiple scanned items into a cleanup basket.
+- User can review basket totals and item paths before moving basket items to Trash.
+- App blocks protected selected items and protected or stale basket items from cleanup.
 - App asks for confirmation first.
 - App does not permanently delete files.
 - UI updates after successful trash operation.
-- Errors are shown clearly.
+- Partial failures and errors are shown clearly per affected item.
 
 ## Affected Projects
 
@@ -569,6 +653,10 @@ Requirements:
 - Disable the command when no item is selected.
 - After successful trash operation, remove or mark the item in the UI.
 - Show a clear error message if the operation fails.
+- Add a cleanup basket for explicit multi-item review.
+- Prevent duplicate or overlapping basket entries from overstating totals.
+- Block protected selected items and protected, missing, or changed basket items before Trash execution.
+- Report partial basket failures without hiding failed or unattempted items.
 ```
 
 ---
@@ -589,7 +677,7 @@ Control whether macOS packages such as `.app` are scanned as folders or treated 
 
 - `MacStorageAtlas.Core`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -626,7 +714,7 @@ Allow users to include or exclude hidden files.
 
 - `MacStorageAtlas.Core`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -663,7 +751,7 @@ Avoid accidental recursion loops and misleading size calculations.
 
 - `MacStorageAtlas.Core`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -774,7 +862,7 @@ Show the largest files found in the scan.
 
 - `MacStorageAtlas.Core`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
@@ -882,6 +970,9 @@ Allow users to quickly rescan previous locations.
 - Recent folders are shown in the UI.
 - Missing folders are handled gracefully.
 - Duplicate entries are avoided.
+- Individual recent folders can be removed without scanning them.
+- The entire recent-folder list can be cleared without changing scan history or
+  scanner preferences.
 
 ## Affected Projects
 
@@ -903,6 +994,9 @@ Requirements:
 - Limit recent entries to 10.
 - Allow user to select a recent location for scanning.
 - Handle paths that no longer exist.
+- Allow user to remove one recent location without scanning it.
+- Allow user to clear all recent locations without changing scan history or
+  scanner preferences.
 ```
 
 ---
@@ -923,7 +1017,7 @@ Ensure scanner behavior stays correct.
 
 ## Affected Projects
 
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 - `MacStorageAtlas.Core`
 
 ## Implementation Notes
@@ -965,7 +1059,7 @@ Ensure treemap layout is deterministic and bounded.
 
 ## Affected Projects
 
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 - `MacStorageAtlas.Rendering`
 
 ## Implementation Notes
@@ -999,7 +1093,8 @@ Prepare the app for distribution on macOS.
 
 - App can be published for macOS.
 - Build instructions are documented.
-- Signing/notarization steps are documented as future work.
+- Local Developer ID signing and notarization steps are documented for release
+  builds.
 
 ## Affected Projects
 
@@ -1009,7 +1104,8 @@ Prepare the app for distribution on macOS.
 
 ## Implementation Notes
 
-Document Apple Silicon and Intel runtime identifiers separately; defer credentials and release automation.
+Document Apple Silicon and Intel runtime identifiers separately. Keep Developer
+ID certificates and notarization credentials local to the release machine.
 
 ## Codex Prompt
 
@@ -1020,8 +1116,8 @@ Requirements:
 - Add documentation for publishing the Avalonia app on macOS.
 - Include dotnet publish command examples.
 - Document that public distribution should use Developer ID signing and notarization.
-- Do not implement signing automation yet.
-- Add notes for future DMG creation.
+- Preserve unsigned local DMG creation for development.
+- Document the local signed release flow for distributable DMGs.
 ```
 
 ---
@@ -1114,24 +1210,35 @@ not counted at full size.
 
 ## Acceptance Criteria
 
-- Files can be measured by allocated size (`st_blocks × 512`) or logical length.
-- Allocated (on-disk) measurement is the application default.
-- Scanning never materializes/downloads dataless cloud files (stat only).
-- Scanner respects `ScanOptions.MeasureAllocatedSize`.
-- User can toggle the behavior in scan options.
+- Files can be measured by logical length, allocated size per path
+  (`st_blocks × 512` fallback), or shared-aware allocated size.
+- Shared-aware allocated measurement is the application default.
+- Device-and-inode identities are counted once within the selected scan scope.
+- Every included hardlink path remains browsable and retains its measured
+  allocation.
+- Verified full-clone data is counted once on capable volumes while non-data
+  allocation remains counted per identity.
+- Clone-accounting coverage is captured as available, unavailable, or partial.
+- Scanning never materializes or downloads dataless cloud files.
+- Scanner respects `ScanOptions.MeasurementMode`.
+- User can select all three behaviors in scan options.
+- Divergent APFS clone extents remain counted separately.
 
 ## Affected Projects
 
 - `MacStorageAtlas.Core`
+- `MacStorageAtlas.Platform.Mac`
 - `MacStorageAtlas.App`
-- `MacStorageAtlas.Tests`
+- `MacStorageAtlas.*.Tests`
 
 ## Implementation Notes
 
-Read the allocated size via a native `stat(2)` P/Invoke on macOS (64-bit-inode
-struct layout; `stat$INODE64` entry point on x86_64), falling back to the
-logical length on other platforms or on failure. The core library keeps the
-logical length as its portable default; the app opts into allocated size.
+Platform.Mac probes mounted-volume clone-mapping capability. On capable volumes
+it reads allocation, identity, and full-clone attributes coherently through
+public `getattrlist(2)` metadata; unsupported and degraded paths retain the
+`stat(2)` fallback and x86_64 64-bit-inode ABI. Core owns scan-scoped identity
+and shared-data accounting and treats unavailable required metadata as a
+recoverable scan error rather than silently substituting logical length.
 
 ## Codex Prompt
 
@@ -1139,9 +1246,255 @@ logical length as its portable default; the app opts into allocated size.
 Implement On-Disk vs. Logical Size.
 
 Requirements:
-- Add ScanOptions.MeasureAllocatedSize.
-- Measure allocated size via native stat (st_blocks * 512) on macOS.
-- Fall back to logical length elsewhere; never download cloud placeholders.
-- Default the app to allocated size; add a UI toggle.
-- Add tests for allocated-size measurement.
+- Add explicit logical, per-path allocated, and shared-aware allocated modes.
+- Read allocated size and device/inode identity through macOS metadata APIs.
+- Count each included identity once and verified full-clone data once where
+  supported while retaining all paths.
+- Never download cloud placeholders or silently mix measurement bases.
+- Default the app to shared-aware allocated size; expose all three choices.
+- Disclose clone-accounting coverage and quantitative shared bytes.
+- Add unit and macOS integration tests for identity-aware and full-clone
+  measurement.
 ```
+
+---
+
+# 30. Scan Result Export
+
+## Status
+
+Delivered by WP-05 (`export-scan-results`).
+
+## Purpose
+
+Let users analyze, archive, or share a completed scan outside the app, so a
+result survives the next scan and can be opened in a spreadsheet or read by a
+script.
+
+## Acceptance Criteria
+
+- The current result can be written to a local CSV or JSON file through the
+  system save-file interface.
+- With no filter active the export contains every scanned file and directory,
+  and each directory row reports its subtree totals.
+- With a filter active the export contains the matched files only, without
+  directory rows, and records the filter that produced it.
+- Both formats carry the same flat, one-record-per-item shape.
+- Byte fields report the scan's own measurement basis, and every row states
+  which mode produced them.
+- Scan metadata accompanies every export: schema version, root path, completion
+  time, scan options, measurement mode, clone-accounting coverage, scope,
+  filter, and totals.
+- JSON carries the recoverable scan errors; a CSV export reports their count to
+  the user instead.
+- Row order is fully determined by the result, so exporting twice produces
+  identical files.
+- CSV parses correctly for paths containing commas, quotation marks, and line
+  breaks, displays non-ASCII names correctly, and does not let a leading formula
+  character execute.
+- JSON preserves exact values and reads back into the same metadata and rows.
+- Exports stream, keep the UI responsive, and can be cancelled.
+- A cancelled or failed export leaves no partial file at the destination, and an
+  existing file there is untouched unless the export completes.
+
+## Documented non-goals
+
+- Exporting the file-type summary or largest-files list as separate documents.
+- Importing an export back into the app. Scan history and comparison are WP-09.
+- Export presets, scheduled exports, or command-line export.
+- Reporting both a logical and an allocated size for one scan.
+
+## Affected Projects
+
+- `MacStorageAtlas.Core`
+- `MacStorageAtlas.App`
+- `MacStorageAtlas.*.Tests`
+
+## Implementation Notes
+
+Core owns the row and metadata models, row enumeration and ordering, and both
+writers, which target a supplied `TextWriter` or `Stream` rather than a path.
+The App owns the save-file picker abstraction, the export commands, and atomic
+publication through a temporary file in the destination directory.
+
+---
+
+# 31. Scan History
+
+## Status
+
+Persistence delivered by WP-09 (`persist-scan-history`). Comparison between two
+recorded scans is a separate, still outstanding change.
+
+## Purpose
+
+Keep a local record of what storage looked like at earlier points in time, so
+that a later comparison feature can answer which folders grew or shrank and so
+that a user can confirm a cleanup actually held.
+
+## Acceptance Criteria
+
+- Nothing is recorded until the user turns scan history on. It is off by
+  default.
+- Every completed scan is recorded as one snapshot while history is enabled. A
+  cancelled or failed scan is never recorded.
+- A snapshot covers the whole scan result and is not narrowed by the filter
+  that happens to be active when the scan completes.
+- A snapshot records each item's path, name, kind, depth, size fields,
+  shared-storage indicator, extension, category, and creation, modification,
+  and last-access timestamps.
+- A snapshot records the scan root, the completion time, the scan options, the
+  measurement mode, the clone-accounting coverage, the recoverable errors, and
+  a completeness verdict.
+- A snapshot is never truncated to fit a limit. A scan that cannot be recorded
+  at full fidelity within the limits is declined with a stated reason.
+- Retention bounds the store by snapshots per location and by total store size,
+  pruning oldest first and pruning no more than required.
+- The user can view stored snapshots grouped by scan root, delete one snapshot,
+  and clear the whole history without changing scan options, filter presets, or
+  recent locations.
+- An unreadable snapshot is reported and remains deletable without breaking the
+  rest of the history.
+
+## What a snapshot stores, and where
+
+Snapshots live in `~/Library/Application Support/MacStorageAtlas/history/`, next
+to `settings.json`. Each snapshot is one gzip-compressed JSON file named for the
+scan's completion time. You can read one directly:
+
+```shell
+gunzip -c ~/Library/Application\ Support/MacStorageAtlas/history/<name>.msascan.gz
+```
+
+A snapshot stores paths, sizes, and filesystem metadata. It never stores the
+contents of any scanned file, and it is never transmitted anywhere.
+
+Because a snapshot lists every file name under the scanned location, the store
+is treated as private user data. The directory and its files are created
+readable only by their owner, and a `.metadata_never_index` marker keeps
+Spotlight from indexing the history itself. Time Machine will still include the
+store in its backups if the Application Support directory is backed up.
+
+## Defaults and limits
+
+- Recording is off until enabled.
+- At most 10 snapshots are kept per scanned location.
+- The store is capped at 500 MB in total.
+
+Both limits are adjustable. Lowering either one prunes immediately rather than
+waiting for the next scan.
+
+Full-fidelity snapshots compress well because file paths share long prefixes: a
+scan of roughly 500,000 items produces about 12 MB rather than the roughly
+150 MB the same document would occupy uncompressed.
+
+## Removing scan history
+
+- Delete a single recorded scan from the history list.
+- Clear the whole history from the same list. Clearing asks for confirmation
+  first.
+- Use **Show in Finder** in the history panel to open the store directly.
+  `~/Library` is hidden in Finder by default, so this is the practical way to
+  reach the store by hand. The action is unavailable while nothing is recorded.
+- Delete the store directly from Finder or the shell. The store is a flat
+  directory of independent files with no index, so removing any subset of them
+  leaves the rest usable:
+
+  ```shell
+  rm -rf ~/Library/Application\ Support/MacStorageAtlas/history
+  ```
+
+Removing snapshots outside the app is fully supported. MacStorageAtlas treats a
+snapshot that disappears as gone rather than damaged, and recreates the store
+the next time a scan is recorded.
+
+Recorded scans are deleted permanently rather than moved to Trash. Clearing
+history is usually done for privacy, and moving a complete index of a user's
+file names into `~/.Trash` would leave it fully readable on disk.
+
+## Documented non-goals
+
+- Comparing two snapshots, and any added, removed, grown, or shrunk reporting.
+  That is the follow-up change to WP-09.
+- Move and rename detection. Snapshots match items by path only; stable file
+  identity is not recorded, because it exists today only in shared-aware
+  allocated mode and would make identity-based behavior silently depend on the
+  measurement mode.
+- Truncated or summarized snapshots.
+- Opening a snapshot as a browsable scan result.
+- Automatic or scheduled background scans.
+
+## Affected Projects
+
+- `MacStorageAtlas.Core`
+- `MacStorageAtlas.App`
+- `MacStorageAtlas.*.Tests`
+
+## Implementation Notes
+
+Core owns the snapshot model, the gzip JSON writer and reader, the retention
+policy, and the filesystem store, which takes its directory as a constructor
+argument. The App resolves the Application Support location, classifies scan
+completeness from the existing access guidance, starts capture off the UI thread
+after a completed result is displayed, and cancels a capture in progress when a
+new scan starts. Capture writes to a pending file, measures the finished
+compressed size, applies retention, and only then publishes by move, so a
+cancelled or failed capture never leaves a partial snapshot behind.
+
+# 32. Exact Duplicate Detection
+
+## Status
+
+Delivered by WP-10 (`detect-exact-duplicates`).
+
+## Purpose
+
+Find regular files whose current contents are byte-identical, while avoiding
+false-positive cleanup guidance and avoiding unnecessary file reads.
+
+## Acceptance Criteria
+
+- Duplicate analysis starts only after a scan result exists and is cancelled
+  independently of scanning.
+- Candidates are narrowed by current logical length before any content stream is
+  opened.
+- Zero-length files are ignored by default.
+- Beginning and ending samples are compared before full-content hashing.
+- Full-content hashing uses bounded buffers and remains cancellable.
+- A final byte-for-byte comparison confirms equality before a group is reported.
+- Known hardlinked paths are shown as linked paths instead of reclaimable
+  duplicate copies.
+- Known not-local cloud placeholders are skipped instead of downloaded.
+- Changed, missing, replaced, unreadable, and not-local candidates are reported
+  without stopping unrelated analysis.
+- Reclaimable totals preserve one retained copy per group.
+- Duplicate entries can be selected for Quick Look, Finder reveal, and
+  cleanup-basket review through the existing selected-item commands.
+- No duplicate copy is automatically selected for cleanup.
+
+## Documented non-goals
+
+- Fuzzy matching, perceptual image or audio matching, and near-duplicate
+  detection.
+- Proving APFS clone or shared-extent relationships from equal contents.
+- Automatically choosing which copy to remove.
+- Downloading cloud-only content to complete duplicate analysis.
+- Persisting duplicate analysis results in scan history snapshots.
+
+## Affected Projects
+
+- `MacStorageAtlas.Core`
+- `MacStorageAtlas.Platform.Mac`
+- `MacStorageAtlas.App`
+- `MacStorageAtlas.*.Tests`
+
+## Implementation Notes
+
+Core owns duplicate models, progress reporting, candidate grouping, sampling,
+streaming hashing, final equality confirmation, hardlink classification, and
+skip reporting. Platform.Mac provides current file length, file identity,
+hardlink count, local-content availability, and read streams. The App composes
+the analyzer after a completed scan, runs it off the UI thread, exposes progress
+and cancellation, clears duplicate results when the scan changes, and presents
+duplicate groups in a dedicated review tab that feeds the existing selected-item
+and cleanup-basket commands.

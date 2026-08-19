@@ -11,6 +11,13 @@
     <Project Path="src/MacStorageAtlas.Rendering/MacStorageAtlas.Rendering.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/MacStorageAtlas.Tests/MacStorageAtlas.Tests.csproj" />
+    <Project Path="tests/MacStorageAtlas.App.Tests/MacStorageAtlas.App.Tests.csproj" />
+    <Project Path="tests/MacStorageAtlas.Benchmarks.Tests/MacStorageAtlas.Benchmarks.Tests.csproj" />
+    <Project Path="tests/MacStorageAtlas.Core.Tests/MacStorageAtlas.Core.Tests.csproj" />
+    <Project Path="tests/MacStorageAtlas.Platform.Mac.Tests/MacStorageAtlas.Platform.Mac.Tests.csproj" />
+    <Project Path="tests/MacStorageAtlas.Rendering.Tests/MacStorageAtlas.Rendering.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/MacStorageAtlas.Benchmarks/MacStorageAtlas.Benchmarks.csproj" />
   </Folder>
 </Solution>

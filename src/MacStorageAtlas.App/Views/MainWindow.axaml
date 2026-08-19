@@ -2,7 +2,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:MacStorageAtlas.App.ViewModels"
         xmlns:controls="using:MacStorageAtlas.App.Controls"
-        xmlns:core="using:MacStorageAtlas.Core"
+        xmlns:coreFiltering="using:MacStorageAtlas.Core.Filtering"
+        xmlns:coreInsights="using:MacStorageAtlas.Core.Insights"
+        xmlns:coreItems="using:MacStorageAtlas.Core.Items"
+        xmlns:coreScanning="using:MacStorageAtlas.Core.Scanning"
         xmlns:conv="using:MacStorageAtlas.App.Converters"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -11,7 +14,7 @@
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/app.ico"
         Width="1060" Height="720"
-        MinWidth="820" MinHeight="540"
+        MinWidth="1060" MinHeight="680"
         Background="{DynamicResource AppBackgroundBrush}"
         Title="{Binding ApplicationName}">
 
@@ -19,52 +22,69 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
+    <Window.Resources>
+        <DataTemplate x:Key="DateBoundTemplate" x:DataType="vm:DateBoundViewModel">
+            <StackPanel Spacing="4" Margin="0,0,0,8">
+                <Grid ColumnDefinitions="46,Auto,*" ColumnSpacing="6">
+                    <TextBlock Grid.Column="0"
+                               Classes="caption"
+                               Text="{Binding BoundLabel}"
+                               VerticalAlignment="Center"/>
+                    <CheckBox Grid.Column="1"
+                              Content="Relative"
+                              IsChecked="{Binding IsRelative, Mode=TwoWay}"
+                              AutomationProperties.Name="{Binding RelativeToggleName}"
+                              ToolTip.Tip="Measures the bound from the moment the filter runs instead of a fixed date."/>
+                </Grid>
+                <DatePicker Margin="52,0,0,0"
+                            HorizontalAlignment="Stretch"
+                            IsVisible="{Binding IsAbsolute}"
+                            AutomationProperties.Name="{Binding DisplayName}"
+                            SelectedDate="{Binding Instant, Mode=TwoWay}"/>
+                <Grid Margin="52,0,0,0"
+                      IsVisible="{Binding IsRelative}"
+                      ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                    <NumericUpDown Grid.Column="0"
+                                   Width="112"
+                                   Minimum="1"
+                                   Increment="1"
+                                   FormatString="0"
+                                   PlaceholderText="Count"
+                                   AutomationProperties.Name="{Binding CountName}"
+                                   Value="{Binding CountValue, Mode=TwoWay}"/>
+                    <ComboBox Grid.Column="1"
+                              HorizontalAlignment="Stretch"
+                              ItemsSource="{Binding UnitOptions}"
+                              SelectedItem="{Binding Unit, Mode=TwoWay}"
+                              AutomationProperties.Name="{Binding UnitName}"/>
+                    <TextBlock Grid.Column="2"
+                               Classes="caption"
+                               Text="ago"
+                               VerticalAlignment="Center"/>
+                </Grid>
+                <TextBlock Classes="caption"
+                           Margin="52,0,0,0"
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding HasResolvedDescription}"
+                           Text="{Binding ResolvedDescription}"/>
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
+
     <DockPanel>
 
-        <!-- =============================== TOOLBAR =============================== -->
         <Border DockPanel.Dock="Top"
                 Background="{DynamicResource ChromeBackgroundBrush}"
                 BorderBrush="{DynamicResource DividerBrush}"
                 BorderThickness="0,0,0,1"
-                Padding="16,10">
-            <DockPanel>
-
-                <!-- Options + search (pinned right; wraps below actions when narrow) -->
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8"
-                            VerticalAlignment="Center" Margin="12,0,0,0">
-                    <Button ToolTip.Tip="Scan options">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <PathIcon Data="{StaticResource IconOptions}"/>
-                            <TextBlock Text="Options"/>
-                        </StackPanel>
-                        <Button.Flyout>
-                            <Flyout Placement="BottomEdgeAlignedRight">
-                                <StackPanel Spacing="10" Width="300" Margin="4">
-                                    <TextBlock Classes="label" Text="Scan options"/>
-                                    <CheckBox IsChecked="{Binding ExpandApplicationBundles, Mode=TwoWay}"
-                                              Content="Scan inside application bundles (.app)"
-                                              ToolTip.Tip="When unchecked, .app bundles are listed as a single package item instead of expanding their contents."/>
-                                    <CheckBox IsChecked="{Binding IncludeHiddenFiles, Mode=TwoWay}"
-                                              Content="Include hidden files and folders"
-                                              ToolTip.Tip="When unchecked, hidden files and folders (such as dot-files) are excluded from the scan."/>
-                                    <CheckBox IsChecked="{Binding FollowSymbolicLinks, Mode=TwoWay}"
-                                              Content="Follow symbolic links"
-                                              ToolTip.Tip="When unchecked, symbolic links are skipped. When checked, links are followed and cycles are detected to avoid scanning the same location twice."/>
-                                    <CheckBox IsChecked="{Binding MeasureAllocatedSize, Mode=TwoWay}"
-                                              Content="Measure space actually used on disk"
-                                              ToolTip.Tip="When checked (default), sizes reflect the blocks actually allocated on disk, so undownloaded cloud placeholders (iCloud, OneDrive, kDrive) count as roughly zero. When unchecked, the full logical file size is used regardless of what is stored locally."/>
-                                </StackPanel>
-                            </Flyout>
-                        </Button.Flyout>
-                    </Button>
-
-                    <TextBox Width="220"
-                             Text="{Binding SearchText, Mode=TwoWay}"
-                             PlaceholderText="Search name or path"/>
-                </StackPanel>
-
-                <!-- Scan + item actions (wrap to a new row instead of clipping) -->
-                <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="8" VerticalAlignment="Center">
+                Padding="16,8">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto"
+                  ColumnSpacing="10"
+                  VerticalAlignment="Center">
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            Spacing="8"
+                            VerticalAlignment="Center">
                     <Button Command="{Binding SelectFolderCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <PathIcon Data="{StaticResource IconFolder}"/>
@@ -89,27 +109,549 @@
                             <TextBlock Text="Stop"/>
                         </StackPanel>
                     </Button>
+                </StackPanel>
 
-                    <Border Width="1" Margin="6,2" Background="{DynamicResource DividerBrush}"/>
+                <Border Grid.Column="1" Width="1" Margin="2,2" Background="{DynamicResource DividerBrush}"/>
 
-                    <Button Command="{Binding RevealInFinderCommand}">
+                <Grid Grid.Column="2" VerticalAlignment="Center">
+                    <StackPanel Name="FullActionGroup"
+                                Orientation="Horizontal"
+                                Spacing="8"
+                                VerticalAlignment="Center"
+                                IsVisible="False">
+                        <Button Command="{Binding RevealInFinderCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconReveal}"/>
+                                <TextBlock Text="Reveal in Finder"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding QuickLookCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconPreview}"/>
+                                <TextBlock Text="Quick Look"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="danger" Command="{Binding MoveToTrashCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconTrash}"/>
+                                <TextBlock Text="Move to Trash"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Border Width="1" Margin="2,2" Background="{DynamicResource DividerBrush}"/>
+
+                        <Button ToolTip.Tip="Add the selected scan item to the cleanup basket"
+                                AutomationProperties.Name="Add selected item to cleanup basket"
+                                Command="{Binding AddSelectedItemToCleanupBasketCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconTrash}"/>
+                                <TextBlock Text="Add to basket"/>
+                            </StackPanel>
+                        </Button>
+                        <Button ToolTip.Tip="Remove the selected scan item from the cleanup basket"
+                                AutomationProperties.Name="Remove selected item from cleanup basket"
+                                Command="{Binding RemoveSelectedItemFromCleanupBasketCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconTrash}"/>
+                                <TextBlock Text="Remove from basket"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Border Width="1" Margin="2,2" Background="{DynamicResource DividerBrush}"/>
+
+                        <Button ToolTip.Tip="Export the current result as comma-separated values"
+                                Command="{Binding ExportCsvCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconExport}"/>
+                                <TextBlock Text="Export CSV"/>
+                            </StackPanel>
+                        </Button>
+                        <Button ToolTip.Tip="Export the current result as JSON"
+                                Command="{Binding ExportJsonCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconExport}"/>
+                                <TextBlock Text="Export JSON"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <Button Name="CompactActionsButton"
+                            ToolTip.Tip="Selected item and export actions"
+                            AutomationProperties.Name="Selected item and export actions">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <PathIcon Data="{StaticResource IconReveal}"/>
-                            <TextBlock Text="Reveal in Finder"/>
+                            <PathIcon Data="{StaticResource IconOptions}"/>
+                            <TextBlock Text="Actions"/>
                         </StackPanel>
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedLeft">
+                                <StackPanel Spacing="10" Width="220" Margin="4">
+                                    <TextBlock Classes="label" Text="Selected item"/>
+                                    <Button HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Left"
+                                            Command="{Binding RevealInFinderCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource IconReveal}"/>
+                                            <TextBlock Text="Reveal in Finder"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Left"
+                                            Command="{Binding QuickLookCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource IconPreview}"/>
+                                            <TextBlock Text="Quick Look"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Classes="danger"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Left"
+                                            Command="{Binding MoveToTrashCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource IconTrash}"/>
+                                            <TextBlock Text="Move to Trash"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock Classes="label" Text="Cleanup basket"/>
+                                    <Button HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Left"
+                                            ToolTip.Tip="Add the selected scan item to the cleanup basket"
+                                            AutomationProperties.Name="Add selected item to cleanup basket"
+                                            Command="{Binding AddSelectedItemToCleanupBasketCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource IconTrash}"/>
+                                            <TextBlock Text="Add to basket"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Left"
+                                            ToolTip.Tip="Remove the selected scan item from the cleanup basket"
+                                            AutomationProperties.Name="Remove selected item from cleanup basket"
+                                            Command="{Binding RemoveSelectedItemFromCleanupBasketCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource IconTrash}"/>
+                                            <TextBlock Text="Remove from basket"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock Classes="label" Text="Export"/>
+                                    <Button HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Left"
+                                            ToolTip.Tip="Export the current result as comma-separated values"
+                                            Command="{Binding ExportCsvCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource IconExport}"/>
+                                            <TextBlock Text="Export CSV"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Left"
+                                            ToolTip.Tip="Export the current result as JSON"
+                                            Command="{Binding ExportJsonCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource IconExport}"/>
+                                            <TextBlock Text="Export JSON"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
                     </Button>
-                    <Button Classes="danger" Command="{Binding MoveToTrashCommand}">
+                </Grid>
+
+                <Border Grid.Column="4" Width="1" Margin="2,2" Background="{DynamicResource DividerBrush}"/>
+
+                <StackPanel Grid.Column="5"
+                            Orientation="Horizontal"
+                            Spacing="8"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Right">
+                    <Button ToolTip.Tip="Scan options">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <PathIcon Data="{StaticResource IconTrash}"/>
-                            <TextBlock Text="Move to Trash"/>
+                            <PathIcon Data="{StaticResource IconOptions}"/>
+                            <TextBlock Text="Options"/>
                         </StackPanel>
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight">
+                                <StackPanel Spacing="10" Width="300" Margin="4">
+                                    <TextBlock Classes="label" Text="Scan options"/>
+                                    <CheckBox IsChecked="{Binding ExpandApplicationBundles, Mode=TwoWay}"
+                                              Content="Scan inside application bundles (.app)"
+                                              ToolTip.Tip="When unchecked, .app bundles are listed as a single package item instead of expanding their contents."/>
+                                    <CheckBox IsChecked="{Binding IncludeHiddenFiles, Mode=TwoWay}"
+                                              Content="Include hidden files and folders"
+                                              ToolTip.Tip="When unchecked, hidden files and folders (such as dot-files) are excluded from the scan."/>
+                                    <CheckBox IsChecked="{Binding FollowSymbolicLinks, Mode=TwoWay}"
+                                              Content="Follow symbolic links"
+                                              ToolTip.Tip="When unchecked, symbolic links are skipped. When checked, links are followed and cycles are detected to avoid scanning the same location twice."/>
+                                    <TextBlock Classes="label" Text="Size measurement"/>
+                                    <ComboBox ItemsSource="{Binding MeasurementModes}"
+                                              SelectedItem="{Binding MeasurementMode, Mode=TwoWay}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="coreScanning:StorageMeasurementMode">
+                                                <TextBlock Text="{Binding Converter={x:Static conv:StorageMeasurementModeLabelConverter.Instance}}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <TextBlock Classes="caption"
+                                               TextWrapping="Wrap"
+                                               Text="Shared-aware allocated size is the default. It counts hardlinks once and verified full-clone data once where supported; divergent clone extents remain per file."/>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
                     </Button>
-                </WrapPanel>
-            </DockPanel>
+
+                    <Button Name="ScanHistoryButton"
+                            ToolTip.Tip="Scan history"
+                            AutomationProperties.Name="Scan history"
+                            Command="{Binding ScanHistory.RefreshCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconOptions}"/>
+                            <TextBlock Text="History"/>
+                        </StackPanel>
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight"
+                                    FlyoutPresenterClasses="wide">
+                                <ScrollViewer MaxHeight="560"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Spacing="10" MinWidth="400" Margin="4,4,14,4">
+                                        <TextBlock Classes="label" Text="Scan history"/>
+                                        <CheckBox IsChecked="{Binding ScanHistoryEnabled, Mode=TwoWay}"
+                                                  Content="Record completed scans"
+                                                  ToolTip.Tip="When checked, every completed scan is recorded locally so that a later version can compare them. Nothing is recorded until you turn this on."/>
+                                        <TextBlock Classes="caption"
+                                                   TextWrapping="Wrap"
+                                                   Text="Recorded scans store the path, size, and dates of every scanned item. They never store file contents and never leave this Mac."/>
+
+                                        <Grid ColumnDefinitions="*,190" ColumnSpacing="8">
+                                            <TextBlock Grid.Column="0"
+                                                       VerticalAlignment="Center"
+                                                       Text="Keep at most, per location"/>
+                                            <NumericUpDown Grid.Column="1"
+                                                           Minimum="1"
+                                                           Maximum="100"
+                                                           Increment="1"
+                                                           FormatString="0"
+                                                           Value="{Binding ScanHistorySnapshotLimit, Mode=TwoWay}"/>
+                                        </Grid>
+
+                                        <Grid ColumnDefinitions="*,190" ColumnSpacing="8">
+                                            <TextBlock Grid.Column="0"
+                                                       VerticalAlignment="Center"
+                                                       Text="Store limit, megabytes"/>
+                                            <NumericUpDown Grid.Column="1"
+                                                           Minimum="1"
+                                                           Maximum="102400"
+                                                           Increment="50"
+                                                           FormatString="0"
+                                                           Value="{Binding ScanHistoryStoreLimitMegabytes, Mode=TwoWay}"/>
+                                        </Grid>
+
+                                        <Border Height="1" Background="{DynamicResource DividerBrush}"/>
+
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Classes="caption"
+                                                       TextWrapping="NoWrap"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding ScanHistory.StoreLocation}"
+                                                       Text="{Binding ScanHistory.StoreLocation}"/>
+                                            <TextBlock Classes="caption"
+                                                       Text="{Binding ScanHistory.TotalStoreSize, StringFormat='Using {0}'}"/>
+                                            <StackPanel Orientation="Horizontal"
+                                                        Spacing="6"
+                                                        HorizontalAlignment="Right">
+                                                <Button ToolTip.Tip="Show the scan history store in Finder"
+                                                        AutomationProperties.Name="Show scan history store in Finder"
+                                                        Command="{Binding ScanHistory.RevealStoreCommand}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <PathIcon Data="{StaticResource IconReveal}"/>
+                                                        <TextBlock Text="Show in Finder"/>
+                                                    </StackPanel>
+                                                </Button>
+                                                <Button Classes="danger"
+                                                        Content="Clear History"
+                                                        Command="{Binding ScanHistory.ClearCommand}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <TextBlock Classes="caption"
+                                                   TextWrapping="Wrap"
+                                                   IsVisible="{Binding ScanHistory.StatusMessage, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                                   Text="{Binding ScanHistory.StatusMessage}"/>
+
+                                        <TextBlock Classes="caption"
+                                                   TextWrapping="Wrap"
+                                                   IsVisible="{Binding ScanHistory.UnreadableWarning, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                                   Text="{Binding ScanHistory.UnreadableWarning}"/>
+
+                                        <TextBlock Classes="caption"
+                                                   TextWrapping="Wrap"
+                                                   IsVisible="{Binding ScanHistory.IsEmpty}"
+                                                   Text="{Binding ScanHistory.EmptyStateMessage}"/>
+
+                                        <ItemsControl ItemsSource="{Binding ScanHistory.Roots}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:ScanHistoryRootViewModel">
+                                                    <StackPanel Spacing="4" Margin="0,0,0,10">
+                                                        <TextBlock Classes="label"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Text="{Binding Header}"/>
+                                                        <ItemsControl ItemsSource="{Binding Snapshots}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="vm:ScanHistoryEntryViewModel">
+                                                                    <Grid ColumnDefinitions="*,Auto"
+                                                                          ColumnSpacing="8"
+                                                                          Margin="0,2">
+                                                                        <StackPanel Grid.Column="0" Spacing="1">
+                                                                            <TextBlock Text="{Binding CompletedAt}"
+                                                                                       IsVisible="{Binding IsReadable}"/>
+                                                                            <TextBlock Classes="caption"
+                                                                                       TextWrapping="Wrap"
+                                                                                       Text="{Binding Completeness}"/>
+                                                                            <TextBlock Classes="caption"
+                                                                                       IsVisible="{Binding IsReadable}"
+                                                                                       Text="{Binding ItemCount, StringFormat='{}{0} items'}"/>
+                                                                        </StackPanel>
+                                                                        <StackPanel Grid.Column="1"
+                                                                                    Orientation="Horizontal"
+                                                                                    Spacing="6"
+                                                                                    VerticalAlignment="Center">
+                                                                            <TextBlock Classes="caption"
+                                                                                       VerticalAlignment="Center"
+                                                                                       Text="{Binding StoredSize}"/>
+                                                                            <Button Classes="danger"
+                                                                                    Content="Delete"
+                                                                                    Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScanHistory.DeleteSnapshotCommand}"
+                                                                                    CommandParameter="{Binding}"/>
+                                                                        </StackPanel>
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
+                    <Button Name="FilterButton"
+                            ToolTip.Tip="Result filters"
+                            AutomationProperties.Name="Result filters">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconOptions}"/>
+                            <TextBlock Text="Filters"/>
+                        </StackPanel>
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight">
+                                <Panel DataContext="{Binding Filter}" Width="420">
+                                <ScrollViewer MaxHeight="560"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              VerticalScrollBarVisibility="Auto">
+                                <StackPanel Spacing="10" Margin="4,4,14,4"
+                                            x:DataType="vm:ResultFilterViewModel">
+                                    <TextBlock Classes="label" Text="Presets"/>
+                                    <ItemsControl ItemsSource="{Binding Presets}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="coreFiltering:FilterPreset">
+                                                <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,2">
+                                                    <Button Grid.Column="0"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Left"
+                                                            Content="{Binding Name}"
+                                                            Command="{Binding $parent[ItemsControl].((vm:ResultFilterViewModel)DataContext).ApplyPresetCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Grid.Column="1"
+                                                            Margin="4,0,0,0"
+                                                            IsVisible="{Binding !IsBuiltIn}"
+                                                            ToolTip.Tip="Rename preset"
+                                                            AutomationProperties.Name="Rename preset"
+                                                            Command="{Binding $parent[ItemsControl].((vm:ResultFilterViewModel)DataContext).BeginRenamePresetCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <PathIcon Data="{StaticResource IconRename}"/>
+                                                    </Button>
+                                                    <Button Grid.Column="2"
+                                                            Margin="4,0,0,0"
+                                                            IsVisible="{Binding !IsBuiltIn}"
+                                                            ToolTip.Tip="Delete preset"
+                                                            AutomationProperties.Name="Delete preset"
+                                                            Command="{Binding $parent[ItemsControl].((vm:ResultFilterViewModel)DataContext).DeletePresetCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <PathIcon Data="{StaticResource IconTrash}"/>
+                                                    </Button>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <TextBlock Classes="caption"
+                                               TextWrapping="Wrap"
+                                               IsVisible="{Binding HasPresetState}"
+                                               Text="{Binding PresetStateSummary}"/>
+
+                                    <Button HorizontalAlignment="Stretch"
+                                            Content="Update preset with current criteria"
+                                            IsVisible="{Binding HasEditedCriteria}"
+                                            Command="{Binding UpdatePresetCommand}"/>
+
+                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6"
+                                          IsVisible="{Binding IsRenamingPreset}">
+                                        <TextBox Grid.Column="0"
+                                                 Text="{Binding RenamePresetName, Mode=TwoWay}"
+                                                 AutomationProperties.Name="New name for the selected preset"
+                                                 PlaceholderText="Preset name"/>
+                                        <Button Grid.Column="1"
+                                                Content="Rename"
+                                                Command="{Binding CommitRenamePresetCommand}"/>
+                                        <Button Grid.Column="2"
+                                                Content="Cancel"
+                                                Command="{Binding CancelRenamePresetCommand}"/>
+                                    </Grid>
+
+                                    <TextBlock Classes="label" Text="Size"/>
+                                    <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="6">
+                                        <NumericUpDown Grid.Column="0"
+                                                       Minimum="0"
+                                                       PlaceholderText="Min MB"
+                                                       AutomationProperties.Name="Minimum size in megabytes"
+                                                       Value="{Binding MinimumSizeMegabytes, Mode=TwoWay}"/>
+                                        <TextBlock Grid.Column="1" Text="to" VerticalAlignment="Center"/>
+                                        <NumericUpDown Grid.Column="2"
+                                                       Minimum="0"
+                                                       PlaceholderText="Max MB"
+                                                       AutomationProperties.Name="Maximum size in megabytes"
+                                                       Value="{Binding MaximumSizeMegabytes, Mode=TwoWay}"/>
+                                    </Grid>
+
+                                    <TextBlock Classes="label" Text="Modified"/>
+                                    <ContentControl Content="{Binding ModifiedAfter}"
+                                                    ContentTemplate="{StaticResource DateBoundTemplate}"/>
+                                    <ContentControl Content="{Binding ModifiedBefore}"
+                                                    ContentTemplate="{StaticResource DateBoundTemplate}"/>
+
+                                    <TextBlock Classes="label" Text="Created"/>
+                                    <ContentControl Content="{Binding CreatedAfter}"
+                                                    ContentTemplate="{StaticResource DateBoundTemplate}"/>
+                                    <ContentControl Content="{Binding CreatedBefore}"
+                                                    ContentTemplate="{StaticResource DateBoundTemplate}"/>
+
+                                    <TextBlock Classes="label" Text="Last accessed"/>
+                                    <ContentControl Content="{Binding LastAccessedAfter}"
+                                                    ContentTemplate="{StaticResource DateBoundTemplate}"/>
+                                    <ContentControl Content="{Binding LastAccessedBefore}"
+                                                    ContentTemplate="{StaticResource DateBoundTemplate}"/>
+
+                                    <TextBlock Classes="label" Text="File extensions"/>
+                                    <TextBox Text="{Binding ExtensionsText, Mode=TwoWay}"
+                                             AutomationProperties.Name="File extensions"
+                                             PlaceholderText="mov, zip, pdf"/>
+
+                                    <TextBlock Classes="label" Text="Categories"/>
+                                    <ItemsControl ItemsSource="{Binding CategoryOptions}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:FileCategoryOption">
+                                                <CheckBox Content="{Binding DisplayName}"
+                                                          IsChecked="{Binding IsSelected, Mode=TwoWay}"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <CheckBox IsChecked="{Binding SharedStorageOnly, Mode=TwoWay}"
+                                              Content="Only results whose storage is shared"
+                                              ToolTip.Tip="Shows only files whose storage is counted against another path in this scan, such as hardlinks."/>
+
+                                    <TextBlock Classes="label" Text="Save current filter as preset"/>
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                        <TextBox Grid.Column="0"
+                                                 Text="{Binding NewPresetName, Mode=TwoWay}"
+                                                 AutomationProperties.Name="New preset name"
+                                                 PlaceholderText="Preset name"/>
+                                        <Button Grid.Column="1"
+                                                Content="Save"
+                                                Command="{Binding SavePresetCommand}"/>
+                                    </Grid>
+
+                                    <Button HorizontalAlignment="Stretch"
+                                            Content="Clear filter"
+                                            Command="{Binding ClearFilterCommand}"/>
+                                </StackPanel>
+                                </ScrollViewer>
+                                </Panel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
+                    <TextBox Name="SearchBox"
+                             Width="220"
+                             Text="{Binding SearchText, Mode=TwoWay}"
+                             AutomationProperties.Name="Search name or path"
+                             PlaceholderText="Search name or path"/>
+                </StackPanel>
+            </Grid>
         </Border>
 
-        <!-- =========================== NOTIFICATION STRIP =========================== -->
-        <StackPanel DockPanel.Dock="Top" Spacing="0">
+<StackPanel DockPanel.Dock="Top" Spacing="0">
+            <Border Background="{DynamicResource ChromeBackgroundBrush}"
+                    BorderBrush="{DynamicResource DividerBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="16,8"
+                    IsVisible="{Binding Filter.IsFilterActive}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBlock Classes="danger"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding Filter.HasValidationError}"
+                                   Text="{Binding Filter.ValidationMessage}"/>
+                        <TextBlock Classes="caption"
+                                   IsVisible="{Binding Filter.HasMatchSummary}"
+                                   Text="{Binding Filter.MatchSummary}"/>
+                        <TextBlock Classes="caption"
+                                   IsVisible="{Binding Filter.HasUnknownDateExclusions}"
+                                   Text="{Binding Filter.UnknownDateExclusionMessage}"/>
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Content="Clear filter"
+                            VerticalAlignment="Center"
+                            Command="{Binding Filter.ClearFilterCommand}"/>
+                </Grid>
+            </Border>
+            <Border Background="{DynamicResource ChromeBackgroundBrush}"
+                    BorderBrush="{DynamicResource DividerBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="16,10"
+                    IsVisible="{Binding IsAccessGuidanceVisible}">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                    <StackPanel Grid.Column="0" Spacing="3">
+                        <TextBlock Classes="section-header"
+                                   Text="{Binding AccessGuidanceTitle}"/>
+                        <TextBlock Classes="subtle"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding AccessGuidanceMessage}"/>
+                        <TextBlock Classes="caption"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding FullDiskAccessManualFallback}"
+                                   IsVisible="{Binding ShowFullDiskAccessManualFallback}"/>
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Command="{Binding OpenFullDiskAccessSettingsCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconOptions}"/>
+                            <TextBlock Text="Open Settings"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Grid.Column="2"
+                            VerticalAlignment="Center"
+                            Command="{Binding RescanAfterFullDiskAccessCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconRefresh}"/>
+                            <TextBlock Text="Rescan"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
             <Border Background="{DynamicResource ChromeBackgroundBrush}"
                     Padding="16,8"
                     IsVisible="{Binding RevealStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
@@ -117,13 +659,123 @@
             </Border>
             <Border Background="{DynamicResource ChromeBackgroundBrush}"
                     Padding="16,8"
+                    IsVisible="{Binding QuickLookStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock Classes="danger" TextWrapping="Wrap" Text="{Binding QuickLookStatusMessage}"/>
+            </Border>
+            <Border Background="{DynamicResource ChromeBackgroundBrush}"
+                    Padding="16,8"
                     IsVisible="{Binding TrashStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                 <TextBlock Classes="danger" TextWrapping="Wrap" Text="{Binding TrashStatusMessage}"/>
             </Border>
+            <Border Background="{DynamicResource ChromeBackgroundBrush}"
+                    BorderBrush="{DynamicResource DividerBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="16,10"
+                    IsVisible="{Binding HasScanResult}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Grid.Column="0" Spacing="4">
+                        <StackPanel Orientation="Horizontal" Spacing="14">
+                            <TextBlock Classes="label">
+                                <Run Text="Basket:"/><Run Text=" "/><Run Text="{Binding CleanupBasketItemCount}"/>
+                            </TextBlock>
+                            <TextBlock Classes="caption">
+                                <Run Text="Logical "/><Run Text="{Binding FormattedCleanupBasketTotalLogicalSize}"/>
+                            </TextBlock>
+                            <TextBlock Classes="caption">
+                                <Run Text="Expected reclaimable "/><Run Text="{Binding FormattedCleanupBasketExpectedReclaimableSize}"/>
+                            </TextBlock>
+                            <TextBlock Classes="caption"
+                                       IsVisible="{Binding HasBlockedCleanupBasketItems}">
+                                <Run Text="Ready "/><Run Text="{Binding ExecutableCleanupBasketItemCount}"/>
+                            </TextBlock>
+                        </StackPanel>
+                        <TextBlock Classes="caption"
+                                   TextWrapping="Wrap"
+                                   Text="No items selected"
+                                   IsVisible="{Binding !HasCleanupBasketItems}"/>
+                        <TextBlock Classes="caption"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding CleanupBasketDestinationPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                            <Run Text="Destination "/><Run Text="{Binding CleanupBasketDestinationPath}"/>
+                        </TextBlock>
+                        <TextBlock Classes="danger"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding CleanupBasketStatusMessage}"
+                                   IsVisible="{Binding CleanupBasketStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        <TextBlock Classes="caption"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding CleanupBasketProgressMessage}"
+                                   IsVisible="{Binding CleanupBasketProgressMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        <TextBlock Classes="caption"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding CleanupBasketOperationResults.Count}">
+                            <Run Text="Succeeded "/><Run Text="{Binding CleanupBasketSucceededCount}"/>
+                            <Run Text=", failed "/><Run Text="{Binding CleanupBasketFailedCount}"/>
+                            <Run Text=", not attempted "/><Run Text="{Binding CleanupBasketUnattemptedCount}"/>
+                        </TextBlock>
+                    </StackPanel>
+                    <WrapPanel Grid.Column="1"
+                               Orientation="Horizontal"
+                               ItemSpacing="8"
+                               LineSpacing="8"
+                               VerticalAlignment="Center">
+                        <Button Classes="danger"
+                                Command="{Binding MoveCleanupBasketToTrashCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconTrash}"/>
+                                <TextBlock Text="Review basket"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding MoveCleanupBasketToLocationCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconRename}"/>
+                                <TextBlock Text="Move to…"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding CopyCleanupBasketToLocationCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconCopy}"/>
+                                <TextBlock Text="Copy to…"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding CancelCleanupBasketMoveCommand}"
+                                IsVisible="{Binding IsRunningCleanupBasketOperation}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconStop}"/>
+                                <TextBlock Text="Cancel"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding ClearCleanupBasketCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource IconTrash}"/>
+                                <TextBlock Text="Clear basket"/>
+                            </StackPanel>
+                        </Button>
+                    </WrapPanel>
+                </Grid>
+            </Border>
+            <Border Background="{DynamicResource ChromeBackgroundBrush}"
+                    Padding="16,8"
+                    IsVisible="{Binding IsExporting}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <TextBlock Grid.Column="0"
+                               VerticalAlignment="Center"
+                               TextWrapping="Wrap"
+                               Text="Exporting the current result…"/>
+                    <Button Grid.Column="1"
+                            Content="Cancel export"
+                            VerticalAlignment="Center"
+                            Command="{Binding CancelExportCommand}"/>
+                </Grid>
+            </Border>
+            <Border Background="{DynamicResource ChromeBackgroundBrush}"
+                    Padding="16,8"
+                    IsVisible="{Binding ExportStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock TextWrapping="Wrap" Text="{Binding ExportStatusMessage}"/>
+            </Border>
         </StackPanel>
 
-        <!-- ============================== STATUS BAR ============================== -->
-        <Border DockPanel.Dock="Bottom"
+<Border DockPanel.Dock="Bottom"
                 Background="{DynamicResource ChromeBackgroundBrush}"
                 BorderBrush="{DynamicResource DividerBrush}"
                 BorderThickness="0,1,0,0"
@@ -149,22 +801,23 @@
                         <Run Text="Folders:"/><Run Text=" "/><Run Text="{Binding DirectoriesScanned}"/>
                     </TextBlock>
                     <TextBlock Classes="caption">
-                        <Run Text="Size:"/><Run Text=" "/><Run Text="{Binding BytesScanned, Mode=OneWay, Converter={x:Static conv:ByteSizeConverter.Instance}}"/>
+                        <Run Text="{Binding MeasurementBasisLabel}"/><Run Text=": "/><Run Text="{Binding BytesScanned, Mode=OneWay, Converter={x:Static conv:ByteSizeConverter.Instance}}"/>
                     </TextBlock>
+                    <TextBlock Classes="caption"
+                               Text="{Binding CloneAccountingCoverageLabel}"
+                               IsVisible="{Binding ResultMeasurementMode, Converter={x:Static conv:SharedAwareMeasurementModeConverter.Instance}}"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- ============================== MAIN AREA ============================== -->
-        <Panel Margin="16">
+<Panel Margin="16">
 
-            <!-- Empty / start state -->
-            <Border Classes="card"
+<Border Classes="card"
                     MaxWidth="520"
                     Padding="32"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
-                    IsVisible="{Binding !TreeItems.Count}">
+                    IsVisible="{Binding !HasScanResult}">
                 <StackPanel Spacing="16" HorizontalAlignment="Center">
                     <TextBlock Classes="title" Text="Analyze your storage" HorizontalAlignment="Center"/>
                     <TextBlock Classes="subtle"
@@ -194,19 +847,50 @@
                                Text="{Binding SelectedFolderPath}"
                                IsVisible="{Binding SelectedFolderPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
-                    <!-- Recent locations -->
                     <StackPanel Spacing="6" IsVisible="{Binding RecentLocations.Count}">
-                        <TextBlock Classes="label" Text="Recent locations" HorizontalAlignment="Center"/>
-                        <ItemsControl ItemsSource="{Binding RecentLocations}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="x:String">
-                                    <Button Classes="ghost"
-                                            Content="{Binding}"
-                                            Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ScanRecentLocationCommand}"
-                                            CommandParameter="{Binding}"/>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <TextBlock Grid.Column="1"
+                                       Classes="label"
+                                       Text="Recent locations"
+                                       HorizontalAlignment="Center"/>
+                            <Button Grid.Column="2"
+                                    Classes="ghost"
+                                    ToolTip.Tip="Clear recent locations"
+                                    AutomationProperties.Name="Clear recent locations"
+                                    Command="{Binding ClearRecentLocationsCommand}">
+                                <PathIcon Data="{StaticResource IconTrash}"/>
+                            </Button>
+                        </Grid>
+                        <ScrollViewer MaxHeight="220"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding RecentLocations}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <Button Grid.Column="0"
+                                                    Classes="ghost"
+                                                    HorizontalContentAlignment="Stretch"
+                                                    ToolTip.Tip="{Binding}"
+                                                    AutomationProperties.Name="Scan recent location"
+                                                    Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ScanRecentLocationCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <TextBlock Text="{Binding}"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                            </Button>
+                                            <Button Grid.Column="1"
+                                                    Classes="ghost"
+                                                    ToolTip.Tip="Remove recent location"
+                                                    AutomationProperties.Name="Remove recent location"
+                                                    Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).RemoveRecentLocationCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <PathIcon Data="{StaticResource IconTrash}"/>
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
                         <TextBlock Classes="danger"
                                    TextWrapping="Wrap"
                                    Text="{Binding RecentLocationStatusMessage}"
@@ -215,17 +899,45 @@
                 </StackPanel>
             </Border>
 
-            <!-- Results -->
-            <Grid ColumnDefinitions="0.4*,Auto,0.6*"
+<Border Classes="card"
+                    MaxWidth="520"
+                    Padding="32"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding ShowEmptyFilterResult}">
+                <StackPanel Spacing="16" HorizontalAlignment="Center">
+                    <TextBlock Classes="title"
+                               Text="No results match this filter"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Classes="subtle"
+                               MaxWidth="380"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               Text="The scan result is unchanged. Adjust or clear the filter to see it again."/>
+                    <Button Classes="accent"
+                            HorizontalAlignment="Center"
+                            Content="Clear filter"
+                            Command="{Binding Filter.ClearFilterCommand}"/>
+                </StackPanel>
+            </Border>
+
+<Grid ColumnDefinitions="0.4*,Auto,0.6*"
                   IsVisible="{Binding TreeItems.Count}">
 
-                <!-- Left: folder tree -->
-                <Border Grid.Column="0" Classes="card" Padding="0" MinWidth="280">
+<Border Grid.Column="0" Classes="card" Padding="0" MinWidth="280">
                     <DockPanel>
-                        <TextBlock DockPanel.Dock="Top"
-                                   Classes="section-header"
-                                   Text="Folder tree"
-                                   Margin="16,14,16,8"/>
+                        <Grid DockPanel.Dock="Top"
+                              ColumnDefinitions="*,Auto"
+                              ColumnSpacing="16"
+                              Margin="16,14,16,8">
+                            <TextBlock Grid.Column="0"
+                                       Classes="section-header"
+                                       Text="Folder tree"/>
+                            <TextBlock Grid.Column="1"
+                                       Classes="label"
+                                       VerticalAlignment="Center"
+                                       Text="{Binding TreeSizeColumnHeader}"/>
+                        </Grid>
                         <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource DividerBrush}"/>
                         <TreeView ItemsSource="{Binding TreeItems}"
                                   SelectedItem="{Binding SelectedTreeItem, Mode=TwoWay}"
@@ -240,7 +952,8 @@
                                                    TextTrimming="CharacterEllipsis"/>
                                         <TextBlock Grid.Column="1"
                                                    Classes="subtle"
-                                                   Text="{Binding FormattedSize}"/>
+                                                   ToolTip.Tip="{Binding FormattedSize}"
+                                                   Text="{Binding DisplaySize}"/>
                                     </Grid>
                                 </TreeDataTemplate>
                             </TreeView.ItemTemplate>
@@ -253,11 +966,9 @@
                               Background="Transparent"
                               ResizeDirection="Columns"/>
 
-                <!-- Right: treemap + details -->
-                <Grid Grid.Column="2" RowDefinitions="3*,2*" RowSpacing="16" MinWidth="420">
+<Grid Grid.Column="2" RowDefinitions="3*,2*" RowSpacing="16" MinWidth="420">
 
-                    <!-- Treemap -->
-                    <Border Grid.Row="0" Classes="card" Padding="0">
+<Border Grid.Row="0" Classes="card" Padding="0">
                         <DockPanel>
                             <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="16,14,16,8">
                                 <TextBlock Grid.Column="0" Classes="section-header" Text="Treemap"/>
@@ -271,39 +982,55 @@
                                     ClipToBounds="True"
                                     IsVisible="{Binding TreemapRectangles.Count}">
                                 <controls:TreemapControl Rectangles="{Binding TreemapRectangles}"
+                                                         HighlightedItems="{Binding HighlightedTreemapItems}"
+                                                         IsHighlightActive="{Binding IsFilterActive}"
                                                          SelectedRectangle="{Binding SelectedTreemapRectangle, Mode=TwoWay}"/>
                             </Border>
                         </DockPanel>
                     </Border>
 
-                    <!-- Details tabs -->
-                    <Border Grid.Row="1" Classes="card" MinHeight="220">
-                        <TabControl>
+<Border Grid.Row="1" Classes="card" MinHeight="220">
+                        <TabControl SelectedIndex="{Binding SelectedResultsTabIndex, Mode=TwoWay}">
 
-                            <!-- Selected item -->
-                            <TabItem Header="Selected item">
+<TabItem Header="Selected item">
                                 <ScrollViewer Margin="0,12,0,0">
                                     <StackPanel Spacing="10">
                                         <TextBlock Classes="subtle"
-                                                   Text="Select a block in the treemap to see its details."
-                                                   IsVisible="{Binding !HasSelectedTreemapItem}"/>
+                                                   Text="Select an item in the tree, treemap, or largest-files list to see its details."
+                                                   IsVisible="{Binding !HasSelectedItem}"/>
                                         <Grid ColumnDefinitions="Auto,*"
-                                              RowDefinitions="Auto,Auto,Auto"
+                                              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                                               ColumnSpacing="16" RowSpacing="8"
-                                              IsVisible="{Binding HasSelectedTreemapItem}">
+                                              IsVisible="{Binding HasSelectedItem}">
                                             <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Name"/>
-                                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedTreemapItem.Name}" TextWrapping="Wrap"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedItem.Name}" TextWrapping="Wrap"/>
                                             <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Path"/>
-                                            <TextBlock Grid.Row="1" Grid.Column="1" Classes="subtle" Text="{Binding SelectedTreemapItem.Path}" TextWrapping="Wrap"/>
-                                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Size"/>
-                                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedTreemapItemFormattedSize}"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Classes="subtle" Text="{Binding SelectedItem.Path}" TextWrapping="Wrap"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Kind"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedItemKind}"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Created"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedItemCreatedTime}"/>
+                                            <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="Modified"/>
+                                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedItemModifiedTime}"/>
+                                            <TextBlock Grid.Row="5" Grid.Column="0" Classes="label" Text="Last access"/>
+                                            <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedItemLastAccessTime}"/>
+                                            <TextBlock Grid.Row="6" Grid.Column="0" Classes="label" Text="Measured"/>
+                                            <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding SelectedItemMeasuredSize}"/>
+                                            <TextBlock Grid.Row="7" Grid.Column="0" Classes="label" Text="Counted"/>
+                                            <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding SelectedItemCountedSize}"/>
+                                            <TextBlock Grid.Row="8" Grid.Column="0" Classes="label" Text="Shared"/>
+                                            <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding SelectedItemSharedSize}"/>
+                                            <TextBlock Grid.Row="9" Grid.ColumnSpan="2"
+                                                       Classes="caption"
+                                                       Text="This path shares storage with another included path. Counted bytes remain attributed to this path; shared bytes are represented elsewhere."
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding SelectedItemIsCountedElsewhere}"/>
                                         </Grid>
                                     </StackPanel>
                                 </ScrollViewer>
                             </TabItem>
 
-                            <!-- File types -->
-                            <TabItem Header="File types">
+<TabItem Header="File types">
                                 <DockPanel Margin="0,12,0,0">
                                     <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="16" Margin="0,0,0,6">
                                         <TextBlock Grid.Column="0" Classes="label" Text="Extension"/>
@@ -314,7 +1041,7 @@
                                     <ScrollViewer>
                                         <ItemsControl ItemsSource="{Binding FileTypeSummaries}">
                                             <ItemsControl.ItemTemplate>
-                                                <DataTemplate x:DataType="core:FileTypeSummary">
+                                                <DataTemplate x:DataType="coreInsights:FileTypeSummary">
                                                     <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="16" Margin="0,4">
                                                         <TextBlock Grid.Column="0" Text="{Binding Extension}"/>
                                                         <TextBlock Grid.Column="1" Classes="subtle" Text="{Binding FileCount}" MinWidth="60" TextAlignment="Right"/>
@@ -327,8 +1054,7 @@
                                 </DockPanel>
                             </TabItem>
 
-                            <!-- Largest files -->
-                            <TabItem Header="Largest files">
+<TabItem Header="Largest files">
                                 <DockPanel Margin="0,12,0,0">
                                     <TextBlock DockPanel.Dock="Bottom"
                                                Classes="caption"
@@ -338,7 +1064,7 @@
                                              SelectedItem="{Binding SelectedLargeFile, Mode=TwoWay}"
                                              Background="Transparent">
                                         <ListBox.ItemTemplate>
-                                            <DataTemplate x:DataType="core:DiskItem">
+                                            <DataTemplate x:DataType="coreItems:DiskItem">
                                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                                                     <StackPanel Grid.Column="0" Spacing="2">
                                                         <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
@@ -346,7 +1072,7 @@
                                                     </StackPanel>
                                                     <TextBlock Grid.Column="1"
                                                                VerticalAlignment="Center"
-                                                               Text="{Binding SizeBytes, Converter={x:Static conv:ByteSizeConverter.Instance}}"/>
+                                                               Text="{Binding MeasuredSizeBytes, Converter={x:Static conv:ByteSizeConverter.Instance}}"/>
                                                 </Grid>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
@@ -354,8 +1080,112 @@
                                 </DockPanel>
                             </TabItem>
 
-                            <!-- Scan errors -->
-                            <TabItem>
+<TabItem Header="Duplicates">
+                                <DockPanel Margin="0,12,0,0">
+                                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,8">
+                                        <StackPanel Grid.Column="0" Spacing="2">
+                                            <TextBlock>
+                                                <Run Text="{Binding DuplicateGroupCount}"/><Run Text=" groups"/>
+                                                <Run Text=" · "/><Run Text="{Binding FormattedDuplicateReclaimableSize}"/>
+                                            </TextBlock>
+                                            <TextBlock Classes="caption"
+                                                       Text="{Binding DuplicateAnalysisStatusMessage}"
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding DuplicateAnalysisStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                            <TextBlock Classes="caption"
+                                                       Text="{Binding DuplicateAnalysisProgressMessage}"
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding DuplicateAnalysisProgressMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Command="{Binding StartDuplicateAnalysisCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <PathIcon Data="{StaticResource IconSearch}"/>
+                                                <TextBlock Text="Find"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Grid.Column="2"
+                                                Command="{Binding CancelDuplicateAnalysisCommand}"
+                                                IsVisible="{Binding IsAnalyzingDuplicates}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <PathIcon Data="{StaticResource IconStop}"/>
+                                                <TextBlock Text="Cancel"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                    <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="10">
+                                        <TextBlock Grid.Row="0"
+                                                   Classes="subtle"
+                                                   Text="No duplicate analysis result for this scan."
+                                                   IsVisible="{Binding !HasDuplicateGroups}"/>
+                                        <ListBox Grid.Row="1"
+                                                 ItemsSource="{Binding DuplicateGroups}"
+                                                 IsVisible="{Binding HasDuplicateGroups}"
+                                                 Background="Transparent">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate x:DataType="coreInsights:DuplicateGroup">
+                                                    <DockPanel Margin="0,0,0,10">
+                                                        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,0,0,4">
+                                                            <TextBlock Grid.Column="0">
+                                                                <Run Text="{Binding Entries.Count}"/><Run Text=" matching paths"/>
+                                                            </TextBlock>
+                                                            <TextBlock Grid.Column="1"
+                                                                       Text="{Binding ReclaimableSizeBytes, Converter={x:Static conv:ByteSizeConverter.Instance}}"/>
+                                                        </Grid>
+                                                        <ListBox ItemsSource="{Binding Entries}"
+                                                                 SelectedItem="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectedDuplicateEntry, Mode=TwoWay}"
+                                                                 Background="Transparent">
+                                                            <ListBox.ItemTemplate>
+                                                                <DataTemplate x:DataType="coreInsights:DuplicateGroupEntry">
+                                                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10" Margin="0,2">
+                                                                        <StackPanel Grid.Column="0" Spacing="2">
+                                                                            <TextBlock Text="{Binding Item.Name}" TextTrimming="CharacterEllipsis"/>
+                                                                            <TextBlock Classes="caption" Text="{Binding Item.Path}" TextTrimming="CharacterEllipsis"/>
+                                                                        </StackPanel>
+                                                                        <TextBlock Grid.Column="1"
+                                                                                   Classes="caption"
+                                                                                   VerticalAlignment="Center"
+                                                                                   Text="{Binding Kind}"/>
+                                                                        <TextBlock Grid.Column="2"
+                                                                                   VerticalAlignment="Center"
+                                                                                   Text="{Binding LogicalSizeBytes, Converter={x:Static conv:ByteSizeConverter.Instance}}"/>
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ListBox.ItemTemplate>
+                                                        </ListBox>
+                                                    </DockPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <TextBlock Grid.Row="2"
+                                                   Classes="caption"
+                                                   IsVisible="{Binding DuplicateSkippedCandidateCount}">
+                                            <Run Text="Skipped "/><Run Text="{Binding DuplicateSkippedCandidateCount}"/><Run Text=" files"/>
+                                        </TextBlock>
+                                        <ListBox Grid.Row="3"
+                                                 ItemsSource="{Binding DuplicateSkippedCandidates}"
+                                                 IsVisible="{Binding DuplicateSkippedCandidateCount}"
+                                                 MaxHeight="160"
+                                                 Background="Transparent">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate x:DataType="coreInsights:DuplicateSkippedCandidate">
+                                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="0,2">
+                                                        <StackPanel Grid.Column="0" Spacing="2">
+                                                            <TextBlock Text="{Binding Item.Name}" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Classes="caption" Text="{Binding Item.Path}" TextTrimming="CharacterEllipsis"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="1"
+                                                                   Classes="caption"
+                                                                   VerticalAlignment="Center"
+                                                                   Text="{Binding Reason}"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Grid>
+                                </DockPanel>
+                            </TabItem>
+
+<TabItem>
                                 <TabItem.Header>
                                     <TextBlock>
                                         <Run Text="Scan errors"/><Run Text=" ("/><Run Text="{Binding ScanErrors.Count}"/><Run Text=")"/>
@@ -377,7 +1207,7 @@
                                              SelectedItem="{Binding SelectedScanError, Mode=TwoWay}"
                                              Background="Transparent">
                                         <ListBox.ItemTemplate>
-                                            <DataTemplate x:DataType="core:ScanError">
+                                            <DataTemplate x:DataType="coreScanning:ScanError">
                                                 <Grid ColumnDefinitions="2*,*,3*" ColumnSpacing="12" Margin="0,2">
                                                     <TextBlock Grid.Column="0" Text="{Binding Path}" TextWrapping="Wrap"/>
                                                     <TextBlock Grid.Column="1" Classes="subtle" Text="{Binding ExceptionType}" TextWrapping="Wrap"/>
@@ -393,8 +1223,7 @@
                 </Grid>
             </Grid>
 
-            <!-- Scanning overlay: clearly shows progress over whatever is behind -->
-            <Border Background="{DynamicResource ScrimBrush}"
+<Border Background="{DynamicResource ScrimBrush}"
                     IsVisible="{Binding IsScanning}">
                 <Border Classes="card"
                         Padding="28"
@@ -422,7 +1251,7 @@
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Classes="section-header" HorizontalAlignment="Center"
                                            Text="{Binding BytesScanned, Mode=OneWay, Converter={x:Static conv:ByteSizeConverter.Instance}}"/>
-                                <TextBlock Classes="caption" HorizontalAlignment="Center" Text="Size"/>
+                                <TextBlock Classes="caption" HorizontalAlignment="Center" Text="{Binding MeasurementBasisLabel}"/>
                             </StackPanel>
                         </StackPanel>
                         <Button Classes="danger" HorizontalAlignment="Center" Command="{Binding StopScanCommand}">

@@ -1,0 +1,2731 @@
+using System.IO;
+using System.Runtime.CompilerServices;
+using MacStorageAtlas.App.Converters;
+using MacStorageAtlas.App.Models;
+using MacStorageAtlas.App.Services;
+using MacStorageAtlas.App.ViewModels;
+using MacStorageAtlas.Rendering;
+using NSubstitute;
+using MacStorageAtlas.Core.Cleanup;
+using MacStorageAtlas.Core.History;
+using MacStorageAtlas.Core.Items;
+using MacStorageAtlas.Core.Platform;
+using MacStorageAtlas.Core.Scanning;
+
+namespace MacStorageAtlas.App.Tests;
+
+public class MainWindowViewModelTests
+{
+    [Test]
+    public void ApplicationNameIdentifiesTheApplication()
+    {
+        var viewModel = new MainWindowViewModel();
+
+        var applicationName = viewModel.ApplicationName;
+
+        Assert.That(applicationName, Is.EqualTo("MacStorageAtlas"));
+    }
+
+    [Test]
+    public void ApplicationDefaultsToSharedAwareAllocatedMeasurement()
+    {
+        var viewModel = new MainWindowViewModel();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                viewModel.MeasurementMode,
+                Is.EqualTo(StorageMeasurementMode.SharedAwareAllocated));
+            Assert.That(
+                viewModel.ResultMeasurementMode,
+                Is.EqualTo(StorageMeasurementMode.SharedAwareAllocated));
+            Assert.That(
+                viewModel.MeasurementBasisLabel,
+                Is.EqualTo("Shared-aware allocated size"));
+            Assert.That(
+                viewModel.CloneAccountingCoverageLabel,
+                Is.EqualTo("Verified full-clone accounting unavailable"));
+        });
+    }
+
+    [TestCase(
+        CloneAccountingCoverage.Available,
+        "Verified full-clone accounting available")]
+    [TestCase(
+        CloneAccountingCoverage.Unavailable,
+        "Verified full-clone accounting unavailable")]
+    [TestCase(
+        CloneAccountingCoverage.Partial,
+        "Verified full-clone accounting partial")]
+    public async Task CompletedResultCapturesCloneAccountingCoverage(
+        CloneAccountingCoverage coverage,
+        string expectedLabel)
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new StubDiskScanner(
+            _ => CompletedScanAsync(
+                root,
+                cloneAccountingCoverage: coverage));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher());
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.ResultCloneAccountingCoverage, Is.EqualTo(coverage));
+            Assert.That(viewModel.CloneAccountingCoverageLabel, Is.EqualTo(expectedLabel));
+        });
+    }
+
+    [Test]
+    public void MeasurementConverterUsesCanonicalLabels()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                StorageMeasurementModeLabelConverter.Label(
+                    StorageMeasurementMode.SharedAwareAllocated),
+                Is.EqualTo("Shared-aware allocated size"));
+            Assert.That(
+                StorageMeasurementModeLabelConverter.Label(
+                    StorageMeasurementMode.Allocated),
+                Is.EqualTo("Allocated size per path"));
+            Assert.That(
+                StorageMeasurementModeLabelConverter.Label(
+                    StorageMeasurementMode.Logical),
+                Is.EqualTo("Logical size"));
+        });
+    }
+
+    [Test]
+    public async Task SelectFolderCommandStoresSelectedPath()
+    {
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns("/Users/test/Documents");
+        var viewModel = new MainWindowViewModel(folderPicker);
+
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+
+        Assert.That(viewModel.SelectedFolderPath, Is.EqualTo("/Users/test/Documents"));
+    }
+
+    [Test]
+    public async Task SelectFolderCommandLeavesExistingPathWhenSelectionIsCancelled()
+    {
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(
+            "/Users/test/Documents",
+            (string?)null);
+        var viewModel = new MainWindowViewModel(folderPicker);
+
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+
+        Assert.That(viewModel.SelectedFolderPath, Is.EqualTo("/Users/test/Documents"));
+    }
+
+    [Test]
+    public async Task ScanFolderCommandReportsProgressWhileScanIsRunning()
+    {
+        var continueScan = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var progressApplied = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var scanner = new StubDiskScanner(
+            cancellationToken => ProgressUntilReleasedAsync(
+                continueScan.Task,
+                progressApplied,
+                cancellationToken));
+        var dispatcher = new RecordingUiDispatcher();
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns("/scan/root");
+        var viewModel = new MainWindowViewModel(folderPicker, scanner, dispatcher);
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+
+        var scanTask = viewModel.ScanFolderCommand.ExecuteAsync(null);
+        await progressApplied.Task;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.IsScanning, Is.True);
+            Assert.That(viewModel.CurrentPath, Is.EqualTo("/scan/root/file.dat"));
+            Assert.That(viewModel.FilesScanned, Is.EqualTo(1));
+            Assert.That(viewModel.DirectoriesScanned, Is.EqualTo(2));
+            Assert.That(viewModel.BytesScanned, Is.EqualTo(4_096));
+            Assert.That(
+                viewModel.ResultMeasurementMode,
+                Is.EqualTo(StorageMeasurementMode.SharedAwareAllocated));
+            Assert.That(
+                viewModel.MeasurementBasisLabel,
+                Is.EqualTo("Shared-aware allocated size"));
+            Assert.That(viewModel.ScanErrors, Has.Count.EqualTo(1));
+            Assert.That(viewModel.ScanErrors[0].Path, Is.EqualTo("/scan/root/restricted"));
+            Assert.That(viewModel.ScanErrors[0].ExceptionType, Is.EqualTo(nameof(UnauthorizedAccessException)));
+            Assert.That(dispatcher.InvocationCount, Is.GreaterThanOrEqualTo(2));
+        });
+
+        continueScan.SetResult();
+        await scanTask;
+        Assert.That(viewModel.IsScanning, Is.False);
+    }
+
+    [Test]
+    public async Task ScanFolderCommandDispatchesOnlyScannerProgressAndLifecycleUpdates()
+    {
+        const int progressCount = 6;
+        var scanner = new StubDiskScanner(
+            _ => ProgressBurstAsync(progressCount));
+        var dispatcher = new RecordingUiDispatcher();
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns("/scan/root");
+        var viewModel = new MainWindowViewModel(folderPicker, scanner, dispatcher);
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(dispatcher.InvocationCount, Is.EqualTo(progressCount + 2));
+            Assert.That(viewModel.FilesScanned, Is.EqualTo(progressCount));
+            Assert.That(viewModel.TreeItems, Has.Count.EqualTo(1));
+            Assert.That(viewModel.LargeFiles, Has.Count.EqualTo(progressCount));
+            Assert.That(viewModel.FileTypeSummaries.Single().FileCount, Is.EqualTo(progressCount));
+        });
+    }
+
+    [Test]
+    public void StopScanCommandIsDisabledWhenNotScanning()
+    {
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            Substitute.For<IDiskScanner>(),
+            new RecordingUiDispatcher());
+
+        Assert.That(viewModel.StopScanCommand.CanExecute(null), Is.False);
+    }
+
+    [Test]
+    public async Task StopScanCommandCancelsActiveScanAndKeepsPartialResults()
+    {
+        var progressApplied = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var scanner = new StubDiskScanner(
+            cancellationToken => ProgressThenAwaitCancellationAsync(
+                progressApplied,
+                cancellationToken));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns("/scan/root");
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher());
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+
+        var scanTask = viewModel.ScanFolderCommand.ExecuteAsync(null);
+        await progressApplied.Task;
+        Assert.That(viewModel.StopScanCommand.CanExecute(null), Is.True);
+        viewModel.StopScanCommand.Execute(null);
+        await scanTask;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.IsScanning, Is.False);
+            Assert.That(viewModel.StopScanCommand.CanExecute(null), Is.False);
+            Assert.That(viewModel.FilesScanned, Is.EqualTo(3));
+            Assert.That(viewModel.BytesScanned, Is.EqualTo(2_048));
+            Assert.That(viewModel.CurrentPath, Is.EqualTo("/scan/root/partial.dat"));
+            Assert.That(
+                viewModel.MeasurementBasisLabel,
+                Is.EqualTo("Shared-aware allocated size"));
+        });
+    }
+
+    [Test]
+    public async Task CompletedScanMapsTreeAndStoresSelection()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var folder = new DiskItem("folder", "/scan/root/folder", isDirectory: true);
+        var modified = new DateTimeOffset(2026, 7, 29, 8, 30, 0, TimeSpan.Zero);
+        var file = new DiskItem("file.dat", "/scan/root/folder/file.dat", isDirectory: false)
+        {
+            SizeBytes = 1_536,
+            Metadata = new DiskItemMetadata(
+                DiskItemKind.File,
+                FileAttributes.Normal,
+                CreatedTimeUtc: null,
+                modified,
+                LastAccessTimeUtc: null)
+        };
+        folder.AddChild(file);
+        folder.SizeBytes = file.SizeBytes;
+        root.AddChild(folder);
+        root.SizeBytes = folder.SizeBytes;
+
+        var scanner = new StubDiskScanner(
+            _ => CompletedScanAsync(root, StorageMeasurementMode.Allocated));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns("/scan/root");
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher());
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        var rootNode = viewModel.TreeItems.Single();
+        var folderNode = rootNode.Children.Single();
+        var fileNode = folderNode.Children.Single();
+        viewModel.SelectedTreeItem = fileNode;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rootNode.Name, Is.EqualTo("root"));
+            Assert.That(folderNode.Name, Is.EqualTo("folder"));
+            Assert.That(fileNode.Name, Is.EqualTo("file.dat"));
+            Assert.That(fileNode.FormattedSize, Is.EqualTo("1.5 KB"));
+            Assert.That(fileNode.Item, Is.SameAs(file));
+            Assert.That(viewModel.SelectedTreeItem, Is.SameAs(fileNode));
+            Assert.That(viewModel.SelectedItemKind, Is.EqualTo("File"));
+            Assert.That(viewModel.SelectedItemModifiedTime, Is.EqualTo(FormattedTime(modified)));
+            Assert.That(viewModel.SelectedItemCreatedTime, Is.EqualTo("Unknown"));
+            Assert.That(viewModel.SelectedItemLastAccessTime, Is.EqualTo("Unknown"));
+            Assert.That(viewModel.FileTypeSummaries, Has.Count.EqualTo(1));
+            Assert.That(viewModel.FileTypeSummaries[0].Extension, Is.EqualTo(".dat"));
+            Assert.That(viewModel.FileTypeSummaries[0].FileCount, Is.EqualTo(1));
+            Assert.That(viewModel.FileTypeSummaries[0].TotalSizeBytes, Is.EqualTo(1_536));
+        });
+    }
+
+    [Test]
+    public async Task ScanFolderCommandPassesPackageExpansionPreferenceToScanner()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher());
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+        viewModel.ExpandApplicationBundles = false;
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.That(scanner.LastOptions, Is.Not.Null);
+        Assert.That(scanner.LastOptions!.TreatPackagesAsDirectories, Is.False);
+    }
+
+    [Test]
+    public async Task LogicalScanUsesReturnedLogicalMeasurementLabel()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(
+            _ => CompletedScanAsync(root, StorageMeasurementMode.Logical));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher())
+        {
+            MeasurementMode = StorageMeasurementMode.Logical
+        };
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                scanner.LastOptions!.MeasurementMode,
+                Is.EqualTo(StorageMeasurementMode.Logical));
+            Assert.That(
+                viewModel.ResultMeasurementMode,
+                Is.EqualTo(StorageMeasurementMode.Logical));
+            Assert.That(viewModel.MeasurementBasisLabel, Is.EqualTo("Logical size"));
+        });
+    }
+
+    [Test]
+    public async Task ChangingNextScanPreferenceDoesNotRelabelCompletedResult()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new StubDiskScanner(
+            _ => CompletedScanAsync(root, StorageMeasurementMode.Allocated));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher());
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        viewModel.MeasurementMode = StorageMeasurementMode.Logical;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                viewModel.ResultMeasurementMode,
+                Is.EqualTo(StorageMeasurementMode.Allocated));
+            Assert.That(
+                viewModel.MeasurementBasisLabel,
+                Is.EqualTo("Allocated size per path"));
+        });
+    }
+
+    [Test]
+    public async Task ScanFolderCommandExpandsApplicationBundlesByDefault()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher());
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.That(viewModel.ExpandApplicationBundles, Is.True);
+        Assert.That(scanner.LastOptions!.TreatPackagesAsDirectories, Is.True);
+    }
+
+    [Test]
+    public async Task ScanFolderCommandExcludesHiddenFilesByDefault()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher());
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.That(viewModel.IncludeHiddenFiles, Is.False);
+        Assert.That(scanner.LastOptions!.IncludeHiddenFiles, Is.False);
+    }
+
+    [Test]
+    public async Task ScanFolderCommandPassesHiddenFilePreferenceToScanner()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher());
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+        viewModel.IncludeHiddenFiles = true;
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.That(scanner.LastOptions, Is.Not.Null);
+        Assert.That(scanner.LastOptions!.IncludeHiddenFiles, Is.True);
+    }
+
+    [Test]
+    public async Task ScanFolderCommandDoesNotFollowSymbolicLinksByDefault()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher());
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.That(viewModel.FollowSymbolicLinks, Is.False);
+        Assert.That(scanner.LastOptions!.FollowSymbolicLinks, Is.False);
+    }
+
+    [Test]
+    public async Task ScanFolderCommandPassesSymbolicLinkPreferenceToScanner()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher());
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+        viewModel.FollowSymbolicLinks = true;
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.That(scanner.LastOptions, Is.Not.Null);
+        Assert.That(scanner.LastOptions!.FollowSymbolicLinks, Is.True);
+    }
+
+    [Test]
+    public void TreemapSelectionExposesSelectedItemDetails()
+    {
+        var created = new DateTimeOffset(2026, 7, 28, 8, 30, 0, TimeSpan.Zero);
+        var modified = new DateTimeOffset(2026, 7, 29, 8, 30, 0, TimeSpan.Zero);
+        var item = new DiskItem("archive.zip", "/scan/root/archive.zip", isDirectory: false)
+        {
+            SizeBytes = 1_536,
+            Metadata = new DiskItemMetadata(
+                DiskItemKind.File,
+                FileAttributes.Normal,
+                created,
+                modified,
+                LastAccessTimeUtc: null)
+        };
+        var rectangle = new TreemapRect(new TreemapItem(item), 0, 0, 100, 50);
+        var viewModel = new MainWindowViewModel();
+
+        viewModel.SelectedTreemapRectangle = rectangle;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.SelectedTreemapItem, Is.SameAs(item));
+            Assert.That(viewModel.SelectedTreemapItem!.Name, Is.EqualTo("archive.zip"));
+            Assert.That(viewModel.SelectedTreemapItem.Path, Is.EqualTo("/scan/root/archive.zip"));
+            Assert.That(viewModel.SelectedItemMeasuredSize, Is.EqualTo("1.5 KB"));
+            Assert.That(viewModel.SelectedItemCountedSize, Is.EqualTo("1.5 KB"));
+            Assert.That(viewModel.SelectedItemKind, Is.EqualTo("File"));
+            Assert.That(viewModel.SelectedItemCreatedTime, Is.EqualTo(FormattedTime(created)));
+            Assert.That(viewModel.SelectedItemModifiedTime, Is.EqualTo(FormattedTime(modified)));
+            Assert.That(viewModel.SelectedItemLastAccessTime, Is.EqualTo("Unknown"));
+            Assert.That(viewModel.HasSelectedItem, Is.True);
+        });
+    }
+
+    [Test]
+    public void ClearingTreemapSelectionClearsSelectedItemDetails()
+    {
+        var item = new DiskItem("file.dat", "/scan/root/file.dat", isDirectory: false);
+        var viewModel = new MainWindowViewModel
+        {
+            SelectedTreemapRectangle = new TreemapRect(new TreemapItem(item), 0, 0, 100, 50)
+        };
+
+        viewModel.SelectedTreemapRectangle = null;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.SelectedTreemapItem, Is.Null);
+            Assert.That(viewModel.SelectedItemMeasuredSize, Is.Empty);
+            Assert.That(viewModel.SelectedItemCountedSize, Is.Empty);
+            Assert.That(viewModel.SelectedItemKind, Is.Empty);
+            Assert.That(viewModel.SelectedItemCreatedTime, Is.Empty);
+            Assert.That(viewModel.SelectedItemModifiedTime, Is.Empty);
+            Assert.That(viewModel.SelectedItemLastAccessTime, Is.Empty);
+            Assert.That(viewModel.HasSelectedItem, Is.False);
+        });
+    }
+
+    [Test]
+    public void UnknownSelectedItemMetadataFormatsAsUnknown()
+    {
+        var viewModel = new MainWindowViewModel();
+        var directory = new DiskItem("folder", "/scan/root/folder", isDirectory: true);
+
+        viewModel.SelectedTreeItem = new DiskItemTreeNodeViewModel(directory);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.SelectedItemKind, Is.EqualTo("Folder"));
+            Assert.That(viewModel.SelectedItemCreatedTime, Is.EqualTo("Unknown"));
+            Assert.That(viewModel.SelectedItemModifiedTime, Is.EqualTo("Unknown"));
+            Assert.That(viewModel.SelectedItemLastAccessTime, Is.EqualTo("Unknown"));
+        });
+    }
+
+    [Test]
+    public async Task SharedTreeItemShowsMeasuredAndCountedSizesWithoutTreemapWeight()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true)
+        {
+            SizeBytes = 4096,
+            MeasuredSizeBytes = 8192
+        };
+        var counted = new DiskItem(
+            "counted.bin",
+            "/scan/root/counted.bin",
+            isDirectory: false)
+        {
+            SizeBytes = 4096,
+            MeasuredSizeBytes = 4096
+        };
+        var shared = new DiskItem(
+            "shared.bin",
+            "/scan/root/shared.bin",
+            isDirectory: false)
+        {
+            SizeBytes = 0,
+            MeasuredSizeBytes = 4096,
+            SharedSizeBytes = 4096
+        };
+        root.AddChild(counted);
+        root.AddChild(shared);
+        var scanner = new StubDiskScanner(_ => CompletedScanAsync(root));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher());
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        var sharedNode = viewModel.TreeItems.Single().Children.Single(
+            item => item.Item.IsSizeCountedElsewhere);
+        viewModel.SelectedTreeItem = sharedNode;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                sharedNode.FormattedSize,
+                Is.EqualTo("0 B counted, 4.0 KB shared"));
+            Assert.That(viewModel.SelectedItem, Is.SameAs(shared));
+            Assert.That(viewModel.SelectedItemMeasuredSize, Is.EqualTo("4.0 KB"));
+            Assert.That(viewModel.SelectedItemCountedSize, Is.EqualTo("0 B"));
+            Assert.That(viewModel.SelectedItemSharedSize, Is.EqualTo("4.0 KB"));
+            Assert.That(viewModel.SelectedItemIsCountedElsewhere, Is.True);
+            Assert.That(viewModel.TreemapRectangles, Has.Count.EqualTo(0));
+            Assert.That(
+                viewModel.FileTypeSummaries.Single().TotalSizeBytes,
+                Is.EqualTo(4096));
+            Assert.That(
+                viewModel.FileTypeSummaries.Single().FileCount,
+                Is.EqualTo(2));
+            Assert.That(viewModel.LargeFiles, Has.Count.EqualTo(2));
+            Assert.That(viewModel.LargeFiles[0], Is.SameAs(counted));
+            Assert.That(viewModel.LargeFiles[1], Is.SameAs(shared));
+        });
+    }
+
+    [Test]
+    public void PartiallySharedTreeItemRetainsPositiveCountedWeight()
+    {
+        var item = new DiskItem(
+            "clone.bin",
+            "/scan/root/clone.bin",
+            isDirectory: false)
+        {
+            SizeBytes = 1024,
+            MeasuredSizeBytes = 5120,
+            SharedSizeBytes = 4096
+        };
+
+        var node = new DiskItemTreeNodeViewModel(item);
+        var layout = new TreemapLayoutService().Layout(
+            [new TreemapItem(item)],
+            new TreemapBounds(0, 0, 100, 50));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                node.FormattedSize,
+                Is.EqualTo("1.0 KB counted, 4.0 KB shared"));
+            Assert.That(layout, Has.Count.EqualTo(1));
+            Assert.That(layout[0].Item.SizeBytes, Is.EqualTo(1024));
+        });
+    }
+
+    [Test]
+    public void RevealInFinderCommandIsDisabledWithoutASelection()
+    {
+        var revealService = Substitute.For<IFileRevealService>();
+        var viewModel = CreateViewModel(revealService);
+
+        Assert.That(viewModel.RevealInFinderCommand.CanExecute(null), Is.False);
+    }
+
+    [Test]
+    public void RevealInFinderCommandRevealsSelectedTreeItem()
+    {
+        var revealService = Substitute.For<IFileRevealService>();
+        revealService.Reveal(Arg.Any<string>()).Returns(true);
+        var viewModel = CreateViewModel(revealService);
+        var item = new DiskItem("file.dat", "/scan/root/file.dat", isDirectory: false);
+        viewModel.SelectedTreeItem = new DiskItemTreeNodeViewModel(item);
+
+        viewModel.RevealInFinderCommand.Execute(null);
+
+        revealService.Received(1).Reveal(item.Path);
+        Assert.That(viewModel.RevealStatusMessage, Is.Null);
+    }
+
+    [Test]
+    public void RevealInFinderCommandHandlesADeletedSelectedPath()
+    {
+        var revealService = Substitute.For<IFileRevealService>();
+        revealService.Reveal(Arg.Any<string>()).Returns(false);
+        var viewModel = CreateViewModel(revealService);
+        viewModel.SelectedTreemapRectangle = new TreemapRect(
+            new TreemapItem(new DiskItem("deleted.dat", "/deleted.dat", isDirectory: false)),
+            0,
+            0,
+            10,
+            10);
+
+        Assert.DoesNotThrow(() => viewModel.RevealInFinderCommand.Execute(null));
+        Assert.That(viewModel.RevealStatusMessage, Does.Contain("no longer exists"));
+    }
+
+    [Test]
+    public void RevealInFinderCommandHandlesAPlatformFailure()
+    {
+        var revealService = Substitute.For<IFileRevealService>();
+        revealService
+            .When(service => service.Reveal(Arg.Any<string>()))
+            .Do(_ => throw new InvalidOperationException("Finder unavailable"));
+        var viewModel = CreateViewModel(revealService);
+        viewModel.SelectedTreeItem = new DiskItemTreeNodeViewModel(
+            new DiskItem("file.dat", "/file.dat", isDirectory: false));
+
+        Assert.DoesNotThrow(() => viewModel.RevealInFinderCommand.Execute(null));
+        Assert.That(viewModel.RevealStatusMessage, Does.Contain("could not be revealed"));
+    }
+
+    [Test]
+    public void QuickLookCommandIsDisabledWithoutASelection()
+    {
+        var quickLookService = Substitute.For<IQuickLookService>();
+        var viewModel = CreateQuickLookViewModel(quickLookService);
+
+        Assert.That(viewModel.QuickLookCommand.CanExecute(null), Is.False);
+    }
+
+    [Test]
+    public void QuickLookCommandPreviewsSelectedTreeItem()
+    {
+        var quickLookService = Substitute.For<IQuickLookService>();
+        quickLookService.Preview(Arg.Any<string>()).Returns(true);
+        var viewModel = CreateQuickLookViewModel(quickLookService);
+        var item = new DiskItem("file.dat", "/scan/root/file.dat", isDirectory: false);
+        viewModel.SelectedTreeItem = new DiskItemTreeNodeViewModel(item);
+
+        viewModel.QuickLookCommand.Execute(null);
+
+        quickLookService.Received(1).Preview(item.Path);
+        Assert.That(viewModel.QuickLookStatusMessage, Is.Null);
+    }
+
+    [Test]
+    public void QuickLookCommandPreviewsSelectedTreemapItem()
+    {
+        var quickLookService = Substitute.For<IQuickLookService>();
+        quickLookService.Preview(Arg.Any<string>()).Returns(true);
+        var viewModel = CreateQuickLookViewModel(quickLookService);
+        var item = new DiskItem("file.dat", "/scan/root/file.dat", isDirectory: false);
+        viewModel.SelectedTreemapRectangle = new TreemapRect(
+            new TreemapItem(item),
+            0,
+            0,
+            10,
+            10);
+
+        viewModel.QuickLookCommand.Execute(null);
+
+        quickLookService.Received(1).Preview(item.Path);
+        Assert.That(viewModel.SelectedItem, Is.SameAs(item));
+    }
+
+    [Test]
+    public void QuickLookCommandPreviewsSelectedLargeFile()
+    {
+        var quickLookService = Substitute.For<IQuickLookService>();
+        quickLookService.Preview(Arg.Any<string>()).Returns(true);
+        var viewModel = CreateQuickLookViewModel(quickLookService);
+        var item = new DiskItem("file.dat", "/scan/root/file.dat", isDirectory: false);
+        viewModel.SelectedLargeFile = item;
+
+        viewModel.QuickLookCommand.Execute(null);
+
+        quickLookService.Received(1).Preview(item.Path);
+        Assert.That(viewModel.SelectedItem, Is.SameAs(item));
+    }
+
+    [Test]
+    public void QuickLookCommandHandlesADeletedSelectedPath()
+    {
+        var quickLookService = Substitute.For<IQuickLookService>();
+        quickLookService.Preview(Arg.Any<string>()).Returns(false);
+        var viewModel = CreateQuickLookViewModel(quickLookService);
+        viewModel.SelectedTreeItem = new DiskItemTreeNodeViewModel(
+            new DiskItem("deleted.dat", "/deleted.dat", isDirectory: false));
+
+        Assert.DoesNotThrow(() => viewModel.QuickLookCommand.Execute(null));
+        Assert.That(viewModel.QuickLookStatusMessage, Does.Contain("no longer exists"));
+    }
+
+    [Test]
+    public void QuickLookCommandHandlesAPlatformFailure()
+    {
+        var quickLookService = Substitute.For<IQuickLookService>();
+        quickLookService
+            .When(service => service.Preview(Arg.Any<string>()))
+            .Do(_ => throw new InvalidOperationException("Quick Look unavailable"));
+        var viewModel = CreateQuickLookViewModel(quickLookService);
+        viewModel.SelectedTreeItem = new DiskItemTreeNodeViewModel(
+            new DiskItem("file.dat", "/file.dat", isDirectory: false));
+
+        Assert.DoesNotThrow(() => viewModel.QuickLookCommand.Execute(null));
+        Assert.That(viewModel.QuickLookStatusMessage, Does.Contain("could not be previewed"));
+    }
+
+    [Test]
+    public async Task QuickLookCommandPreservesCompletedScanResultState()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var file = new DiskItem("file.dat", "/scan/root/file.dat", isDirectory: false)
+        {
+            SizeBytes = 1_536,
+            MeasuredSizeBytes = 2_048,
+            SharedSizeBytes = 512,
+            Metadata = new DiskItemMetadata(
+                DiskItemKind.File,
+                FileAttributes.Normal,
+                CreatedTimeUtc: null,
+                new DateTimeOffset(2026, 7, 29, 8, 30, 0, TimeSpan.Zero),
+                LastAccessTimeUtc: null)
+        };
+        root.AddChild(file);
+        root.SizeBytes = file.SizeBytes;
+        root.MeasuredSizeBytes = file.MeasuredSizeBytes;
+        root.SharedSizeBytes = file.SharedSizeBytes;
+        var quickLookService = Substitute.For<IQuickLookService>();
+        quickLookService.Preview(Arg.Any<string>()).Returns(true);
+        var viewModel = CreateScanningViewModel(
+            root,
+            new InMemorySettingsService(),
+            quickLookService);
+        viewModel.SelectedFolderPath = root.Path;
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        viewModel.SelectedLargeFile = file;
+        var treeCount = viewModel.TreeItems.Count;
+        var largestFiles = viewModel.LargeFiles;
+        var fileTypeSummaries = viewModel.FileTypeSummaries;
+        var measured = viewModel.SelectedItemMeasuredSize;
+        var counted = viewModel.SelectedItemCountedSize;
+        var shared = viewModel.SelectedItemSharedSize;
+        var modified = viewModel.SelectedItemModifiedTime;
+
+        viewModel.QuickLookCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.TreeItems.Count, Is.EqualTo(treeCount));
+            Assert.That(viewModel.LargeFiles, Is.SameAs(largestFiles));
+            Assert.That(viewModel.FileTypeSummaries, Is.SameAs(fileTypeSummaries));
+            Assert.That(viewModel.SelectedItem, Is.SameAs(file));
+            Assert.That(viewModel.SelectedItemMeasuredSize, Is.EqualTo(measured));
+            Assert.That(viewModel.SelectedItemCountedSize, Is.EqualTo(counted));
+            Assert.That(viewModel.SelectedItemSharedSize, Is.EqualTo(shared));
+            Assert.That(viewModel.SelectedItemModifiedTime, Is.EqualTo(modified));
+        });
+    }
+
+    [Test]
+    public void ShowSelectedItemDetailsCommandSelectsDetailsTab()
+    {
+        var viewModel = CreateQuickLookViewModel(Substitute.For<IQuickLookService>());
+        var item = new DiskItem("file.dat", "/scan/root/file.dat", isDirectory: false);
+        viewModel.SelectedTreeItem = new DiskItemTreeNodeViewModel(item);
+        viewModel.SelectedResultsTabIndex = 2;
+
+        viewModel.ShowSelectedItemDetailsCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.SelectedResultsTabIndex, Is.Zero);
+            Assert.That(viewModel.SelectedItem, Is.SameAs(item));
+            Assert.That(viewModel.SelectedItemKind, Is.EqualTo("File"));
+        });
+    }
+
+    [Test]
+    public void MoveToTrashCommandIsDisabledWithoutASelection()
+    {
+        var viewModel = CreateTrashViewModel(
+            Substitute.For<ITrashService>(),
+            Substitute.For<ITrashConfirmationService>());
+
+        Assert.That(viewModel.MoveToTrashCommand.CanExecute(null), Is.False);
+    }
+
+    [Test]
+    public async Task MoveToTrashCommandDoesNothingWhenConfirmationIsCancelled()
+    {
+        var trashService = Substitute.For<ITrashService>();
+        var confirmation = Substitute.For<ITrashConfirmationService>();
+        confirmation.ConfirmMoveToTrashAsync(Arg.Any<DiskItem>()).Returns(false);
+        var viewModel = CreateTrashViewModel(trashService, confirmation);
+        var item = new DiskItem("file.dat", "/file.dat", isDirectory: false)
+        {
+            Metadata = new DiskItemMetadata(
+                DiskItemKind.File,
+                FileAttributes.Normal,
+                CreatedTimeUtc: null,
+                new DateTimeOffset(2001, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                LastAccessTimeUtc: null)
+        };
+        viewModel.SelectedTreeItem = new DiskItemTreeNodeViewModel(item);
+
+        await viewModel.MoveToTrashCommand.ExecuteAsync(null);
+
+        await trashService.DidNotReceiveWithAnyArgs().MoveToTrashAsync(default!);
+        Assert.That(viewModel.SelectedItem, Is.SameAs(item));
+    }
+
+    [TestCase(StorageMeasurementMode.Logical)]
+    [TestCase(StorageMeasurementMode.Allocated)]
+    public async Task MoveToTrashCommandRemovesConfirmedItemFromNonDeduplicatedResults(
+        StorageMeasurementMode measurementMode)
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var item = new DiskItem("file.dat", "/scan/root/file.dat", isDirectory: false)
+        {
+            SizeBytes = 1_024
+        };
+        root.AddChild(item);
+        root.SizeBytes = item.SizeBytes;
+        var trashService = Substitute.For<ITrashService>();
+        var confirmation = Substitute.For<ITrashConfirmationService>();
+        confirmation.ConfirmMoveToTrashAsync(item).Returns(true);
+        var scanner = new StubDiskScanner(
+            _ => CompletedScanAsync(root, measurementMode));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher(),
+            Substitute.For<IFileRevealService>(),
+            trashService,
+            confirmation);
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children.Single();
+
+        await viewModel.MoveToTrashCommand.ExecuteAsync(null);
+
+        await confirmation.Received(1).ConfirmMoveToTrashAsync(item);
+        await trashService.Received(1).MoveToTrashAsync(item.Path);
+        Assert.Multiple(() =>
+        {
+            Assert.That(root.Children, Is.Empty);
+            Assert.That(root.SizeBytes, Is.Zero);
+            Assert.That(viewModel.TreeItems.Single().Children, Is.Empty);
+            Assert.That(viewModel.FileTypeSummaries, Is.Empty);
+            Assert.That(viewModel.SelectedItem, Is.Null);
+        });
+    }
+
+    [TestCase(0)]
+    [TestCase(1)]
+    public async Task MoveToTrashCommandRefreshesHardlinkAwareResult(
+        int selectedChildIndex)
+    {
+        var originalRoot = SharedAwareRoot();
+        var refreshedRoot = new DiskItem("root", "/scan/root", isDirectory: true)
+        {
+            SizeBytes = 4096,
+            MeasuredSizeBytes = 4096
+        };
+        refreshedRoot.AddChild(new DiskItem(
+            "remaining.bin",
+            "/scan/root/remaining.bin",
+            isDirectory: false)
+        {
+            SizeBytes = 4096,
+            MeasuredSizeBytes = 4096
+        });
+        var scanner = new CapturingDiskScanner(
+            (scanCount, _, _) => scanCount == 1
+                ? CompletedScanAsync(originalRoot)
+                : CompletedScanAsync(refreshedRoot));
+        var trashService = Substitute.For<ITrashService>();
+        var confirmation = Substitute.For<ITrashConfirmationService>();
+        confirmation.ConfirmMoveToTrashAsync(Arg.Any<DiskItem>()).Returns(true);
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(originalRoot.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher(),
+            Substitute.For<IFileRevealService>(),
+            trashService,
+            confirmation)
+        {
+            IncludeHiddenFiles = true,
+            FollowSymbolicLinks = true,
+            ExpandApplicationBundles = false
+        };
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        viewModel.SelectedTreeItem =
+            viewModel.TreeItems.Single().Children[selectedChildIndex];
+        viewModel.MeasurementMode = StorageMeasurementMode.Logical;
+        viewModel.IncludeHiddenFiles = false;
+        viewModel.FollowSymbolicLinks = false;
+        viewModel.ExpandApplicationBundles = true;
+
+        await viewModel.MoveToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(scanner.ScanCount, Is.EqualTo(2));
+            Assert.That(
+                scanner.LastOptions!.MeasurementMode,
+                Is.EqualTo(StorageMeasurementMode.SharedAwareAllocated));
+            Assert.That(scanner.LastOptions.IncludeHiddenFiles, Is.True);
+            Assert.That(scanner.LastOptions.FollowSymbolicLinks, Is.True);
+            Assert.That(scanner.LastOptions.TreatPackagesAsDirectories, Is.False);
+            Assert.That(viewModel.TreeItems.Single().Children, Has.Count.EqualTo(1));
+            Assert.That(viewModel.BytesScanned, Is.EqualTo(4096));
+            Assert.That(viewModel.SelectedItem, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task MoveToTrashCommandRefreshesWhenRemainingLinkIsInCollapsedPackage()
+    {
+        var originalRoot = SharedAwareRoot();
+        var refreshedRoot = new DiskItem("root", "/scan/root", isDirectory: true)
+        {
+            SizeBytes = 4096,
+            MeasuredSizeBytes = 4096
+        };
+        refreshedRoot.AddChild(new DiskItem(
+            "Example.app",
+            "/scan/root/Example.app",
+            isDirectory: true)
+        {
+            SizeBytes = 4096,
+            MeasuredSizeBytes = 4096
+        });
+        var scanner = new CapturingDiskScanner(
+            (scanCount, _, _) => scanCount == 1
+                ? CompletedScanAsync(originalRoot)
+                : CompletedScanAsync(refreshedRoot));
+        var trashService = Substitute.For<ITrashService>();
+        var confirmation = Substitute.For<ITrashConfirmationService>();
+        confirmation.ConfirmMoveToTrashAsync(Arg.Any<DiskItem>()).Returns(true);
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(originalRoot.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher(),
+            Substitute.For<IFileRevealService>(),
+            trashService,
+            confirmation)
+        {
+            ExpandApplicationBundles = false
+        };
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+
+        await viewModel.MoveToTrashCommand.ExecuteAsync(null);
+
+        var remaining = viewModel.TreeItems.Single().Children.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(scanner.ScanCount, Is.EqualTo(2));
+            Assert.That(remaining.Name, Is.EqualTo("Example.app"));
+            Assert.That(remaining.SizeBytes, Is.EqualTo(4096));
+            Assert.That(remaining.Children, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task MoveToTrashCommandBlocksScanRootBeforeConfirmation()
+    {
+        var root = SharedAwareRoot();
+        var scanner = new CapturingDiskScanner((_, _, _) => CompletedScanAsync(root));
+        var trashService = Substitute.For<ITrashService>();
+        var confirmation = Substitute.For<ITrashConfirmationService>();
+        confirmation.ConfirmMoveToTrashAsync(root).Returns(true);
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher(),
+            Substitute.For<IFileRevealService>(),
+            trashService,
+            confirmation);
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single();
+
+        await viewModel.MoveToTrashCommand.ExecuteAsync(null);
+
+        await confirmation.DidNotReceive().ConfirmMoveToTrashAsync(Arg.Any<DiskItem>());
+        await trashService.DidNotReceive().MoveToTrashAsync(Arg.Any<string>());
+        Assert.Multiple(() =>
+        {
+            Assert.That(scanner.ScanCount, Is.EqualTo(1));
+            Assert.That(viewModel.TreeItems.Single().Item, Is.SameAs(root));
+            Assert.That(viewModel.TrashStatusMessage, Does.Contain("scan root"));
+        });
+    }
+
+    [Test]
+    public async Task MoveToTrashCommandBlocksSensitiveSelectedPathBeforeConfirmation()
+    {
+        var root = new DiskItem("home", "/Users/test", isDirectory: true);
+        var documents = new DiskItem("Documents", "/Users/test/Documents", isDirectory: true);
+        root.AddChild(documents);
+        var scanner = new CapturingDiskScanner((_, _, _) => CompletedScanAsync(root));
+        var trashService = Substitute.For<ITrashService>();
+        var confirmation = Substitute.For<ITrashConfirmationService>();
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher(),
+            Substitute.For<IFileRevealService>(),
+            trashService,
+            confirmation);
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children.Single();
+
+        await viewModel.MoveToTrashCommand.ExecuteAsync(null);
+
+        await confirmation.DidNotReceive().ConfirmMoveToTrashAsync(Arg.Any<DiskItem>());
+        await trashService.DidNotReceive().MoveToTrashAsync(Arg.Any<string>());
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.SelectedItem, Is.SameAs(documents));
+            Assert.That(viewModel.TrashStatusMessage, Does.Contain("user data"));
+        });
+    }
+
+    [Test]
+    public async Task CancellingPostTrashRefreshDoesNotRestoreStaleCompletedResult()
+    {
+        var originalRoot = SharedAwareRoot();
+        var progressApplied = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var scanner = new CapturingDiskScanner(
+            (scanCount, _, cancellationToken) => scanCount == 1
+                ? CompletedScanAsync(originalRoot)
+                : ProgressThenAwaitCancellationAsync(
+                    progressApplied,
+                    cancellationToken));
+        var trashService = Substitute.For<ITrashService>();
+        var confirmation = Substitute.For<ITrashConfirmationService>();
+        confirmation.ConfirmMoveToTrashAsync(Arg.Any<DiskItem>()).Returns(true);
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(originalRoot.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher(),
+            Substitute.For<IFileRevealService>(),
+            trashService,
+            confirmation);
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+
+        var trashTask = viewModel.MoveToTrashCommand.ExecuteAsync(null);
+        await progressApplied.Task;
+        viewModel.StopScanCommand.Execute(null);
+        await trashTask;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(scanner.ScanCount, Is.EqualTo(2));
+            Assert.That(viewModel.IsScanning, Is.False);
+            Assert.That(viewModel.TreeItems, Is.Empty);
+            Assert.That(viewModel.StopScanCommand.CanExecute(null), Is.False);
+        });
+    }
+
+    [Test]
+    public async Task MoveToTrashCommandKeepsItemAndShowsErrorWhenOperationFails()
+    {
+        var item = new DiskItem("file.dat", "/file.dat", isDirectory: false);
+        var trashService = Substitute.For<ITrashService>();
+        trashService
+            .MoveToTrashAsync(item.Path)
+            .Returns(Task.FromException(new InvalidOperationException("Trash is unavailable.")));
+        var confirmation = Substitute.For<ITrashConfirmationService>();
+        confirmation.ConfirmMoveToTrashAsync(item).Returns(true);
+        var viewModel = CreateTrashViewModel(trashService, confirmation);
+        viewModel.SelectedTreeItem = new DiskItemTreeNodeViewModel(item);
+
+        await viewModel.MoveToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.SelectedItem, Is.SameAs(item));
+            Assert.That(viewModel.TrashStatusMessage, Does.Contain("Could not move"));
+            Assert.That(viewModel.TrashStatusMessage, Does.Contain("Trash is unavailable"));
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketAddAndRemoveSelectedTreeItemWithoutTrashOperation()
+    {
+        var root = BasketRoot();
+        var trashService = Substitute.For<ITrashService>();
+        var viewModel = CreateScannedTrashViewModel(root, trashService);
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.CleanupBasketItems, Has.Count.EqualTo(1));
+            Assert.That(viewModel.CleanupBasketItemCount, Is.EqualTo(1));
+            Assert.That(viewModel.CleanupBasketTotalLogicalSize, Is.EqualTo(1024));
+            Assert.That(viewModel.CleanupBasketExpectedReclaimableSize, Is.EqualTo(4096));
+            Assert.That(root.Children, Has.Count.EqualTo(2));
+        });
+        await trashService.DidNotReceive().MoveToTrashAsync(
+            Arg.Any<string>(),
+            Arg.Any<CancellationToken>());
+
+        viewModel.RemoveSelectedItemFromCleanupBasketCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.CleanupBasketItems, Is.Empty);
+            Assert.That(viewModel.CleanupBasketItemCount, Is.Zero);
+            Assert.That(viewModel.CleanupBasketTotalLogicalSize, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketBlocksSensitiveSelectedContainer()
+    {
+        var root = UserHomeRootWithDocuments();
+        var documents = root.Children.Single();
+        var trashService = Substitute.For<ITrashService>();
+        var viewModel = CreateScannedTrashViewModel(root, trashService);
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children.Single();
+
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.CleanupBasketItems, Is.Empty);
+            Assert.That(viewModel.CleanupBasketStatusMessage, Does.Contain("user data"));
+            Assert.That(documents.Name, Is.EqualTo("Documents"));
+        });
+        await trashService.DidNotReceive().MoveToTrashAsync(
+            Arg.Any<string>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task CleanupBasketAddsSelectedTreemapAndLargeFileItems()
+    {
+        var root = BasketRoot();
+        var viewModel = CreateScannedTrashViewModel(root, Substitute.For<ITrashService>());
+        await ScanPathAsync(viewModel, root.Path);
+        var first = root.Children[0];
+        var second = root.Children[1];
+
+        viewModel.SelectedTreemapRectangle = viewModel.TreemapRectangles.Single(
+            rectangle => ReferenceEquals(rectangle.Item.Item, first));
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+        viewModel.SelectedLargeFile = second;
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                viewModel.CleanupBasketItems.Select(item => item.Item),
+                Is.EqualTo(new[] { first, second }));
+            Assert.That(viewModel.CleanupBasketItemCount, Is.EqualTo(2));
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketCanAddItemVisibleThroughFilter()
+    {
+        var root = BasketRoot();
+        var viewModel = CreateScannedTrashViewModel(root, Substitute.For<ITrashService>());
+        await ScanPathAsync(viewModel, root.Path);
+
+        viewModel.Filter.ExtensionsText = ".mov";
+        await viewModel.TreePreparation;
+        viewModel.SelectedLargeFile = viewModel.LargeFiles.Single();
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.CleanupBasketItems, Has.Count.EqualTo(1));
+            Assert.That(viewModel.CleanupBasketItems[0].Item.Name, Is.EqualTo("movie.mov"));
+        });
+    }
+
+    [Test]
+    public async Task FilteringSelectionRevealAndQuickLookDoNotPopulateCleanupBasket()
+    {
+        var root = BasketRoot();
+        var revealService = Substitute.For<IFileRevealService>();
+        revealService.Reveal(Arg.Any<string>()).Returns(true);
+        var quickLookService = Substitute.For<IQuickLookService>();
+        quickLookService.Preview(Arg.Any<string>()).Returns(true);
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            new StubDiskScanner(_ => CompletedScanAsync(root)),
+            new RecordingUiDispatcher(),
+            revealService,
+            Substitute.For<ITrashService>(),
+            Substitute.For<ITrashConfirmationService>(),
+            quickLookService: quickLookService)
+        {
+            SelectedFolderPath = root.Path
+        };
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        viewModel.Filter.ExtensionsText = ".mov";
+        await viewModel.TreePreparation;
+        viewModel.SelectedLargeFile = viewModel.LargeFiles.Single();
+        viewModel.SelectedResultsTabIndex = 1;
+        viewModel.RevealInFinderCommand.Execute(null);
+        viewModel.QuickLookCommand.Execute(null);
+
+        Assert.That(viewModel.CleanupBasketItems, Is.Empty);
+    }
+
+    [Test]
+    public async Task CleanupBasketPersistsAcrossFilterAndTabChangesAndClearsOnRescan()
+    {
+        var firstRoot = BasketRoot();
+        var secondRoot = new DiskItem("second", "/scan/second", isDirectory: true);
+        var scanner = new CapturingDiskScanner(
+            (scanCount, _, _) => CompletedScanAsync(scanCount == 1 ? firstRoot : secondRoot));
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            scanner,
+            new RecordingUiDispatcher())
+        {
+            SelectedFolderPath = firstRoot.Path
+        };
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        viewModel.Filter.ExtensionsText = ".mov";
+        await viewModel.TreePreparation;
+        viewModel.SelectedResultsTabIndex = 2;
+        var countAfterFilterAndTab = viewModel.CleanupBasketItemCount;
+
+        viewModel.SelectedFolderPath = secondRoot.Path;
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(countAfterFilterAndTab, Is.EqualTo(1));
+            Assert.That(viewModel.CleanupBasketItems, Is.Empty);
+            Assert.That(viewModel.CleanupBasketItemCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketReviewCancellationPerformsNoTrashOperation()
+    {
+        var root = BasketRoot();
+        var trashService = Substitute.For<ITrashService>();
+        var reviewService = new FakeCleanupBasketReviewService(confirm: false);
+        var metadataReader = new FakeCleanupMetadataReader(
+            Snapshot(root.Children[0]));
+        var viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            reviewService,
+            metadataReader);
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(reviewService.ReviewCount, Is.EqualTo(1));
+            Assert.That(viewModel.CleanupBasketStatusMessage, Is.EqualTo("Cleanup cancelled."));
+            Assert.That(viewModel.CleanupBasketItems, Has.Count.EqualTo(1));
+            Assert.That(root.Children, Has.Count.EqualTo(2));
+        });
+        await trashService.DidNotReceive().MoveToTrashAsync(
+            Arg.Any<string>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task CleanupBasketReviewBlocksInvalidItemsBeforeTrashOperation()
+    {
+        var root = BasketRoot();
+        var missing = root.Children[0];
+        var replaced = root.Children[1];
+        var changed = new DiskItem("changed.bin", "/scan/root/changed.bin", isDirectory: false)
+        {
+            SizeBytes = 128,
+            MeasuredSizeBytes = 128
+        };
+        root.AddChild(changed);
+        var trashService = Substitute.For<ITrashService>();
+        var reviewService = new FakeCleanupBasketReviewService(confirm: true);
+        var metadataReader = new FakeCleanupMetadataReader(
+            new CleanupFileSystemSnapshot(
+                replaced.Path,
+                IsDirectory: false,
+                replaced.SizeBytes,
+                replaced.MeasuredSizeBytes,
+                new FileIdentity(9, 10)),
+            new CleanupFileSystemSnapshot(
+                changed.Path,
+                IsDirectory: false,
+                SizeBytes: 256,
+                MeasuredSizeBytes: 256));
+        var viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            reviewService,
+            metadataReader);
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.CleanupBasketItems =
+        [
+            new CleanupBasketItem(
+                missing,
+                CleanupItemSnapshot.FromDiskItem(missing),
+                CleanupProtectionStatus.NotProtected),
+            new CleanupBasketItem(
+                replaced,
+                CleanupItemSnapshot.FromDiskItem(replaced) with
+                {
+                    Identity = new FileIdentity(9, 9)
+                },
+                CleanupProtectionStatus.NotProtected),
+            new CleanupBasketItem(
+                changed,
+                CleanupItemSnapshot.FromDiskItem(changed),
+                CleanupProtectionStatus.NotProtected),
+            new CleanupBasketItem(
+                root,
+                CleanupItemSnapshot.FromDiskItem(root),
+                CleanupProtectionStatus.NotProtected)
+        ];
+        viewModel.CleanupBasketSummary = new CleanupBasketSummary(4, 3200, 8320);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(reviewService.ReviewCount, Is.Zero);
+            Assert.That(viewModel.CleanupBasketPreflightResults, Has.Count.EqualTo(4));
+            Assert.That(
+                viewModel.CleanupBasketPreflightResults.Select(result => result.Status.Kind),
+                Is.EqualTo(new[]
+                {
+                    CleanupPreflightStatusKind.Missing,
+                    CleanupPreflightStatusKind.IdentityChanged,
+                    CleanupPreflightStatusKind.SizeChanged,
+                    CleanupPreflightStatusKind.Protected
+                }));
+            Assert.That(viewModel.ExecutableCleanupBasketItemCount, Is.Zero);
+            Assert.That(viewModel.HasBlockedCleanupBasketItems, Is.True);
+        });
+        await trashService.DidNotReceive().MoveToTrashAsync(
+            Arg.Any<string>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task CleanupBasketTrashExecutionMovesAllExecutableItems()
+    {
+        var root = BasketRoot();
+        var expectedPaths = root.Children.Select(item => item.Path).ToArray();
+        var trashService = new RecordingTrashService();
+        var viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            new FakeCleanupBasketReviewService(confirm: true),
+            new FakeCleanupMetadataReader(root.Children.Select(Snapshot).ToArray()));
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+        viewModel.SelectedLargeFile = root.Children[1];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(trashService.MovedPaths, Is.EqualTo(expectedPaths));
+            Assert.That(viewModel.CleanupBasketSucceededCount, Is.EqualTo(2));
+            Assert.That(viewModel.CleanupBasketFailedCount, Is.Zero);
+            Assert.That(viewModel.CleanupBasketUnattemptedCount, Is.Zero);
+            Assert.That(viewModel.CleanupBasketItems, Is.Empty);
+            Assert.That(root.Children, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketTrashExecutionReportsSingleFailureAndKeepsFailedItem()
+    {
+        var root = BasketRoot();
+        var failed = root.Children[1];
+        var trashService = new RecordingTrashService(
+            path => path == failed.Path
+                ? Task.FromException(new InvalidOperationException("Trash refused it."))
+                : Task.CompletedTask);
+        var viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            new FakeCleanupBasketReviewService(confirm: true),
+            new FakeCleanupMetadataReader(root.Children.Select(Snapshot).ToArray()));
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+        viewModel.SelectedLargeFile = failed;
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.CleanupBasketSucceededCount, Is.EqualTo(1));
+            Assert.That(viewModel.CleanupBasketFailedCount, Is.EqualTo(1));
+            Assert.That(viewModel.CleanupBasketItems.Select(item => item.Item), Is.EqualTo(new[] { failed }));
+            Assert.That(root.Children, Is.EqualTo(new[] { failed }));
+            Assert.That(viewModel.CleanupBasketStatusMessage, Does.Contain("Failed: 1"));
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketTrashExecutionReportsMultipleFailures()
+    {
+        var root = BasketRoot();
+        var trashService = new RecordingTrashService(
+            _ => Task.FromException(new InvalidOperationException("Trash failed.")));
+        var viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            new FakeCleanupBasketReviewService(confirm: true),
+            new FakeCleanupMetadataReader(root.Children.Select(Snapshot).ToArray()));
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+        viewModel.SelectedLargeFile = root.Children[1];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.CleanupBasketSucceededCount, Is.Zero);
+            Assert.That(viewModel.CleanupBasketFailedCount, Is.EqualTo(2));
+            Assert.That(viewModel.CleanupBasketItems, Has.Count.EqualTo(2));
+            Assert.That(root.Children, Has.Count.EqualTo(2));
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketTrashExecutionCancelsAfterPartialSuccess()
+    {
+        var root = BasketRootWithThreeFiles();
+        var first = root.Children[0];
+        var second = root.Children[1];
+        var third = root.Children[2];
+        MainWindowViewModel? viewModel = null;
+        var trashService = new RecordingTrashService((path, cancellationToken) =>
+        {
+            if (path == second.Path)
+            {
+                viewModel!.CancelCleanupBasketMoveCommand.Execute(null);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            return Task.CompletedTask;
+        });
+        viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            new FakeCleanupBasketReviewService(confirm: true),
+            new FakeCleanupMetadataReader(root.Children.Select(Snapshot).ToArray()));
+        await ScanPathAsync(viewModel, root.Path);
+        foreach (var child in root.Children.ToArray())
+        {
+            viewModel.SelectedLargeFile = child;
+            viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+        }
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.CleanupBasketSucceededCount, Is.EqualTo(1));
+            Assert.That(viewModel.CleanupBasketFailedCount, Is.Zero);
+            Assert.That(viewModel.CleanupBasketUnattemptedCount, Is.EqualTo(2));
+            Assert.That(
+                viewModel.CleanupBasketItems.Select(item => item.Item),
+                Is.EqualTo(new[] { second, third }));
+            Assert.That(root.Children.Select(item => item.Name), Is.EqualTo(["second.bin", "third.bin"]));
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketSharedAwareResultRefreshesAfterSuccessfulTrash()
+    {
+        var firstRoot = BasketRoot();
+        var refreshedRoot = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(
+            (scanCount, _, _) => CompletedScanAsync(
+                scanCount == 1 ? firstRoot : refreshedRoot,
+                StorageMeasurementMode.SharedAwareAllocated));
+        var trashService = new RecordingTrashService();
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            scanner,
+            new RecordingUiDispatcher(),
+            Substitute.For<IFileRevealService>(),
+            trashService,
+            Substitute.For<ITrashConfirmationService>(),
+            cleanupBasketReviewService: new FakeCleanupBasketReviewService(confirm: true),
+            cleanupFileSystemMetadataReader: new FakeCleanupMetadataReader(
+                firstRoot.Children.Select(Snapshot).ToArray()))
+        {
+            SelectedFolderPath = firstRoot.Path
+        };
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(scanner.ScanCount, Is.EqualTo(2));
+            Assert.That(viewModel.TreeItems.Single().Item, Is.SameAs(refreshedRoot));
+            Assert.That(viewModel.CleanupBasketSucceededCount, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketSharedAwareResultDoesNotRefreshWhenNoItemSucceeds()
+    {
+        var root = BasketRoot();
+        var scanner = new CapturingDiskScanner(
+            (_, _, _) => CompletedScanAsync(
+                root,
+                StorageMeasurementMode.SharedAwareAllocated));
+        var trashService = new RecordingTrashService(
+            _ => Task.FromException(new InvalidOperationException("Trash failed.")));
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            scanner,
+            new RecordingUiDispatcher(),
+            Substitute.For<IFileRevealService>(),
+            trashService,
+            Substitute.For<ITrashConfirmationService>(),
+            cleanupBasketReviewService: new FakeCleanupBasketReviewService(confirm: true),
+            cleanupFileSystemMetadataReader: new FakeCleanupMetadataReader(
+                root.Children.Select(Snapshot).ToArray()))
+        {
+            SelectedFolderPath = root.Path
+        };
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(scanner.ScanCount, Is.EqualTo(1));
+            Assert.That(viewModel.TreeItems.Single().Item, Is.SameAs(root));
+            Assert.That(viewModel.CleanupBasketFailedCount, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketRootEntryIsBlockedInsteadOfClearingScanResult()
+    {
+        var root = BasketRoot();
+        var trashService = new RecordingTrashService();
+        var viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            new FakeCleanupBasketReviewService(confirm: true),
+            new FakeCleanupMetadataReader(Snapshot(root)));
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.CleanupBasketItems =
+        [
+            new CleanupBasketItem(
+                root,
+                CleanupItemSnapshot.FromDiskItem(root),
+                CleanupProtectionStatus.NotProtected)
+        ];
+        viewModel.CleanupBasketSummary = new CleanupBasketSummary(1, root.SizeBytes, root.MeasuredSizeBytes);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(trashService.MovedPaths, Is.Empty);
+            Assert.That(viewModel.HasScanResult, Is.True);
+            Assert.That(viewModel.TreeItems.Single().Item, Is.SameAs(root));
+            Assert.That(
+                viewModel.CleanupBasketPreflightResults.Single().Status.Kind,
+                Is.EqualTo(CleanupPreflightStatusKind.Protected));
+        });
+    }
+
+    [Test]
+    public async Task CleanupBasketSensitiveEntryIsBlockedBeforeTrashExecution()
+    {
+        var root = UserHomeRootWithDocuments();
+        var documents = root.Children.Single();
+        var trashService = new RecordingTrashService();
+        var reviewService = new FakeCleanupBasketReviewService(confirm: true);
+        var viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            reviewService,
+            new FakeCleanupMetadataReader(Snapshot(documents)));
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.CleanupBasketItems =
+        [
+            new CleanupBasketItem(
+                documents,
+                CleanupItemSnapshot.FromDiskItem(documents),
+                CleanupProtectionStatus.NotProtected)
+        ];
+        viewModel.CleanupBasketSummary =
+            new CleanupBasketSummary(1, documents.SizeBytes, documents.MeasuredSizeBytes);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(reviewService.ReviewCount, Is.Zero);
+            Assert.That(trashService.MovedPaths, Is.Empty);
+            Assert.That(viewModel.CleanupBasketItems.Single().Item, Is.SameAs(documents));
+            Assert.That(
+                viewModel.CleanupBasketPreflightResults.Single().Status.Kind,
+                Is.EqualTo(CleanupPreflightStatusKind.Protected));
+            Assert.That(
+                viewModel.CleanupBasketPreflightResults.Single().Status.Message,
+                Does.Contain("user data"));
+        });
+    }
+
+    [Test]
+    public void RescanCommandIsDisabledWithoutASelectedFolder()
+    {
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            Substitute.For<IDiskScanner>(),
+            new RecordingUiDispatcher());
+
+        Assert.That(viewModel.RescanCommand.CanExecute(null), Is.False);
+    }
+
+    [Test]
+    public async Task RescanCommandRunsAnotherScanForTheSelectedFolder()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
+        var folderPicker = Substitute.For<IFolderPickerService>();
+        folderPicker.SelectFolderAsync().Returns(root.Path);
+        var viewModel = new MainWindowViewModel(
+            folderPicker,
+            scanner,
+            new RecordingUiDispatcher());
+        await viewModel.SelectFolderCommand.ExecuteAsync(null);
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.That(viewModel.RescanCommand.CanExecute(null), Is.True);
+        await viewModel.RescanCommand.ExecuteAsync(null);
+
+        Assert.That(scanner.ScanCount, Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task ScanFolderCommandRecordsTheScannedLocationAsRecent()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var viewModel = CreateScanningViewModel(root, new InMemorySettingsService());
+        viewModel.SelectedFolderPath = "/scan/root";
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.That(viewModel.RecentLocations, Is.EqualTo(new[] { "/scan/root" }));
+    }
+
+    [Test]
+    public async Task RecentLocationsKeepMostRecentFirstWithoutDuplicates()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var viewModel = CreateScanningViewModel(root, new InMemorySettingsService());
+
+        await ScanPathAsync(viewModel, "/a");
+        await ScanPathAsync(viewModel, "/b");
+        await ScanPathAsync(viewModel, "/a");
+
+        Assert.That(viewModel.RecentLocations, Is.EqualTo(new[] { "/a", "/b" }));
+    }
+
+    [Test]
+    public async Task RecentLocationsAreLimitedToTen()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var viewModel = CreateScanningViewModel(root, new InMemorySettingsService());
+
+        for (var index = 0; index <= 10; index++)
+        {
+            await ScanPathAsync(viewModel, $"/path/{index}");
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.RecentLocations, Has.Count.EqualTo(AppSettings.MaxRecentLocations));
+            Assert.That(viewModel.RecentLocations[0], Is.EqualTo("/path/10"));
+            Assert.That(viewModel.RecentLocations, Does.Not.Contain("/path/0"));
+        });
+    }
+
+    [Test]
+    public void OptionsAreRestoredFromSettingsOnConstruction()
+    {
+        var settingsService = new InMemorySettingsService();
+        settingsService.Save(new AppSettings
+        {
+            IncludeHiddenFiles = true,
+            FollowSymbolicLinks = true,
+            TreatPackagesAsDirectories = false,
+            MeasurementMode = StorageMeasurementMode.Allocated,
+            RecentLocations = ["/Users/test/A"],
+            WindowWidth = 1280,
+            WindowHeight = 760
+        });
+
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.IncludeHiddenFiles, Is.True);
+            Assert.That(viewModel.FollowSymbolicLinks, Is.True);
+            Assert.That(viewModel.ExpandApplicationBundles, Is.False);
+            Assert.That(
+                viewModel.MeasurementMode,
+                Is.EqualTo(StorageMeasurementMode.Allocated));
+            Assert.That(viewModel.RecentLocations, Is.EqualTo(new[] { "/Users/test/A" }));
+            Assert.That(viewModel.InitialWindowWidth, Is.EqualTo(1280));
+            Assert.That(viewModel.InitialWindowHeight, Is.EqualTo(760));
+        });
+    }
+
+    [Test]
+    public void InvalidSavedWindowSizeIsIgnored()
+    {
+        var settingsService = new InMemorySettingsService();
+        settingsService.Save(new AppSettings
+        {
+            WindowWidth = 600,
+            WindowHeight = 400
+        });
+
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.InitialWindowWidth, Is.Null);
+            Assert.That(viewModel.InitialWindowHeight, Is.Null);
+        });
+    }
+
+    [Test]
+    public void SaveWindowSizePersistsUsableDimensions()
+    {
+        var settingsService = new InMemorySettingsService();
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        viewModel.SaveWindowSize(1320, 820);
+
+        var saved = settingsService.Load();
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved.WindowWidth, Is.EqualTo(1320));
+            Assert.That(saved.WindowHeight, Is.EqualTo(820));
+        });
+    }
+
+    [Test]
+    public void SaveWindowSizeIgnoresDimensionsBelowMinimum()
+    {
+        var settingsService = new InMemorySettingsService();
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        viewModel.SaveWindowSize(900, 600);
+
+        var saved = settingsService.Load();
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved.WindowWidth, Is.Null);
+            Assert.That(saved.WindowHeight, Is.Null);
+        });
+    }
+
+    [Test]
+    public void TogglingAnOptionPersistsSettings()
+    {
+        var settingsService = new InMemorySettingsService();
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        viewModel.IncludeHiddenFiles = true;
+        viewModel.FollowSymbolicLinks = true;
+        viewModel.ExpandApplicationBundles = false;
+        viewModel.MeasurementMode = StorageMeasurementMode.Logical;
+
+        var saved = settingsService.Load();
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved.IncludeHiddenFiles, Is.True);
+            Assert.That(saved.FollowSymbolicLinks, Is.True);
+            Assert.That(saved.TreatPackagesAsDirectories, Is.False);
+            Assert.That(
+                saved.EffectiveMeasurementMode,
+                Is.EqualTo(StorageMeasurementMode.Logical));
+        });
+    }
+
+    [Test]
+    public async Task CompletedScanPopulatesLargestFiles()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var folder = new DiskItem("folder", "/scan/root/folder", isDirectory: true);
+        var file = new DiskItem("file.dat", "/scan/root/folder/file.dat", isDirectory: false)
+        {
+            SizeBytes = 1_536
+        };
+        folder.AddChild(file);
+        folder.SizeBytes = file.SizeBytes;
+        root.AddChild(folder);
+        root.SizeBytes = folder.SizeBytes;
+        var viewModel = CreateScanningViewModel(root, new InMemorySettingsService());
+        viewModel.SelectedFolderPath = root.Path;
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.That(viewModel.LargeFiles.Select(item => item.Name), Is.EqualTo(new[] { "file.dat" }));
+    }
+
+    [Test]
+    public void SelectingALargeFileExposesItAsSelectedItemAndEnablesReveal()
+    {
+        var revealService = Substitute.For<IFileRevealService>();
+        var viewModel = CreateViewModel(revealService);
+        var modified = new DateTimeOffset(2026, 7, 29, 8, 30, 0, TimeSpan.Zero);
+        var file = new DiskItem("big.bin", "/scan/root/big.bin", isDirectory: false)
+        {
+            SizeBytes = 4_096,
+            Metadata = new DiskItemMetadata(
+                DiskItemKind.File,
+                FileAttributes.Normal,
+                CreatedTimeUtc: null,
+                modified,
+                LastAccessTimeUtc: null)
+        };
+
+        viewModel.SelectedLargeFile = file;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.SelectedItem, Is.SameAs(file));
+            Assert.That(viewModel.SelectedItemKind, Is.EqualTo("File"));
+            Assert.That(viewModel.SelectedItemModifiedTime, Is.EqualTo(FormattedTime(modified)));
+            Assert.That(viewModel.RevealInFinderCommand.CanExecute(null), Is.True);
+            Assert.That(viewModel.MoveToTrashCommand.CanExecute(null), Is.True);
+        });
+    }
+
+    [Test]
+    public void CopyErrorPathCommandIsDisabledWithoutASelectedError()
+    {
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            new InMemorySettingsService());
+
+        Assert.That(viewModel.CopyErrorPathCommand.CanExecute(null), Is.False);
+    }
+
+    [Test]
+    public async Task CopyErrorPathCommandCopiesTheSelectedErrorPath()
+    {
+        var clipboard = new FakeClipboardService();
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            Substitute.For<IDiskScanner>(),
+            new RecordingUiDispatcher(),
+            clipboardService: clipboard);
+        var error = new ScanError("/scan/root/restricted", "Access denied.", nameof(UnauthorizedAccessException));
+        viewModel.ScanErrors = [error];
+        viewModel.SelectedScanError = error;
+
+        Assert.That(viewModel.CopyErrorPathCommand.CanExecute(null), Is.True);
+        await viewModel.CopyErrorPathCommand.ExecuteAsync(null);
+
+        Assert.That(clipboard.LastText, Is.EqualTo("/scan/root/restricted"));
+    }
+
+    [Test]
+    public async Task ScanRecentLocationCommandRemovesAndReportsAMissingPath()
+    {
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            new InMemorySettingsService());
+        var missingPath = Path.Combine(Path.GetTempPath(), $"MacStorageAtlas-missing-{Guid.NewGuid():N}");
+        viewModel.RecentLocations = [missingPath];
+
+        await viewModel.ScanRecentLocationCommand.ExecuteAsync(missingPath);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.RecentLocations, Does.Not.Contain(missingPath));
+            Assert.That(viewModel.RecentLocationStatusMessage, Does.Contain("no longer exists"));
+        });
+    }
+
+    [Test]
+    public void RemoveRecentLocationCommandRemovesOneLocationAndPreservesOrder()
+    {
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            new InMemorySettingsService());
+        viewModel.RecentLocations = ["/a", "/b", "/c"];
+
+        viewModel.RemoveRecentLocationCommand.Execute("/b");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.RecentLocations, Is.EqualTo(new[] { "/a", "/c" }));
+            Assert.That(viewModel.RecentLocationStatusMessage, Does.Contain("Removed"));
+        });
+    }
+
+    [Test]
+    public void RemoveRecentLocationCommandIgnoresUnknownLocation()
+    {
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            new InMemorySettingsService());
+        viewModel.RecentLocations = ["/a", "/b"];
+
+        viewModel.RemoveRecentLocationCommand.Execute("/c");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.RecentLocations, Is.EqualTo(new[] { "/a", "/b" }));
+            Assert.That(viewModel.RecentLocationStatusMessage, Is.Null);
+        });
+    }
+
+    [Test]
+    public void ClearRecentLocationsCommandClearsAListWithoutStartingScan()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            scanner,
+            new RecordingUiDispatcher());
+        viewModel.RecentLocations = ["/a", "/b"];
+
+        viewModel.ClearRecentLocationsCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.RecentLocations, Is.Empty);
+            Assert.That(scanner.ScanCount, Is.Zero);
+            Assert.That(viewModel.RecentLocationStatusMessage, Is.EqualTo("Cleared recent locations."));
+        });
+    }
+
+    [Test]
+    public void ClearRecentLocationsCommandWithEmptyListDoesNotStartScan()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            scanner,
+            new RecordingUiDispatcher());
+
+        viewModel.ClearRecentLocationsCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.RecentLocations, Is.Empty);
+            Assert.That(scanner.ScanCount, Is.Zero);
+            Assert.That(viewModel.RecentLocationStatusMessage, Is.EqualTo("No recent locations to clear."));
+        });
+    }
+
+    [Test]
+    public async Task ClearRecentLocationsCommandPreservesTheCurrentScanResult()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        var scanner = new CapturingDiskScanner(_ => CompletedScanAsync(root));
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            scanner,
+            new RecordingUiDispatcher())
+        {
+            SelectedFolderPath = root.Path
+        };
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        var completedAt = viewModel.ScanCompletedAt;
+
+        viewModel.ClearRecentLocationsCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(scanner.ScanCount, Is.EqualTo(1));
+            Assert.That(viewModel.ScanCompletedAt, Is.EqualTo(completedAt));
+            Assert.That(viewModel.TreeItems, Is.Not.Empty);
+            Assert.That(viewModel.CurrentPath, Is.EqualTo(root.Path));
+        });
+    }
+
+    [Test]
+    public void RemoveRecentLocationCommandPersistsAcrossViewModelConstruction()
+    {
+        var settingsService = new InMemorySettingsService();
+        settingsService.Save(new AppSettings
+        {
+            RecentLocations = ["/a", "/b", "/c"]
+        });
+        var first = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        first.RemoveRecentLocationCommand.Execute("/b");
+        var second = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        Assert.That(second.RecentLocations, Is.EqualTo(new[] { "/a", "/c" }));
+    }
+
+    [Test]
+    public void ClearRecentLocationsCommandPersistsAcrossViewModelConstruction()
+    {
+        var settingsService = new InMemorySettingsService();
+        settingsService.Save(new AppSettings
+        {
+            RecentLocations = ["/a", "/b"]
+        });
+        var first = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        first.ClearRecentLocationsCommand.Execute(null);
+        var second = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        Assert.That(second.RecentLocations, Is.Empty);
+    }
+
+    [Test]
+    public async Task RecentLocationCleanupPreservesUnrelatedSettingsAndStoredHistory()
+    {
+        var settingsService = new InMemorySettingsService();
+        settingsService.Save(new AppSettings
+        {
+            IncludeHiddenFiles = true,
+            FollowSymbolicLinks = true,
+            TreatPackagesAsDirectories = false,
+            MeasurementMode = StorageMeasurementMode.Allocated,
+            ScanHistoryEnabled = true,
+            MaxScanHistorySnapshotsPerRoot = 7,
+            MaxScanHistoryStoreSizeBytes = 8192,
+            RecentLocations = ["/a", "/b"],
+            FilterPresets =
+            [
+                new FilterPresetSettings
+                {
+                    Name = "Large",
+                    MinimumSizeBytes = 1024
+                }
+            ],
+            WindowWidth = 1280,
+            WindowHeight = 760
+        });
+        var historyStore = new RecordingScanHistoryStore();
+        historyStore.Entries.Add(ScanHistoryEntry.Unreadable("snapshot", 256, "Unreadable"));
+        var viewModel = new MainWindowViewModel(
+            Substitute.For<IFolderPickerService>(),
+            new StubDiskScanner(_ => CompletedScanAsync(
+                new DiskItem("root", "/scan/root", isDirectory: true))),
+            new RecordingUiDispatcher(),
+            settingsService: settingsService,
+            scanHistoryStore: historyStore);
+
+        viewModel.ClearRecentLocationsCommand.Execute(null);
+        var settings = settingsService.Load();
+        var entries = await historyStore.ListAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(settings.IncludeHiddenFiles, Is.True);
+            Assert.That(settings.FollowSymbolicLinks, Is.True);
+            Assert.That(settings.TreatPackagesAsDirectories, Is.False);
+            Assert.That(settings.MeasurementMode, Is.EqualTo(StorageMeasurementMode.Allocated));
+            Assert.That(settings.ScanHistoryEnabled, Is.True);
+            Assert.That(settings.MaxScanHistorySnapshotsPerRoot, Is.EqualTo(7));
+            Assert.That(settings.MaxScanHistoryStoreSizeBytes, Is.EqualTo(8192));
+            Assert.That(settings.FilterPresets.Single().Name, Is.EqualTo("Large"));
+            Assert.That(settings.WindowWidth, Is.EqualTo(1280));
+            Assert.That(settings.WindowHeight, Is.EqualTo(760));
+            Assert.That(entries, Has.Count.EqualTo(1));
+            Assert.That(historyStore.ClearCount, Is.Zero);
+            Assert.That(historyStore.DeleteCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void StoredUnavailableRecentLocationLoadsWithoutPruning()
+    {
+        var missingPath = Path.Combine(Path.GetTempPath(), $"MacStorageAtlas-missing-{Guid.NewGuid():N}");
+        var settingsService = new InMemorySettingsService();
+        settingsService.Save(new AppSettings
+        {
+            RecentLocations = [missingPath]
+        });
+
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.RecentLocations, Is.EqualTo(new[] { missingPath }));
+            Assert.That(settingsService.Load().RecentLocations, Is.EqualTo(new[] { missingPath }));
+        });
+    }
+
+    [Test]
+    public void RemoveRecentLocationCommandDoesNotPruneRemainingUnavailableLocations()
+    {
+        var missingPath = Path.Combine(Path.GetTempPath(), $"MacStorageAtlas-missing-{Guid.NewGuid():N}");
+        var settingsService = new InMemorySettingsService();
+        settingsService.Save(new AppSettings
+        {
+            RecentLocations = ["/remove", missingPath]
+        });
+        var viewModel = CreateScanningViewModel(
+            new DiskItem("root", "/scan/root", isDirectory: true),
+            settingsService);
+
+        viewModel.RemoveRecentLocationCommand.Execute("/remove");
+
+        Assert.That(viewModel.RecentLocations, Is.EqualTo(new[] { missingPath }));
+    }
+
+    private static MainWindowViewModel CreateScanningViewModel(
+        DiskItem root,
+        ISettingsService settingsService,
+        IQuickLookService? quickLookService = null) =>
+        new(
+            Substitute.For<IFolderPickerService>(),
+            new StubDiskScanner(_ => CompletedScanAsync(root)),
+            new RecordingUiDispatcher(),
+            settingsService: settingsService,
+            quickLookService: quickLookService);
+
+    private static async Task ScanPathAsync(MainWindowViewModel viewModel, string path)
+    {
+        viewModel.SelectedFolderPath = path;
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+    }
+
+    private static string FormattedTime(DateTimeOffset value) =>
+        value.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture);
+
+    private static MainWindowViewModel CreateViewModel(
+        IFileRevealService revealService,
+        IQuickLookService? quickLookService = null) =>
+        new(
+            Substitute.For<IFolderPickerService>(),
+            Substitute.For<IDiskScanner>(),
+            new RecordingUiDispatcher(),
+            revealService,
+            quickLookService: quickLookService);
+
+    private static MainWindowViewModel CreateQuickLookViewModel(
+        IQuickLookService quickLookService) =>
+        CreateViewModel(Substitute.For<IFileRevealService>(), quickLookService);
+
+    private static MainWindowViewModel CreateTrashViewModel(
+        ITrashService trashService,
+        ITrashConfirmationService confirmationService) =>
+        new(
+            Substitute.For<IFolderPickerService>(),
+            Substitute.For<IDiskScanner>(),
+            new RecordingUiDispatcher(),
+            Substitute.For<IFileRevealService>(),
+            trashService,
+            confirmationService);
+
+    private static MainWindowViewModel CreateScannedTrashViewModel(
+        DiskItem root,
+        ITrashService trashService) =>
+        new(
+            Substitute.For<IFolderPickerService>(),
+            new StubDiskScanner(_ => CompletedScanAsync(
+                root,
+                StorageMeasurementMode.Allocated)),
+            new RecordingUiDispatcher(),
+            Substitute.For<IFileRevealService>(),
+            trashService,
+            Substitute.For<ITrashConfirmationService>())
+        {
+            SelectedFolderPath = root.Path
+        };
+
+    private static MainWindowViewModel CreateReviewViewModel(
+        DiskItem root,
+        ITrashService trashService,
+        ICleanupBasketReviewService reviewService,
+        ICleanupFileSystemMetadataReader metadataReader) =>
+        new(
+            Substitute.For<IFolderPickerService>(),
+            new StubDiskScanner(_ => CompletedScanAsync(
+                root,
+                StorageMeasurementMode.Allocated)),
+            new RecordingUiDispatcher(),
+            Substitute.For<IFileRevealService>(),
+            trashService,
+            Substitute.For<ITrashConfirmationService>(),
+            cleanupBasketReviewService: reviewService,
+            cleanupFileSystemMetadataReader: metadataReader)
+        {
+            SelectedFolderPath = root.Path
+        };
+
+    private static CleanupFileSystemSnapshot Snapshot(DiskItem item) =>
+        new(
+            item.Path,
+            item.IsDirectory,
+            item.SizeBytes,
+            item.MeasuredSizeBytes);
+
+    private static DiskItem BasketRoot()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true)
+        {
+            SizeBytes = 3072,
+            MeasuredSizeBytes = 8192
+        };
+        root.AddChild(new DiskItem("file.bin", "/scan/root/file.bin", isDirectory: false)
+        {
+            SizeBytes = 1024,
+            MeasuredSizeBytes = 4096
+        });
+        root.AddChild(new DiskItem("movie.mov", "/scan/root/movie.mov", isDirectory: false)
+        {
+            SizeBytes = 2048,
+            MeasuredSizeBytes = 4096
+        });
+        return root;
+    }
+
+    private static DiskItem BasketRootWithThreeFiles()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true)
+        {
+            SizeBytes = 3072,
+            MeasuredSizeBytes = 3072
+        };
+
+        for (var index = 1; index <= 3; index++)
+        {
+            root.AddChild(new DiskItem(
+                index == 1
+                    ? "first.bin"
+                    : index == 2
+                        ? "second.bin"
+                        : "third.bin",
+                $"/scan/root/file-{index}.bin",
+                isDirectory: false)
+            {
+                SizeBytes = 1024,
+                MeasuredSizeBytes = 1024
+            });
+        }
+
+        return root;
+    }
+
+    private static DiskItem UserHomeRootWithDocuments()
+    {
+        var root = new DiskItem("home", "/Users/test", isDirectory: true)
+        {
+            SizeBytes = 1024,
+            MeasuredSizeBytes = 4096
+        };
+        root.AddChild(new DiskItem("Documents", "/Users/test/Documents", isDirectory: true)
+        {
+            SizeBytes = 1024,
+            MeasuredSizeBytes = 4096
+        });
+        return root;
+    }
+
+    private static DiskItem SharedAwareRoot()
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true)
+        {
+            SizeBytes = 4096,
+            MeasuredSizeBytes = 8192,
+            SharedSizeBytes = 4096
+        };
+        root.AddChild(new DiskItem(
+            "counted.bin",
+            "/scan/root/counted.bin",
+            isDirectory: false)
+        {
+            SizeBytes = 4096,
+            MeasuredSizeBytes = 4096
+        });
+        root.AddChild(new DiskItem(
+            "shared.bin",
+            "/scan/root/shared.bin",
+            isDirectory: false)
+        {
+            SizeBytes = 0,
+            MeasuredSizeBytes = 4096,
+            SharedSizeBytes = 4096
+        });
+        return root;
+    }
+
+    private static async IAsyncEnumerable<ScanProgress> CompletedScanAsync(
+        DiskItem root,
+        StorageMeasurementMode measurementMode =
+            StorageMeasurementMode.SharedAwareAllocated,
+        CloneAccountingCoverage cloneAccountingCoverage =
+            CloneAccountingCoverage.Unavailable)
+    {
+        await Task.Yield();
+        yield return new ScanProgress(
+            root.Path,
+            FilesScanned: 1,
+            DirectoriesScanned: 2,
+            BytesScanned: root.SizeBytes,
+            root,
+            Errors: [],
+            IsCompleted: true,
+            MeasurementMode: measurementMode,
+            CloneAccountingCoverage: cloneAccountingCoverage);
+    }
+
+    private static async IAsyncEnumerable<ScanProgress> ProgressUntilReleasedAsync(
+        Task continueScan,
+        TaskCompletionSource progressApplied,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        yield return new ScanProgress(
+            "/scan/root/file.dat",
+            FilesScanned: 1,
+            DirectoriesScanned: 2,
+            BytesScanned: 4_096,
+            root,
+            Errors:
+            [
+                new ScanError(
+                    "/scan/root/restricted",
+                    "Access denied.",
+                    nameof(UnauthorizedAccessException))
+            ],
+            MeasurementMode: StorageMeasurementMode.SharedAwareAllocated);
+
+        progressApplied.SetResult();
+        await continueScan.WaitAsync(cancellationToken);
+    }
+
+    private static async IAsyncEnumerable<ScanProgress> ProgressThenAwaitCancellationAsync(
+        TaskCompletionSource progressApplied,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        yield return new ScanProgress(
+            "/scan/root/partial.dat",
+            FilesScanned: 3,
+            DirectoriesScanned: 1,
+            BytesScanned: 2_048,
+            root,
+            Errors: [],
+            MeasurementMode: StorageMeasurementMode.SharedAwareAllocated);
+
+        progressApplied.SetResult();
+        await Task.Delay(Timeout.Infinite, cancellationToken);
+    }
+
+    private static async IAsyncEnumerable<ScanProgress> ProgressBurstAsync(
+        int progressCount)
+    {
+        var root = new DiskItem("root", "/scan/root", isDirectory: true);
+        for (var index = 1; index < progressCount; index++)
+        {
+            await Task.Yield();
+            yield return new ScanProgress(
+                $"/scan/root/file-{index}.bin",
+                FilesScanned: index,
+                DirectoriesScanned: 1,
+                BytesScanned: index * 1024,
+                root,
+                Errors: []);
+        }
+
+        for (var index = 1; index <= progressCount; index++)
+        {
+            var file = new DiskItem(
+                $"file-{index}.bin",
+                $"/scan/root/file-{index}.bin",
+                isDirectory: false)
+            {
+                SizeBytes = 1024
+            };
+            root.AddChild(file);
+            root.SizeBytes += file.SizeBytes;
+        }
+
+        yield return new ScanProgress(
+            root.Path,
+            FilesScanned: progressCount,
+            DirectoriesScanned: 1,
+            BytesScanned: root.SizeBytes,
+            root,
+            Errors: [],
+            IsCompleted: true);
+    }
+
+    private sealed class StubDiskScanner(
+        Func<CancellationToken, IAsyncEnumerable<ScanProgress>> scan) : IDiskScanner
+    {
+        public IAsyncEnumerable<ScanProgress> ScanAsync(
+            string rootPath,
+            ScanOptions? options = null,
+            CancellationToken cancellationToken = default) => scan(cancellationToken);
+    }
+
+    private sealed class CapturingDiskScanner : IDiskScanner
+    {
+        private readonly Func<
+            int,
+            ScanOptions?,
+            CancellationToken,
+            IAsyncEnumerable<ScanProgress>> _scan;
+
+        public CapturingDiskScanner(
+            Func<CancellationToken, IAsyncEnumerable<ScanProgress>> scan)
+            : this((_, _, cancellationToken) => scan(cancellationToken))
+        {
+        }
+
+        public CapturingDiskScanner(
+            Func<
+                int,
+                ScanOptions?,
+                CancellationToken,
+                IAsyncEnumerable<ScanProgress>> scan)
+        {
+            _scan = scan;
+        }
+
+        public ScanOptions? LastOptions { get; private set; }
+
+        public int ScanCount { get; private set; }
+
+        public IAsyncEnumerable<ScanProgress> ScanAsync(
+            string rootPath,
+            ScanOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            LastOptions = options;
+            ScanCount++;
+            return _scan(ScanCount, options, cancellationToken);
+        }
+    }
+
+    private sealed class FakeClipboardService : IClipboardService
+    {
+        public string? LastText { get; private set; }
+
+        public Task SetTextAsync(string text)
+        {
+            LastText = text;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeCleanupBasketReviewService(bool confirm)
+        : ICleanupBasketReviewService
+    {
+        public int ReviewCount { get; private set; }
+
+        public CleanupBasketReview? LastReview { get; private set; }
+
+        public Task<bool> ConfirmCleanupAsync(CleanupBasketReview review)
+        {
+            ReviewCount++;
+            LastReview = review;
+            return Task.FromResult(confirm);
+        }
+    }
+
+    private sealed class FakeCleanupMetadataReader(params CleanupFileSystemSnapshot[] snapshots)
+        : ICleanupFileSystemMetadataReader
+    {
+        private readonly Dictionary<string, CleanupFileSystemSnapshot> _snapshots =
+            snapshots.ToDictionary(
+                snapshot => CleanupProtectedPathPolicy.NormalizePath(snapshot.Path),
+                StringComparer.Ordinal);
+
+        public bool TryReadSnapshot(
+            string path,
+            out CleanupFileSystemSnapshot snapshot) =>
+            _snapshots.TryGetValue(
+                CleanupProtectedPathPolicy.NormalizePath(path),
+                out snapshot!);
+    }
+
+    private sealed class RecordingScanHistoryStore : IScanHistoryStore
+    {
+        public List<ScanHistoryEntry> Entries { get; } = [];
+
+        public int ClearCount { get; private set; }
+
+        public int DeleteCount { get; private set; }
+
+        public string Location => "/tmp/history";
+
+        public Task<IReadOnlyList<ScanHistoryEntry>> ListAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ScanHistoryEntry>>(Entries.ToArray());
+
+        public Task<long> GetTotalSizeBytesAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(Entries.Sum(entry => entry.StoredSizeBytes));
+
+        public Task<ScanHistoryCaptureResult> CaptureAsync(
+            ScanSnapshotRequest request,
+            ScanHistoryLimits limits,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(ScanHistoryCaptureResult.Failed("not used"));
+
+        public Task<ScanSnapshotReadResult<ScanSnapshotDocument>> ReadAsync(
+            string snapshotId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(
+                ScanSnapshotReadResult<ScanSnapshotDocument>.Unreadable("not used"));
+
+        public Task<bool> DeleteAsync(
+            string snapshotId,
+            CancellationToken cancellationToken = default)
+        {
+            DeleteCount++;
+            return Task.FromResult(false);
+        }
+
+        public Task ClearAsync(CancellationToken cancellationToken = default)
+        {
+            ClearCount++;
+            Entries.Clear();
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<ScanSnapshotDescriptor>> ApplyLimitsAsync(
+            ScanHistoryLimits limits,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ScanSnapshotDescriptor>>([]);
+    }
+
+    private sealed class RecordingTrashService : ITrashService
+    {
+        private readonly Func<string, CancellationToken, Task> _move;
+
+        public RecordingTrashService()
+            : this((_, _) => Task.CompletedTask)
+        {
+        }
+
+        public RecordingTrashService(Func<string, Task> move)
+            : this((path, _) => move(path))
+        {
+        }
+
+        public RecordingTrashService(Func<string, CancellationToken, Task> move)
+        {
+            _move = move;
+        }
+
+        public List<string> MovedPaths { get; } = [];
+
+        public async Task MoveToTrashAsync(
+            string path,
+            CancellationToken cancellationToken = default)
+        {
+            MovedPaths.Add(path);
+            await _move(path, cancellationToken);
+        }
+    }
+
+    private sealed class RecordingUiDispatcher : IUiDispatcher
+    {
+        public int InvocationCount { get; private set; }
+
+        public Task InvokeAsync(Action action)
+        {
+            InvocationCount++;
+            action();
+            return Task.CompletedTask;
+        }
+    }
+}

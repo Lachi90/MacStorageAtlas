@@ -25,7 +25,8 @@ gigabytes in seconds.
 
 Every scan gives you two synchronized views: a folder tree sorted by size and a
 proportional treemap where the biggest blocks are the biggest consumers. Click a
-block to inspect it — name, full path, and size — and jump straight to it.
+block to inspect it — name, full path, item kind, scan-time dates, and size —
+and jump straight to it.
 
 ![Selected treemap block with item details](docs/images/02-selected-item.png)
 
@@ -48,42 +49,119 @@ counts, sizes, and full paths.
 | --- | --- |
 | ![Storage grouped by file extension](docs/images/03-file-types.png) | ![List of the largest files with paths](docs/images/04-largest-files.png) |
 
-### 🧹 Reveal in Finder or move to Trash — safely
+### 🧩 Exact duplicate review
 
-Found something to clean up? Reveal any item in Finder, or move it to the Trash
-after a confirmation. Files are never permanently deleted — they go to the Trash,
-so nothing is lost by accident.
+After a scan completes, run an opt-in duplicate analysis to find byte-identical
+regular files. MacStorageAtlas narrows candidates by current logical length,
+samples file edges, hashes surviving content with bounded buffers, and confirms
+matches byte for byte before showing them. Analysis can be cancelled, hardlinked
+paths are shown as linked paths rather than reclaimable copies, and known
+cloud-only placeholders are skipped instead of downloaded. Duplicate entries
+can be selected for Quick Look, Finder reveal, and the existing cleanup basket,
+but MacStorageAtlas never auto-selects a copy for cleanup.
+
+![Exact duplicate review tab with matching paths and reclaimable size](docs/images/07-duplicates.png)
+
+### 🔎 Preview, reveal, or move to Trash — safely
+
+Found something to inspect? Preview the selected item with Quick Look, reveal it
+in Finder, move an eligible item to the Trash after a confirmation, or collect
+multiple scanned items in the cleanup basket for a final review. Broad or
+sensitive containers are blocked from in-app cleanup with an explanation. Files
+are never permanently deleted — approved cleanup items go to the macOS Trash,
+and partial failures identify the item that could not be moved.
+
+### 📦 Archive instead of delete
+
+Short on space but not ready to let go? Move or copy the reviewed cleanup basket
+to an external or network volume instead of the Trash. The review names the
+operation and the destination, and reports the expected locally reclaimed size —
+zero for a copy, since a copy frees nothing. Nothing at the destination is ever
+replaced: an item whose name already exists there is blocked with a reason
+rather than overwritten or auto-renamed. A move across volumes copies first,
+verifies the copy, and only then removes the original, so a failed or cancelled
+transfer always leaves the source in place.
+
+![Cleanup basket summary with review, move, copy, and clear actions](docs/images/08-cleanup-basket.png)
 
 ### ⚙️ Configurable scanning
 
 Fine-tune what gets counted: scan inside `.app` bundles (or treat them as single
-items), include hidden files, and follow symbolic links. By default sizes reflect
-the space files **actually occupy on disk**, so undownloaded cloud placeholders
-(iCloud Drive, OneDrive, kDrive) count as roughly zero — switch to logical file
-size if you prefer. Preferences and recent scan locations are remembered between
-runs.
-
-![Scan options: application bundles, hidden files, symbolic links, and on-disk size](docs/images/05-options.png)
+items), include hidden files, and follow symbolic links. By default sizes use
+shared-aware allocated measurement: repeated hardlink identities count once,
+and verified full-clone data counts once on capable volumes. Independently
+allocated non-data storage and divergent clone extents remain per identity.
+You can instead choose allocated size per path or logical file length. See
+[Storage measurement semantics](docs/STORAGE_MEASUREMENT.md) for capability
+coverage and scope. Preferences and manageable recent scan locations are
+remembered between runs.
 
 ## Features
 
 - Select and scan any folder or volume with live progress reporting, and
   cancel a running scan at any time.
 - Browse results as a folder tree sorted by size, or as an interactive treemap.
+- Inspect selected file and folder metadata captured during the scan, including
+  item kind and available created or modified dates.
+- Preview the selected item with Quick Look using the toolbar or its Actions
+  menu, and use Space or Command-I shortcuts for inspection.
 - See storage broken down by file type and a list of the largest files.
-- Search and filter scanned items by name or path.
-- Reveal items in Finder or move them safely to the Trash.
+- Run opt-in exact duplicate analysis after a scan completes. Duplicate
+  analysis reads local file contents only when candidates survive metadata and
+  sample checks, can be cancelled, skips known cloud-only placeholders, shows
+  hardlinks as linked paths, and lets duplicate entries flow through the same
+  Quick Look, Finder reveal, and cleanup-basket review commands as other
+  scanned items.
+- Search and filter scanned items by name or path, and press Command-F to jump
+  to the search box.
+- Narrow a completed scan with advanced filters covering size, creation,
+  modification and last-access dates, file extension, file category, and
+  shared-storage status. Criteria combine with AND, and filtering never
+  rescans.
+- Set each date bound to a fixed date or to a span before the moment the filter
+  runs, such as 18 months ago. A relative bound is stored as the span, so a
+  saved preset keeps meaning the same span instead of drifting as time passes.
+  The panel shows the date each span resolved to.
+- Apply built-in filter presets, or save, rename, delete, and update your own.
+  Presets persist between runs, and the panel shows which preset the current
+  criteria match and whether they have been edited since.
+- See the number of matching files, their total matched size, and how many
+  files were excluded because a required date was unknown.
+- Export the current result as CSV or JSON to a location you choose. Exporting
+  with a filter active writes the matched files only. JSON preserves paths
+  exactly and carries the scan's unreadable-path list; CSV is written for
+  spreadsheets, with a UTF-8 byte order mark and leading formula characters
+  neutralized so no cell executes on open. A cancelled or failed export never
+  leaves a partial file behind.
+- Optionally record completed scans to a local history, so a later release can
+  show what grew or shrank between two points in time. Recording is off until
+  you turn it on, snapshots stay on your Mac and never include file contents,
+  and the store is capped by snapshot count and total size. You can delete a
+  single recorded scan or clear the whole history at any time.
+- Reveal items in Finder, move one eligible item to Trash, or review a
+  multi-item cleanup basket before moving approved items to Trash. Broad or
+  sensitive containers are blocked from in-app cleanup with an explanation.
+- Move or copy the reviewed cleanup basket to another volume instead of the
+  Trash. Destination free space, read-only destinations, and moves into an
+  item's own subtree are checked before the review, colliding names are blocked
+  rather than overwritten, and a cross-volume move only removes the original
+  after the copy is verified.
 - Inspect files and folders that couldn't be scanned, and copy their paths to
   the clipboard.
+- Get Full Disk Access guidance when macOS-protected locations make a scan
+  appear incomplete, with a shortcut to Privacy & Security, manual fallback
+  instructions, and a rescan action.
 - Configurable scanning: hidden files, symbolic links, `.app` package
-  expansion, and real on-disk vs. logical size measurement.
-- Remembers your scanner preferences and recent scan locations between runs.
+  expansion, and logical, per-path allocated, or shared-aware allocated size
+  measurement.
+- Remembers your scanner preferences and recent scan locations between runs,
+  with controls to remove individual entries or clear the list.
 - Modern, native-feeling UI that follows the system light/dark appearance, with
   a responsive treemap and a live scan-progress overlay.
 
-> Screenshots above show MacStorageAtlas analyzing its own project folder — build
-> artifacts included — which is why `.pdb`, `.dll`, and `.dmg` files dominate the
-> breakdown.
+> Completed-result screenshots above show MacStorageAtlas analyzing its own
+> project folder — build artifacts included — which is why `.pdb`, `.dll`, and
+> `.dmg` files dominate the breakdown.
 
 > Branding artwork lives under `src/MacStorageAtlas.App/Assets/`: `app.ico` (window
 > icon), `icon.png` (1024×1024 master), and `MacStorageAtlas.icns` for macOS app
@@ -95,14 +173,34 @@ Looking for a **free DaisyDisk alternative** or a **WinDirStat for Mac**?
 MacStorageAtlas focuses on the essentials — a fast scan, a treemap, and safe
 cleanup — without a subscription or a price tag.
 
-| | MacStorageAtlas | DaisyDisk | GrandPerspective | WinDirStat |
+| Capability | MacStorageAtlas | [DaisyDisk][daisydisk] | [GrandPerspective][grandperspective] | [WinDirStat][windirstat] |
 | --- | --- | --- | --- | --- |
-| Platform | macOS (arm64 + x64) | macOS | macOS | Windows |
-| Price | Free & open source | Paid | Free | Free |
-| Treemap view | ✅ | ✅ | ✅ | ✅ |
-| Folder tree | ✅ | — | — | ✅ |
-| File-type breakdown | ✅ | — | — | ✅ |
-| Real on-disk size (cloud-aware) | ✅ | — | — | — |
+| Platform | macOS (Apple Silicon + Intel) | [macOS (Apple Silicon + Intel)][daisydisk-pricing] | [macOS (Apple Silicon + Intel)][grandperspective] | [Windows][windirstat] |
+| Distribution | [Free, MIT-licensed open source](LICENSE) | [$9.99 one-time commercial license][daisydisk-pricing] | [Free GPL build; $2.99 App Store build][grandperspective] | [Free, GPLv2 open source][windirstat] |
+| Main analysis views | [Folder tree, rectangular treemap, file-type statistics](#highlights) | [Sunburst disk map and sidebar list][daisydisk-map] | [Rectangular treemap][grandperspective] | [Directory/file lists, treemap, and extension statistics][windirstat] |
+| File-size measurement | [Logical length, allocated blocks per path, or shared-aware allocated blocks](src/MacStorageAtlas.Platform.Mac/MacFileMetadataReader.cs); hardlinks and verified full-clone data count once where capability coverage permits | [Physical size; hardlinks and full APFS clones are counted once][daisydisk-hardlinks] | [Logical, physical, or file-count sizing][grandperspective-sizes]; [hardlinks counted once per view][grandperspective-hardlinks] | [Logical or physical sizing with hardlink deduplication][windirstat-source] |
+
+**Storage-measurement note:** these products do not use one interchangeable
+definition of “real size.” MacStorageAtlas handles sparse files and local cloud
+placeholders and, by default, counts hardlinks once plus verified full-clone
+data once on capable volumes. It does not deduplicate divergent clone extents
+and does not claim unique physical or reclaimable storage. The optional
+per-path mode counts every visited path. DaisyDisk documents full APFS-clone
+detection on macOS 14 Sonoma and later.
+
+Comparison last verified against the linked first-party sources: **2026-08-12**.
+Prices and capabilities can change; follow the links for current product
+details.
+
+[daisydisk]: https://daisydiskapp.com/
+[daisydisk-pricing]: https://daisydiskapp.com/support/pricing/
+[daisydisk-map]: https://daisydiskapp.com/guide/4/en/UnderstandingSunburst/
+[daisydisk-hardlinks]: https://daisydiskapp.com/guide/4/en/HardLinks
+[grandperspective]: https://grandperspectiv.sourceforge.net/
+[grandperspective-sizes]: https://grandperspectiv.sourceforge.net/HelpDocumentation/FileSizes.html
+[grandperspective-hardlinks]: https://grandperspectiv.sourceforge.net/HelpDocumentation/HardLinks.html
+[windirstat]: https://windirstat.net/
+[windirstat-source]: https://github.com/windirstat/windirstat
 
 ## Prerequisites
 
@@ -130,7 +228,7 @@ dotnet test --no-build
 dotnet run --project src/MacStorageAtlas.App
 ```
 
-## Package (DMG)
+## Package
 
 Run the packaging script from the repository root. It publishes a self-contained
 Release build, wraps it in a `MacStorageAtlas.app` bundle (with the `.icns` app
@@ -148,41 +246,62 @@ When building `both`, the DMGs are named per architecture
 is self-contained and does **not** run under Rosetta on the other architecture —
 pick the DMG that matches the target Mac.
 
-> ⚠️ **Unsigned & un-notarized build**
->
-> This DMG is **not code-signed or notarized**, because the project has no paid
-> Apple Developer account. macOS Gatekeeper will therefore block the app on
-> first launch ("MacStorageAtlas is damaged and can't be opened" / "cannot be
-> opened because Apple cannot check it for malicious software").
->
-> To run it anyway, either:
->
-> - Right-click the app in `/Applications` → **Open** → confirm **Open** in the
->   dialog, or
-> - Remove the quarantine attribute from a terminal:
->
->   ```shell
->   xattr -dr com.apple.quarantine /Applications/MacStorageAtlas.app
->   ```
->
-> Only do this for builds you trust and compiled yourself.
+The default packaging commands produce unsigned development DMGs. Official
+public release artifacts use the explicit local Developer ID path, which signs
+the app, notarizes and staples the DMG, verifies the result, and writes SHA-256
+checksum files:
+
+```shell
+./build-dmg.sh release both 1.2.3 \
+  "Developer ID Application: Example Company (TEAMID)" \
+  "MacStorageAtlas-notary"
+```
+
+Release DMGs are named `MacStorageAtlas-<version>-<runtime>.dmg`. See
+[Packaging MacStorageAtlas for macOS](docs/PACKAGING.md) for certificate,
+notary profile, verification, and GitHub Release upload steps.
+
+## Full Disk Access
+
+macOS can block third-party apps from reading protected locations such as some
+Mail, Messages, Safari, Time Machine, and administrative data. When a completed
+scan has permission-related inaccessible paths, MacStorageAtlas shows guidance
+that the result may be incomplete, keeps the detailed errors visible, and offers
+to open Privacy & Security.
+
+Grant access manually in **System Settings > Privacy & Security > Full Disk
+Access**, add or enable MacStorageAtlas, restart the app if macOS asks, then
+rescan the same location. Inaccessible paths are not purgeable space, free
+space, or files that MacStorageAtlas says are safe to delete.
 
 ## Project structure
 
 ```text
 src/
   MacStorageAtlas.App              Avalonia UI and MVVM shell
-  MacStorageAtlas.Core             disk scanning and domain logic
+  MacStorageAtlas.Core             disk scanning and domain logic, grouped by domain folder
   MacStorageAtlas.Rendering        treemap layout logic
-  MacStorageAtlas.Platform.Mac     macOS-specific integrations (reveal, trash, dock icon)
+  MacStorageAtlas.Platform.Mac     macOS-specific integrations (reveal, trash, dock icon, access guidance)
 
 tests/
-  MacStorageAtlas.Tests            NUnit tests
+  MacStorageAtlas.Core.Tests       Core NUnit tests mirroring Core domain folders
+  MacStorageAtlas.Rendering.Tests  Rendering NUnit tests
+  MacStorageAtlas.Platform.Mac.Tests macOS integration NUnit tests
+  MacStorageAtlas.App.Tests        App and ViewModel NUnit tests
+  MacStorageAtlas.Benchmarks.Tests benchmark tooling NUnit tests
+
+tools/
+  MacStorageAtlas.Benchmarks       developer scan benchmark command
 ```
 
 ## Documentation
 
 - Product backlog and feature specifications: [`docs/FEATURES.md`](docs/FEATURES.md)
+- Market-driven implementation roadmap: [`docs/IMPLEMENTATION_ROADMAP.md`](docs/IMPLEMENTATION_ROADMAP.md)
+- Storage measurement semantics and verification: [`docs/STORAGE_MEASUREMENT.md`](docs/STORAGE_MEASUREMENT.md)
+- Troubleshooting: [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)
+- Scan benchmark commands and representative results: [`docs/SCAN_BENCHMARKS.md`](docs/SCAN_BENCHMARKS.md)
+- OpenSpec feature workflow: [`docs/OPENSPEC_WORKFLOW.md`](docs/OPENSPEC_WORKFLOW.md)
 - macOS packaging and distribution: [`docs/PACKAGING.md`](docs/PACKAGING.md)
 
 ## License

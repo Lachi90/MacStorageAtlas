@@ -5,11 +5,6 @@ using System.Runtime.Versioning;
 
 namespace MacStorageAtlas.Platform.Mac;
 
-/// <summary>
-/// Sets the macOS Dock icon at runtime. When the app runs as a bare executable
-/// (e.g. via <c>dotnet run</c>) rather than a bundled <c>.app</c>, macOS shows a
-/// generic Dock icon; this applies the real artwork through AppKit instead.
-/// </summary>
 public static class MacDockIcon
 {
     private const string Libobjc = "/usr/lib/libobjc.dylib";
@@ -30,11 +25,6 @@ public static class MacDockIcon
     private static extern IntPtr SendMessageStr(
         IntPtr receiver, IntPtr selector, [MarshalAs(UnmanagedType.LPUTF8Str)] string arg);
 
-    /// <summary>
-    /// Writes the given image bytes (PNG) to a temp file and applies it as the
-    /// Dock icon. Never throws; failures are silently ignored so the app keeps
-    /// running normally without a custom Dock icon.
-    /// </summary>
     public static void TrySet(byte[] imageBytes)
     {
         if (!OperatingSystem.IsMacOS() || imageBytes is null || imageBytes.Length == 0)
@@ -50,7 +40,6 @@ public static class MacDockIcon
         }
         catch
         {
-            // Cosmetic only — ignore any interop/IO failure.
         }
     }
 
@@ -66,9 +55,6 @@ public static class MacDockIcon
             return;
         }
 
-        // Build a real NSString first. `stringWithUTF8String:` takes a C string;
-        // `initWithContentsOfFile:` then takes that NSString object. Passing a raw
-        // C string to the latter would crash the process natively.
         var nsPath = SendMessageStr(
             nsStringClass, GetSelector("stringWithUTF8String:"), filePath);
         if (nsPath == IntPtr.Zero)

@@ -1,8 +1,5 @@
 namespace MacStorageAtlas.Rendering;
 
-/// <summary>
-/// Lays items out as a squarified treemap to keep visible rectangles compact.
-/// </summary>
 public sealed class TreemapLayoutService : ITreemapLayoutService
 {
     private const double MinimumRenderableArea = 1;

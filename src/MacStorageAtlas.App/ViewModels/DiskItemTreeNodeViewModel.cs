@@ -1,44 +1,61 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using MacStorageAtlas.Core;
+using MacStorageAtlas.Core.Items;
 
 namespace MacStorageAtlas.App.ViewModels;
 
 public sealed class DiskItemTreeNodeViewModel
 {
+    private IReadOnlyList<DiskItemTreeNodeViewModel>? _children;
+
     public DiskItemTreeNodeViewModel(DiskItem item)
-        : this(
-            item,
-            item?.Children.Select(child => new DiskItemTreeNodeViewModel(child)).ToArray()
-                ?? throw new ArgumentNullException(nameof(item)))
     {
+        ArgumentNullException.ThrowIfNull(item);
+
+        Item = item;
     }
 
     internal DiskItemTreeNodeViewModel(
         DiskItem item,
-        IReadOnlyList<DiskItemTreeNodeViewModel> children)
+        IReadOnlyList<DiskItemTreeNodeViewModel> children,
+        long? matchedSizeBytes = null)
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(children);
 
         Item = item;
-        Children = children;
+        _children = children;
+        MatchedSizeBytes = matchedSizeBytes;
     }
 
     public DiskItem Item { get; }
 
-    /// <summary>
-    /// Whether this node is expanded in the tree view. Bound two-way by the UI
-    /// so the root (and search matches) can start expanded.
-    /// </summary>
     public bool IsExpanded { get; set; }
 
     public string Name => Item.Name;
 
     public long SizeBytes => Item.SizeBytes;
 
-    public string FormattedSize => FileSizeFormatter.Format(SizeBytes);
+    public long? MatchedSizeBytes { get; }
 
-    public IReadOnlyList<DiskItemTreeNodeViewModel> Children { get; }
+    public bool HasMatchedSize => MatchedSizeBytes is not null;
+
+    public string FormattedSize =>
+        Item.IsSizeCountedElsewhere
+            ? $"{FileSizeFormatter.Format(Item.SizeBytes)} counted, "
+              + $"{FileSizeFormatter.Format(Item.SharedSizeBytes)} shared"
+            : FileSizeFormatter.Format(SizeBytes);
+
+    public string DisplaySize =>
+        MatchedSizeBytes is { } matched
+            ? FileSizeFormatter.Format(matched)
+            : FormattedSize;
+
+    internal bool HasMaterializedChildren => _children is not null;
+
+    public IReadOnlyList<DiskItemTreeNodeViewModel> Children =>
+        _children ??= Item.Children
+            .Select(child => new DiskItemTreeNodeViewModel(child))
+            .ToArray();
 }
