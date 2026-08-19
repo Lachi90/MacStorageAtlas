@@ -188,7 +188,7 @@ and does not claim unique physical or reclaimable storage. The optional
 per-path mode counts every visited path. DaisyDisk documents full APFS-clone
 detection on macOS 14 Sonoma and later.
 
-Comparison last verified against the linked first-party sources: **2026-08-12**.
+Comparison last verified against the linked first-party sources: **2026-08-19**.
 Prices and capabilities can change; follow the links for current product
 details.
 
