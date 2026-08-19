@@ -84,11 +84,20 @@
     .wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
     header { text-align: center; padding: 64px 20px 40px; }
     h1 { font-size: 2.4rem; margin: 0 0 12px; letter-spacing: -0.02em; }
-    .tagline { font-size: 1.25rem; color: var(--muted); max-width: 640px; margin: 0 auto 28px; }
-    .support-line {
-      display: inline-block; margin: 0 0 18px; color: var(--muted); font-size: 0.95rem;
+    .title-lockup {
+      display: flex; align-items: center; justify-content: center; gap: 18px;
+      flex-wrap: wrap;
     }
-    .support-line a { font-weight: 700; }
+    .title-sponsor {
+      display: inline-flex; align-items: center; gap: 8px;
+      color: var(--muted); font-size: 0.95rem; font-weight: 500;
+      letter-spacing: 0; text-decoration: none;
+    }
+    .title-sponsor img {
+      width: 124px; height: auto; display: block; padding: 5px 8px;
+      background: #ffffff; border: 1px solid rgba(0,0,0,.08); border-radius: 8px;
+    }
+    .tagline { font-size: 1.25rem; color: var(--muted); max-width: 640px; margin: 0 auto 28px; }
     .badges { margin: 16px 0 28px; }
     .badges img { height: 20px; margin: 0 3px; vertical-align: middle; }
     .cta { display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
@@ -145,11 +154,15 @@
 <body>
   <header>
     <div class="wrap">
-      <h1>MacStorageAtlas</h1>
+      <h1 class="title-lockup">
+        <span>MacStorageAtlas</span>
+        <a class="title-sponsor" href="https://ltsoftware.de/" aria-label="Supported by Lachmann Thiem Software">
+          <span>supported by</span>
+          <img src="images/ltsoftware-logo.webp" alt="LTSoftware" width="320" height="168">
+        </a>
+      </h1>
       <p class="tagline">See what's eating your disk — at a glance. A free, open-source
       disk space analyzer for macOS.</p>
-      <p class="support-line">Supported by
-      <a href="https://ltsoftware.de/">Lachmann Thiem Software</a></p>
       <div class="badges">
         <img src="https://img.shields.io/badge/platform-macOS-black?logo=apple" alt="Platform: macOS">
         <img src="https://img.shields.io/badge/arch-arm64%20%2B%20x64-informational" alt="Apple Silicon and Intel">
@@ -310,11 +323,6 @@
         paths, grant access manually in System Settings → Privacy &amp; Security → Full
         Disk Access, restart the app if macOS asks, then rescan. Inaccessible paths are
         not purgeable space or cleanup recommendations.
-      </div>
-      <div class="note">
-        <strong>Supported by LTSoftware:</strong> MacStorageAtlas is supported by
-        <a href="https://ltsoftware.de/">Lachmann Thiem Software</a>, while staying
-        free and open source under the MIT License.
       </div>
     </section>
   </main>
