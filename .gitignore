@@ -12,5 +12,6 @@ coverage/
 
 *.dmg
 *.dmg.sha256
+*.pkg
 /*.app/
 dmg-content/

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MacStorageAtlas — Free Disk Space Analyzer for macOS (WinDirStat / DaisyDisk Alternative)</title>
-  <meta name="description" content="MacStorageAtlas is a free, open-source disk space analyzer for macOS. See what is using your disk space with a treemap, folder tree, file-type breakdown, largest-files list, exact duplicate review, and safe cleanup. A native WinDirStat, DaisyDisk, and GrandPerspective alternative for Apple Silicon and Intel Macs.">
+  <meta name="description" content="MacStorageAtlas is a free, open-source disk space analyzer for macOS. GitHub downloads stay free, and the planned Mac App Store edition will also be free.">
   <link rel="canonical" href="https://lachi90.github.io/MacStorageAtlas/">
   <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
@@ -14,7 +14,7 @@
 
   <meta property="og:type" content="website">
   <meta property="og:title" content="MacStorageAtlas — Free Disk Space Analyzer for macOS">
-  <meta property="og:description" content="See what's eating your disk. A free, open-source WinDirStat / DaisyDisk alternative for Mac with treemap, folder tree, exact duplicates, and safe cleanup.">
+  <meta property="og:description" content="See what's eating your disk. Free on GitHub, with a planned free Mac App Store edition for Store installation and updates.">
   <meta property="og:url" content="https://lachi90.github.io/MacStorageAtlas/">
   <meta property="og:image" content="https://lachi90.github.io/MacStorageAtlas/images/01-overview.png">
   <meta name="twitter:card" content="summary_large_image">
@@ -36,8 +36,11 @@
     "operatingSystem": "macOS",
     "softwareVersion": "1.0.0",
     "dateModified": "2026-08-19",
-    "description": "Free, open-source disk space analyzer for macOS. Treemap, folder tree, file-type breakdown, largest-files list, exact duplicate review, and safe cleanup. A WinDirStat / DaisyDisk / GrandPerspective alternative for Apple Silicon and Intel Macs.",
-    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "description": "Free, open-source disk space analyzer for macOS. GitHub downloads stay free, and the planned Mac App Store edition will also be free.",
+    "offers": [
+      { "@type": "Offer", "price": "0", "priceCurrency": "EUR", "availability": "https://schema.org/InStock", "url": "https://github.com/Lachi90/MacStorageAtlas/releases/tag/v1.0.0" },
+      { "@type": "Offer", "price": "0", "priceCurrency": "EUR", "availability": "https://schema.org/PreOrder" }
+    ],
     "url": "https://lachi90.github.io/MacStorageAtlas/",
     "downloadUrl": "https://github.com/Lachi90/MacStorageAtlas/releases/tag/v1.0.0",
     "releaseNotes": "https://github.com/Lachi90/MacStorageAtlas/releases/tag/v1.0.0",
@@ -83,7 +86,7 @@
     }
     .wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
     header { text-align: center; padding: 64px 20px 40px; }
-    h1 { font-size: 2.4rem; margin: 0 0 12px; letter-spacing: -0.02em; }
+    h1 { font-size: 2.4rem; margin: 0 0 12px; letter-spacing: 0; }
     .title-lockup {
       display: flex; align-items: center; justify-content: center; gap: 18px;
       flex-wrap: wrap;
@@ -131,7 +134,7 @@
     }
     #lightbox .close:hover { opacity: 1; }
     .grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-    .feature { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .feature { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
     .feature h3 { margin: 0 0 8px; font-size: 1.1rem; }
     .feature p { margin: 0; color: var(--muted); font-size: 0.95rem; }
     .shots-2up { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
@@ -161,15 +164,16 @@
           <img src="images/ltsoftware-logo.webp" alt="LTSoftware" width="320" height="168">
         </a>
       </h1>
-      <p class="tagline">See what's eating your disk — at a glance. A free, open-source
-      disk space analyzer for macOS.</p>
+      <p class="tagline">See what's eating your disk — at a glance. Free on GitHub,
+      with a free Mac App Store edition planned.</p>
       <div class="badges">
         <img src="https://img.shields.io/badge/platform-macOS-black?logo=apple" alt="Platform: macOS">
         <img src="https://img.shields.io/badge/arch-arm64%20%2B%20x64-informational" alt="Apple Silicon and Intel">
         <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
       </div>
       <div class="cta">
-        <a class="btn btn-primary" href="https://github.com/Lachi90/MacStorageAtlas/releases/tag/v1.0.0">Download for Mac</a>
+        <a class="btn btn-primary" href="https://github.com/Lachi90/MacStorageAtlas/releases/tag/v1.0.0">Free GitHub Download</a>
+        <a class="btn btn-secondary" href="#download-options">Mac App Store: Free</a>
         <a class="btn btn-secondary" href="https://github.com/Lachi90/MacStorageAtlas">View on GitHub</a>
       </div>
     </div>
@@ -186,6 +190,14 @@
       <img class="shot" src="images/01-overview.png" alt="MacStorageAtlas folder tree and interactive treemap of a scanned folder">
     </section>
 
+    <section id="download-options">
+      <h2>Free on GitHub and the Mac App Store</h2>
+      <p>MacStorageAtlas remains free and open source on GitHub. Signed and
+      notarized GitHub Release downloads stay available at no cost.</p>
+      <p>The planned Mac App Store edition will also be free. It is the option
+      for users who prefer Store installation and updates.</p>
+    </section>
+
     <section>
       <h2>WinDirStat for Mac alternative</h2>
       <p>MacStorageAtlas brings the familiar idea of a disk usage tree and treemap
@@ -197,9 +209,10 @@
     <section>
       <h2>DaisyDisk alternative</h2>
       <p>DaisyDisk is a commercial macOS disk analyzer; MacStorageAtlas is free
-      and open source. It focuses on transparent scan results, sortable tables,
-      exact duplicate review, local-only metadata, and recoverable cleanup through
-      macOS Trash or an external archive location.</p>
+      and open source on GitHub, with a free Mac App Store edition planned for
+      Store installation and updates. It focuses on transparent scan results,
+      sortable tables, exact duplicate review, local-only metadata, and recoverable
+      cleanup through macOS Trash or an external archive location.</p>
     </section>
 
     <section>
@@ -207,7 +220,8 @@
       <p>MacStorageAtlas is supported by
       <a href="https://ltsoftware.de/">Lachmann Thiem Software</a>, a German
       software company building practical business and automation software. The
-      project remains free and open source under the MIT License.</p>
+      project remains free and open source under the MIT License, including the
+      planned Mac App Store edition.</p>
     </section>
 
     <section>
@@ -246,7 +260,7 @@
           <thead><tr><th></th><th>MacStorageAtlas</th><th>DaisyDisk</th><th>GrandPerspective</th><th>WinDirStat</th></tr></thead>
           <tbody>
             <tr><td>Platform</td><td>macOS (arm64 + x64)</td><td>macOS</td><td>macOS</td><td>Windows</td></tr>
-            <tr><td>Price</td><td>Free &amp; open source</td><td>$9.99 one-time</td><td>Free SourceForge build; $2.99 App Store build</td><td>Free &amp; open source</td></tr>
+            <tr><td>Price</td><td>Free on GitHub; free Mac App Store edition planned</td><td>$9.99 one-time</td><td>Free SourceForge build; $2.99 App Store build</td><td>Free &amp; open source</td></tr>
             <tr><td>Primary visual map</td><td>Rectangular treemap</td><td>Sunburst map</td><td>Rectangular treemap</td><td>Rectangular treemap</td></tr>
             <tr><td>Folder tree</td><td>✅</td><td>Sidebar list</td><td>—</td><td>✅</td></tr>
             <tr><td>File-type breakdown</td><td>✅</td><td>—</td><td>Coloring and filters</td><td>✅</td></tr>
@@ -305,7 +319,7 @@
       <h2>FAQ</h2>
       <div class="grid">
         <div class="feature"><h3>What is using my disk space on Mac?</h3><p>Run a scan in MacStorageAtlas and inspect the synchronized folder tree, treemap, file-type breakdown, and largest-files tab to see which folders and files consume the most space.</p></div>
-        <div class="feature"><h3>Is MacStorageAtlas free?</h3><p>Yes. MacStorageAtlas is free and open source under the MIT License, with signed and notarized macOS DMGs published on GitHub Releases.</p></div>
+        <div class="feature"><h3>Is MacStorageAtlas free?</h3><p>Yes. MacStorageAtlas is free and open source under the MIT License, with signed and notarized macOS DMGs published on GitHub Releases. The planned Mac App Store edition will also be free.</p></div>
         <div class="feature"><h3>Does it work on Apple Silicon and Intel Macs?</h3><p>Yes. The release provides separate macOS builds for arm64 Apple Silicon and x64 Intel Macs.</p></div>
         <div class="feature"><h3>Can it find duplicate files?</h3><p>Yes. Duplicate review is opt-in after a scan and confirms exact byte-for-byte matches before showing reclaimable duplicate groups.</p></div>
       </div>
@@ -313,10 +327,11 @@
 
     <section>
       <div class="note">
-        <strong>Download note:</strong> official GitHub Release DMGs are signed,
-        notarized, stapled, and published with SHA-256 checksums. Local development DMGs
-        built with the default packaging command are unsigned and intended only for
-        builds you created and trust yourself.
+        <strong>Download note:</strong> official GitHub Release DMGs stay free and
+        are signed, notarized, stapled, and published with SHA-256 checksums. The
+        planned Mac App Store edition will also be free. Local development DMGs
+        built with the default packaging command are unsigned and intended only
+        for builds you created and trust yourself.
       </div>
       <div class="note">
         <strong>Full Disk Access:</strong> if a scan has permission-related inaccessible
@@ -329,8 +344,9 @@
 
   <footer>
     <div class="wrap">
-      Free &amp; open source under the MIT License ·
+      Free on GitHub; free Mac App Store edition planned ·
       Supported by <a href="https://ltsoftware.de/">Lachmann Thiem Software</a> ·
+      <a href="privacy.html">Privacy Policy</a> ·
       <a href="https://github.com/Lachi90/MacStorageAtlas">GitHub</a> ·
       Built with .NET 10 and Avalonia
     </div>

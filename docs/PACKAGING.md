@@ -2,7 +2,8 @@
 
 This document describes how to publish the Avalonia desktop app for macOS. The
 [`build-dmg.sh`](../build-dmg.sh) script automates publishing, `.app` bundling,
-DMG creation, and the local Developer ID release path for public artifacts.
+DMG creation, the local Developer ID release path for public artifacts, and the
+Mac App Store package path for App Store Connect uploads.
 
 ## Quick start
 
@@ -37,6 +38,26 @@ Release DMGs are named `MacStorageAtlas-<version>-<runtime>.dmg`; each one gets 
 matching `.sha256` file after signing, notarization, stapling, and verification
 all pass.
 
+For a Mac App Store package, use appstore mode:
+
+```shell
+./build-dmg.sh appstore arm64 1.2.3 \
+  "Apple Distribution: Lachmann Thiem Software GbR (2G3HGCLNFN)" \
+  "3rd Party Mac Developer Installer: Lachmann Thiem Software GbR (2G3HGCLNFN)" \
+  "$HOME/.macstorageatlas-apple-certificates/MacStorageAtlas_Mac_App_Store.provisionprofile"
+
+./build-dmg.sh appstore both 1.2.3 \
+  "Apple Distribution: Lachmann Thiem Software GbR (2G3HGCLNFN)" \
+  "3rd Party Mac Developer Installer: Lachmann Thiem Software GbR (2G3HGCLNFN)" \
+  "$HOME/.macstorageatlas-apple-certificates/MacStorageAtlas_Mac_App_Store.provisionprofile"
+```
+
+App Store packages are named
+`MacStorageAtlas-<version>-<runtime>-appstore.pkg`. For App Store uploads,
+prefer the `both` target, which publishes arm64 and x64 builds, merges Mach-O
+executables and libraries into a single universal app bundle with `lipo`, and
+writes `MacStorageAtlas-<version>-universal-appstore.pkg`.
+
 The sections below document the individual steps the script performs, for
 reference and manual builds.
 
@@ -47,6 +68,11 @@ reference and manual builds.
 - Xcode command-line tools for release signing and notarization
 - A Developer ID Application certificate with private key in the local keychain
 - A local `notarytool` keychain profile
+- For Mac App Store packages, an Apple Distribution certificate, a Mac Installer
+  Distribution certificate, and a Mac App Store provisioning profile for
+  `de.ltsoftware.macstorageatlas`. The provisioning profile must be created for
+  macOS; an iOS, xrOS, or visionOS App Store profile is not valid for Mac App
+  Store uploads even when it uses the same bundle identifier.
 
 ## Runtime identifiers
 
@@ -163,6 +189,64 @@ writes SHA-256 checksum sidecars.
 The signed release path keeps certificates, notary credentials, and GitHub
 authentication local to the release machine. Do not commit certificates,
 passwords, API keys, keychain exports, generated DMGs, or checksum files.
+
+## Mac App Store packages
+
+Mac App Store distribution uses a separate signing path from Developer ID DMGs:
+
+1. **Apple Distribution signing** — sign the `.app` bundle with the Apple
+   Distribution certificate for the App Store Connect team.
+2. **App Sandbox entitlements** — sign with
+   `MacStorageAtlas.AppStore.entitlements`, which enables App Sandbox, CoreCLR
+   JIT support, and user-selected file read/write access.
+3. **Provisioning profile embedding** — copy the Mac App Store provisioning
+   profile to `Contents/embedded.provisionprofile` before signing.
+4. **Profile-derived signing entitlements** — merge the profile's application
+   identifier, team identifier, and keychain access groups into the app's
+   signing entitlements so TestFlight can match the signature to the embedded
+   profile.
+5. **Bundle attribute cleanup** — remove extended attributes from the app bundle
+   before signing so quarantine metadata cannot be carried into the package.
+6. **Installer signing** — create the uploadable `.pkg` with `productbuild` and
+   the Mac Installer Distribution certificate.
+
+The local release machine currently stores private App Store signing inputs
+outside the repository under:
+
+```text
+~/.macstorageatlas-apple-certificates/
+```
+
+Build a package from the repository root:
+
+```shell
+./build-dmg.sh appstore both 1.2.3 \
+  "Apple Distribution: Lachmann Thiem Software GbR (2G3HGCLNFN)" \
+  "3rd Party Mac Developer Installer: Lachmann Thiem Software GbR (2G3HGCLNFN)"
+```
+
+If the provisioning profile is stored somewhere other than the default local
+path, pass it as the final argument:
+
+```shell
+./build-dmg.sh appstore both 1.2.3 \
+  "Apple Distribution: Lachmann Thiem Software GbR (2G3HGCLNFN)" \
+  "3rd Party Mac Developer Installer: Lachmann Thiem Software GbR (2G3HGCLNFN)" \
+  "/path/to/MacStorageAtlas_Mac_App_Store.provisionprofile"
+```
+
+The script clears app bundle extended attributes and normalizes permissions
+before signing so packaged files are not quarantined and remain readable by
+non-root users. It then verifies the signed app bundle, the package signature,
+and the universal app executable architecture for `both`. Upload the resulting
+`.pkg` with Transporter or `xcrun altool` after App Store Connect has a matching
+macOS app record for `de.ltsoftware.macstorageatlas`.
+
+If Transporter reports an invalid provisioning profile signature, decode the
+embedded profile with `security cms -D -i <profile>` and check that its
+`Platform` entry contains `OSX` or `macOS`. If it lists `iOS`, `xrOS`, or
+`visionOS`, recreate the profile in the Apple Developer portal as a macOS App
+Store provisioning profile, replace the local profile, and rebuild the package.
 
 ## DMG creation
 

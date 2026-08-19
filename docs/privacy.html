@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MacStorageAtlas Privacy Policy</title>
+  <meta name="description" content="Privacy Policy for MacStorageAtlas, a free open-source disk space analyzer for macOS.">
+  <link rel="canonical" href="https://lachi90.github.io/MacStorageAtlas/privacy.html">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <style>
+    :root {
+      --bg: #ffffff; --fg: #1a1a1a; --muted: #5a5a6a;
+      --card: #f5f5f8; --border: #e2e2ea; --accent: #512BD4;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f0f14; --fg: #ececf0; --muted: #9a9aac;
+        --card: #1a1a22; --border: #2a2a36; --accent: #8B5CF6;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--fg);
+      font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 56px 20px; }
+    h1 { font-size: 2.2rem; line-height: 1.15; margin: 0 0 12px; letter-spacing: 0; }
+    h2 { font-size: 1.25rem; margin: 32px 0 10px; }
+    p { margin: 0 0 14px; }
+    ul { padding-left: 22px; }
+    li { margin: 8px 0; }
+    a { color: var(--accent); }
+    .lead { color: var(--muted); font-size: 1.08rem; }
+    .panel {
+      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 18px 20px; margin: 24px 0;
+    }
+    footer {
+      border-top: 1px solid var(--border); color: var(--muted);
+      margin-top: 40px; padding-top: 20px; font-size: 0.92rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p><a href="./">MacStorageAtlas</a></p>
+    <h1>Privacy Policy</h1>
+    <p class="lead">Last updated: August 19, 2026</p>
+
+    <div class="panel">
+      <p><strong>MacStorageAtlas does not collect, sell, share, or upload personal data.</strong></p>
+      <p>The app is a local macOS disk space analyzer. Scan results, file paths, and optional history snapshots stay on your Mac unless you choose to export or share them yourself.</p>
+    </div>
+
+    <h2>Data Collection</h2>
+    <p>MacStorageAtlas does not operate a user account system, analytics service, advertising network, tracking SDK, telemetry service, or remote backend.</p>
+    <p>The app does not transmit scanned file names, paths, file metadata, file contents, scan results, duplicate-analysis results, cleanup selections, or history snapshots to Lachmann Thiem Software GbR or to any third party.</p>
+
+    <h2>Local Processing</h2>
+    <p>When you scan a folder or volume, MacStorageAtlas reads local file-system metadata such as paths, sizes, dates, file types, and access errors so it can show disk-usage results. Duplicate analysis may read local file contents only to confirm exact byte-for-byte matches.</p>
+    <p>Cleanup actions are performed locally through macOS features such as Finder, Quick Look, Trash, and file-system copy or move operations.</p>
+
+    <h2>Local Storage</h2>
+    <p>If you enable scan history, MacStorageAtlas may store scan snapshots locally in your user account. These snapshots are controlled by you and can be deleted from inside the app or by removing the local files.</p>
+    <p>If you export CSV or JSON results, the exported files are created only at the location you choose.</p>
+
+    <h2>Permissions</h2>
+    <p>macOS may ask you to grant file or Full Disk Access permissions so MacStorageAtlas can scan protected locations. These permissions are managed by macOS in System Settings. Granting access does not cause MacStorageAtlas to upload data.</p>
+
+    <h2>Third-Party Services</h2>
+    <p>The Mac App Store may process purchase, download, crash, and usage information according to Apple's privacy policies. GitHub may process information when you visit the project website, repository, releases, or issue tracker.</p>
+
+    <h2>Contact</h2>
+    <p>For privacy questions or support, contact the project through the GitHub issue tracker:</p>
+    <p><a href="https://github.com/Lachi90/MacStorageAtlas/issues">https://github.com/Lachi90/MacStorageAtlas/issues</a></p>
+
+    <footer>
+      <p>MacStorageAtlas is supported by Lachmann Thiem Software GbR.</p>
+    </footer>
+  </main>
+</body>
+</html>

@@ -17,6 +17,11 @@ results as a sortable folder tree, a proportional treemap, file-type statistics,
 and a list of the largest files — so you can find the space hogs and reclaim
 gigabytes in seconds.
 
+MacStorageAtlas stays free on GitHub and is planned as a free Mac App Store
+download for users who prefer Store installation and updates. The public
+[Privacy Policy](https://lachi90.github.io/MacStorageAtlas/privacy.html)
+describes the app's local-only data handling.
+
 ![Folder tree and interactive treemap of a scanned folder](docs/images/01-overview.png)
 
 ## Highlights
@@ -228,6 +233,13 @@ dotnet test --no-build
 dotnet run --project src/MacStorageAtlas.App
 ```
 
+## Download options
+
+- **GitHub release:** signed and notarized DMGs remain available for free from
+  GitHub Releases.
+- **Mac App Store edition:** planned as a free App Store download for users who
+  prefer Store installation and updates.
+
 ## Package
 
 Run the packaging script from the repository root. It publishes a self-contained
@@ -260,6 +272,15 @@ the DMG, verifies the result, and writes SHA-256 checksum files:
 Release DMGs are named `MacStorageAtlas-<version>-<runtime>.dmg`. See
 [Packaging MacStorageAtlas for macOS](docs/PACKAGING.md) for certificate,
 notary profile, verification, and GitHub Release upload steps.
+
+Mac App Store packages use Apple Distribution and Mac Installer Distribution
+certificates and produce uploadable `.pkg` files:
+
+```shell
+./build-dmg.sh appstore both 1.2.3 \
+  "Apple Distribution: Lachmann Thiem Software GbR (2G3HGCLNFN)" \
+  "3rd Party Mac Developer Installer: Lachmann Thiem Software GbR (2G3HGCLNFN)"
+```
 
 ## Full Disk Access
 
