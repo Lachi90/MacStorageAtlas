@@ -32,12 +32,12 @@ MacStorageAtlas SHALL preserve an unsigned packaging workflow that does not requ
 
 ### Requirement: Release artifacts are signed before distribution
 
-MacStorageAtlas SHALL sign all distributable release app bundles with a Developer ID Application identity, hardened runtime enabled, and a secure timestamp before creating final release artifacts.
+MacStorageAtlas SHALL sign all distributable release app bundles with a Developer ID Application identity, hardened runtime enabled, a secure timestamp, and the runtime entitlements required for CoreCLR startup before creating final release artifacts.
 
 #### Scenario: Signing identity is configured
 
 - **WHEN** the release operator runs the signed release workflow with a configured Developer ID Application identity
-- **THEN** the workflow signs nested executable content and the final app bundle before packaging the release DMG
+- **THEN** the workflow signs nested executable content and the final app bundle with the release entitlements before packaging the release DMG
 
 #### Scenario: Signing identity is missing
 
@@ -60,7 +60,7 @@ MacStorageAtlas SHALL submit each signed release DMG for Apple notarization, sta
 
 ### Requirement: Release verification is explicit
 
-MacStorageAtlas SHALL verify signed release artifacts with local macOS signing, Gatekeeper, stapling, and disk image integrity checks before publication.
+MacStorageAtlas SHALL verify signed release artifacts with local macOS signing, Gatekeeper, app launch, stapling, and disk image integrity checks before publication.
 
 #### Scenario: Verification succeeds
 

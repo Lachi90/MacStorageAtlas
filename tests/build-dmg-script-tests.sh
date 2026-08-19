@@ -63,4 +63,19 @@ if ! grep -q "shasum -a 256" "$SCRIPT"; then
   exit 1
 fi
 
+if ! grep -q -- '--entitlements "$ENTITLEMENTS_SOURCE"' "$SCRIPT"; then
+  printf 'Expected release signing to use the entitlements file\n' >&2
+  exit 1
+fi
+
+if ! grep -q "verify_app_launches" "$SCRIPT"; then
+  printf 'Expected release verification to run an app launch smoke test\n' >&2
+  exit 1
+fi
+
+if ! grep -q "com.apple.security.cs.allow-jit" "$ROOT_DIR/src/MacStorageAtlas.App/MacStorageAtlas.entitlements"; then
+  printf 'Expected release entitlements to allow CoreCLR JIT\n' >&2
+  exit 1
+fi
+
 printf 'build-dmg.sh script tests passed\n'

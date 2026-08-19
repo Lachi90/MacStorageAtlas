@@ -153,11 +153,12 @@ Then build a release artifact:
 ```
 
 The release workflow signs every bundled runtime file except `.pdb` debug
-symbols, signs the main executable, signs the `.app` bundle with hardened runtime
-and secure timestamp enabled, creates and signs the DMG, submits that DMG for
+symbols, signs the main executable and `.app` bundle with hardened runtime,
+secure timestamp, and the `MacStorageAtlas.entitlements` runtime exceptions
+required by CoreCLR, creates and signs the DMG, submits that DMG for
 notarization, staples the accepted ticket, validates the ticket, checks disk
-image integrity, runs Gatekeeper assessment, and writes SHA-256 checksum
-sidecars.
+image integrity, runs Gatekeeper assessment and an app launch smoke test, and
+writes SHA-256 checksum sidecars.
 
 The signed release path keeps certificates, notary credentials, and GitHub
 authentication local to the release machine. Do not commit certificates,
@@ -186,6 +187,7 @@ The release script performs these checks before writing checksum files:
 codesign --verify --deep --strict --verbose=2 MacStorageAtlas.app
 codesign --verify --verbose=2 MacStorageAtlas-1.2.3-osx-arm64.dmg
 spctl --assess --type execute --verbose=2 MacStorageAtlas.app
+MacStorageAtlas.app/Contents/MacOS/MacStorageAtlas.App
 hdiutil verify MacStorageAtlas-1.2.3-osx-arm64.dmg
 xcrun stapler validate MacStorageAtlas-1.2.3-osx-arm64.dmg
 spctl --assess --type open --context context:primary-signature --verbose=2 MacStorageAtlas-1.2.3-osx-arm64.dmg

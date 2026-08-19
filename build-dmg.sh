@@ -8,6 +8,8 @@ TARGET_FRAMEWORK="net10.0"
 PROJECT="src/MacStorageAtlas.App"
 EXECUTABLE_NAME="MacStorageAtlas.App"
 ICON_SOURCE="$PROJECT/Assets/MacStorageAtlas.icns"
+ENTITLEMENTS_SOURCE="$PROJECT/MacStorageAtlas.entitlements"
+LAUNCH_SMOKE_TEST_SECONDS=5
 
 MODE="unsigned"
 DRY_RUN="false"
@@ -120,6 +122,9 @@ check_release_prerequisites() {
 
   xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null ||
     fail "Notary keychain profile '$NOTARY_PROFILE' could not be used."
+
+  [ -f "$ENTITLEMENTS_SOURCE" ] ||
+    fail "Release entitlements file was not found at '$ENTITLEMENTS_SOURCE'."
 }
 
 create_info_plist() {
@@ -199,12 +204,53 @@ sign_app_bundle() {
   done < <(find "$app_bundle/Contents/MacOS" -type f ! -name "$EXECUTABLE_NAME" | sort)
 
   printf 'Signing app executable...\n'
-  codesign --force --timestamp --options runtime --sign "$SIGNING_IDENTITY" "$main_executable"
+  codesign --force --timestamp --options runtime --entitlements "$ENTITLEMENTS_SOURCE" --sign "$SIGNING_IDENTITY" "$main_executable"
 
   printf 'Signing app bundle...\n'
-  codesign --force --timestamp --options runtime --sign "$SIGNING_IDENTITY" "$app_bundle"
+  codesign --force --timestamp --options runtime --entitlements "$ENTITLEMENTS_SOURCE" --sign "$SIGNING_IDENTITY" "$app_bundle"
 
   codesign --verify --deep --strict --verbose=2 "$app_bundle"
+}
+
+verify_app_launches() {
+  local app_bundle="$1"
+  local launch_log
+  local pid
+  local exit_code
+
+  launch_log="$(mktemp "${TMPDIR:-/tmp}/macstorageatlas-launch.XXXXXX")"
+
+  printf 'Running app launch smoke test...\n'
+  set +e
+  (
+    cd "$app_bundle/Contents/MacOS" &&
+      "./$EXECUTABLE_NAME"
+  ) >"$launch_log" 2>&1 &
+  pid=$!
+
+  sleep "$LAUNCH_SMOKE_TEST_SECONDS"
+
+  if kill -0 "$pid" >/dev/null 2>&1; then
+    kill "$pid" >/dev/null 2>&1
+    wait "$pid" >/dev/null 2>&1
+    exit_code=0
+  else
+    wait "$pid"
+    exit_code=$?
+  fi
+  set -e
+
+  if [ "$exit_code" -eq 0 ]; then
+    rm -f "$launch_log"
+    return
+  fi
+
+  printf 'App launch smoke test failed with exit code %s.\n' "$exit_code" >&2
+  if [ -s "$launch_log" ]; then
+    sed 's/^/  /' "$launch_log" >&2
+  fi
+  rm -f "$launch_log"
+  exit 1
 }
 
 create_dmg() {
@@ -257,6 +303,7 @@ verify_release_artifact() {
   codesign --verify --deep --strict --verbose=2 "$app_bundle"
   codesign --verify --verbose=2 "$dmg_name"
   spctl --assess --type execute --verbose=2 "$app_bundle"
+  verify_app_launches "$app_bundle"
   hdiutil verify "$dmg_name"
   xcrun stapler validate "$dmg_name"
   spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg_name"

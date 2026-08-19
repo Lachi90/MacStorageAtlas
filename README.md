@@ -248,8 +248,8 @@ pick the DMG that matches the target Mac.
 
 The default packaging commands produce unsigned development DMGs. Official
 public release artifacts use the explicit local Developer ID path, which signs
-the app, notarizes and staples the DMG, verifies the result, and writes SHA-256
-checksum files:
+the app with the runtime entitlements required by CoreCLR, notarizes and staples
+the DMG, verifies the result, and writes SHA-256 checksum files:
 
 ```shell
 ./build-dmg.sh release both 1.2.3 \

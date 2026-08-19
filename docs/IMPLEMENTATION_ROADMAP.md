@@ -215,7 +215,8 @@ update checks remain separate follow-up work.
 ### Completed local release scope
 
 1. Add stable bundle identifiers and semantic versions to the app bundle.
-2. Sign all nested binaries and the final `.app` with hardened runtime enabled.
+2. Sign all nested binaries and the final `.app` with hardened runtime enabled
+   and the CoreCLR runtime entitlements required for launch.
 3. Notarize the app or DMG with `notarytool`.
 4. Staple and validate the notarization ticket.
 5. Produce SHA-256 checksums for release artifacts.
@@ -244,6 +245,7 @@ update checks remain separate follow-up work.
 - `codesign --verify --deep --strict` succeeds.
 - `spctl --assess` accepts the packaged application.
 - `xcrun stapler validate` succeeds.
+- A release smoke test proves the packaged app stays open after launch.
 - A clean Mac can download and open the release normally.
 - Update checks can be disabled.
 - Network and parse failures do not block app startup.
