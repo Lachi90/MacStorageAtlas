@@ -11,5 +11,6 @@ coverage/
 .claude/settings.local.json
 
 *.dmg
+*.dmg.sha256
 /*.app/
 dmg-content/

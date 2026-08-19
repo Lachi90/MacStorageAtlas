@@ -228,7 +228,7 @@ dotnet test --no-build
 dotnet run --project src/MacStorageAtlas.App
 ```
 
-## Package (DMG)
+## Package
 
 Run the packaging script from the repository root. It publishes a self-contained
 Release build, wraps it in a `MacStorageAtlas.app` bundle (with the `.icns` app
@@ -246,24 +246,20 @@ When building `both`, the DMGs are named per architecture
 is self-contained and does **not** run under Rosetta on the other architecture —
 pick the DMG that matches the target Mac.
 
-> ⚠️ **Unsigned & un-notarized build**
->
-> This DMG is **not code-signed or notarized**, because the project has no paid
-> Apple Developer account. macOS Gatekeeper will therefore block the app on
-> first launch ("MacStorageAtlas is damaged and can't be opened" / "cannot be
-> opened because Apple cannot check it for malicious software").
->
-> To run it anyway, either:
->
-> - Right-click the app in `/Applications` → **Open** → confirm **Open** in the
->   dialog, or
-> - Remove the quarantine attribute from a terminal:
->
->   ```shell
->   xattr -dr com.apple.quarantine /Applications/MacStorageAtlas.app
->   ```
->
-> Only do this for builds you trust and compiled yourself.
+The default packaging commands produce unsigned development DMGs. Official
+public release artifacts use the explicit local Developer ID path, which signs
+the app, notarizes and staples the DMG, verifies the result, and writes SHA-256
+checksum files:
+
+```shell
+./build-dmg.sh release both 1.2.3 \
+  "Developer ID Application: Example Company (TEAMID)" \
+  "MacStorageAtlas-notary"
+```
+
+Release DMGs are named `MacStorageAtlas-<version>-<runtime>.dmg`. See
+[Packaging MacStorageAtlas for macOS](docs/PACKAGING.md) for certificate,
+notary profile, verification, and GitHub Release upload steps.
 
 ## Full Disk Access
 

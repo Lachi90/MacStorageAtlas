@@ -204,28 +204,37 @@ Less than 1 day.
 
 ---
 
-## WP-01 - Signing, notarization, and update check
+## WP-01 - Local signing, notarization, and update check
 
 ### Outcome
 
-Users can install a trusted build without bypassing Gatekeeper and can discover
-new releases.
+Users can install a trusted Developer ID build without bypassing Gatekeeper. The
+local signing and notarization path is implemented; CI/CD release automation and
+update checks remain separate follow-up work.
 
-### Scope
+### Completed local release scope
 
 1. Add stable bundle identifiers and semantic versions to the app bundle.
 2. Sign all nested binaries and the final `.app` with hardened runtime enabled.
 3. Notarize the app or DMG with `notarytool`.
 4. Staple and validate the notarization ticket.
 5. Produce SHA-256 checksums for release artifacts.
-6. Add a CI/release workflow with credentials supplied only as secrets.
-7. Add a non-intrusive update check against a signed release feed or GitHub
+6. Keep signing certificates and notary credentials on the local release
+   machine.
+7. Upload verified artifacts manually or with a locally authenticated GitHub CLI.
+
+### Remaining follow-up scope
+
+1. Add a non-intrusive update check against a signed release feed or GitHub
    Releases.
-8. Do not implement silent background installation in the first iteration.
+2. Do not implement silent background installation in the first iteration.
 
 ### Architecture
 
 - Packaging/release scripts remain at repository root.
+- Local release packaging uses Developer ID Application signing and `notarytool`
+  keychain profiles configured on the operator's Mac.
+- Hosted CI signing is out of the local signing change.
 - Update-check abstractions belong in App; macOS opening/install behavior belongs
   in Platform.Mac.
 - The update feed must not receive file paths or scan information.
@@ -248,8 +257,10 @@ new releases.
 ### Risks
 
 - Requires a paid Apple Developer account and secure certificate handling.
-- Avalonia/.NET single-file packaging may contain nested components that require
-  an explicit signing order.
+- Avalonia/.NET self-contained packaging may contain nested components that
+  require an explicit signing order.
+- CI/CD and update checks should not reuse local keychain assumptions when they
+  are designed later.
 
 ### Estimate
 

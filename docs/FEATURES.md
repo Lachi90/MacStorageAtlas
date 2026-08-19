@@ -1093,7 +1093,8 @@ Prepare the app for distribution on macOS.
 
 - App can be published for macOS.
 - Build instructions are documented.
-- Signing/notarization steps are documented as future work.
+- Local Developer ID signing and notarization steps are documented for release
+  builds.
 
 ## Affected Projects
 
@@ -1103,7 +1104,8 @@ Prepare the app for distribution on macOS.
 
 ## Implementation Notes
 
-Document Apple Silicon and Intel runtime identifiers separately; defer credentials and release automation.
+Document Apple Silicon and Intel runtime identifiers separately. Keep Developer
+ID certificates and notarization credentials local to the release machine.
 
 ## Codex Prompt
 
@@ -1114,8 +1116,8 @@ Requirements:
 - Add documentation for publishing the Avalonia app on macOS.
 - Include dotnet publish command examples.
 - Document that public distribution should use Developer ID signing and notarization.
-- Do not implement signing automation yet.
-- Add notes for future DMG creation.
+- Preserve unsigned local DMG creation for development.
+- Document the local signed release flow for distributable DMGs.
 ```
 
 ---

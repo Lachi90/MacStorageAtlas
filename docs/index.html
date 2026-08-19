@@ -218,11 +218,10 @@
 
     <section>
       <div class="note">
-        <strong>Note:</strong> builds are not code-signed or notarized (no paid Apple
-        Developer account), so Gatekeeper blocks the app on first launch. Right-click the
-        app in <code>/Applications</code> → <strong>Open</strong>, or run
-        <code>xattr -dr com.apple.quarantine /Applications/MacStorageAtlas.app</code>.
-        Only do this for builds you trust.
+        <strong>Download note:</strong> official GitHub Release DMGs are signed,
+        notarized, stapled, and published with SHA-256 checksums. Local development DMGs
+        built with the default packaging command are unsigned and intended only for
+        builds you created and trust yourself.
       </div>
       <div class="note">
         <strong>Full Disk Access:</strong> if a scan has permission-related inaccessible
