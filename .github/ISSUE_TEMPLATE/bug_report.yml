@@ -1,0 +1,83 @@
+name: Bug report
+description: Report a reproducible problem in MacStorageAtlas.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please remove or anonymize private folder names, personal file paths, screenshots, and logs before posting.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Preflight
+      options:
+        - label: I checked existing issues for the same problem.
+          required: true
+        - label: This is not a private support request, billing question, or security vulnerability.
+          required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: MacStorageAtlas version
+      placeholder: "Example: 1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      placeholder: "Example: macOS 15.6"
+    validations:
+      required: true
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: Mac architecture
+      options:
+        - Apple Silicon
+        - Intel
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: distribution
+    attributes:
+      label: Distribution
+      options:
+        - GitHub Release
+        - Mac App Store
+        - Local build
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open MacStorageAtlas
+        2. Scan ...
+        3. Click ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add anonymized screenshots or logs only if they are relevant and do not expose private data.
+    validations:
+      required: false

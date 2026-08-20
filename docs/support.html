@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MacStorageAtlas Support</title>
+  <meta name="description" content="Support resources for MacStorageAtlas, a free open-source disk space analyzer for macOS.">
+  <link rel="canonical" href="https://lachi90.github.io/MacStorageAtlas/support.html">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <style>
+    :root {
+      --bg: #ffffff; --fg: #1a1a1a; --muted: #5a5a6a;
+      --card: #f5f5f8; --border: #e2e2ea; --accent: #512BD4; --accent-fg: #ffffff;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f0f14; --fg: #ececf0; --muted: #9a9aac;
+        --card: #1a1a22; --border: #2a2a36; --accent: #8B5CF6; --accent-fg: #ffffff;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--fg);
+      font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 56px 20px; }
+    h1 { font-size: 2.2rem; line-height: 1.15; margin: 0 0 12px; letter-spacing: 0; }
+    h2 { font-size: 1.25rem; margin: 32px 0 10px; }
+    p { margin: 0 0 14px; }
+    ul { padding-left: 22px; }
+    li { margin: 8px 0; }
+    a { color: var(--accent); }
+    .lead { color: var(--muted); font-size: 1.08rem; }
+    .panel {
+      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 18px 20px; margin: 24px 0;
+    }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin: 24px 0; }
+    .btn {
+      display: inline-block; padding: 10px 18px; border-radius: 8px;
+      font-weight: 600; text-decoration: none; border: 1px solid var(--border);
+    }
+    .btn-primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; }
+    .btn-secondary { background: var(--card); color: var(--fg); }
+    footer {
+      border-top: 1px solid var(--border); color: var(--muted);
+      margin-top: 40px; padding-top: 20px; font-size: 0.92rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p><a href="./">MacStorageAtlas</a></p>
+    <h1>Support</h1>
+    <p class="lead">Last updated: August 20, 2026</p>
+
+    <div class="panel">
+      <p><strong>Use GitHub Issues for reproducible bugs and feature requests.</strong></p>
+      <p>Please do not post private file paths, screenshots with personal data, account details, billing information, or security vulnerabilities in public issues.</p>
+    </div>
+
+    <div class="actions">
+      <a class="btn btn-primary" href="https://github.com/Lachi90/MacStorageAtlas/issues/new/choose">Open a GitHub issue</a>
+      <a class="btn btn-secondary" href="https://github.com/Lachi90/MacStorageAtlas/issues">View existing issues</a>
+    </div>
+
+    <h2>Before Opening an Issue</h2>
+    <ul>
+      <li>Check whether the issue already exists.</li>
+      <li>Try the latest GitHub release or Mac App Store version.</li>
+      <li>Restart the app and repeat the smallest scan that reproduces the problem.</li>
+      <li>Remove or anonymize private folder names and personal file paths before posting.</li>
+    </ul>
+
+    <h2>What to Include</h2>
+    <ul>
+      <li>MacStorageAtlas version.</li>
+      <li>macOS version.</li>
+      <li>Mac model and whether it is Apple Silicon or Intel.</li>
+      <li>Whether the app came from GitHub Releases or the Mac App Store.</li>
+      <li>Steps to reproduce the problem.</li>
+      <li>What you expected to happen and what actually happened.</li>
+    </ul>
+
+    <h2>Privacy</h2>
+    <p>MacStorageAtlas scans local file-system metadata. Support requests should describe behavior without exposing private file names, personal paths, document contents, or screenshots that reveal sensitive information.</p>
+    <p>For more detail, read the <a href="privacy.html">Privacy Policy</a>.</p>
+
+    <h2>Security Vulnerabilities</h2>
+    <p>Do not open a public issue for a vulnerability. Use GitHub's private vulnerability reporting flow or follow the repository security policy.</p>
+    <p><a href="https://github.com/Lachi90/MacStorageAtlas/security/policy">Security policy</a></p>
+
+    <footer>
+      <p>MacStorageAtlas is supported by Lachmann Thiem Software GbR.</p>
+    </footer>
+  </main>
+</body>
+</html>

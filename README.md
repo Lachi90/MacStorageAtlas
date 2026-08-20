@@ -19,6 +19,8 @@ gigabytes in seconds.
 
 MacStorageAtlas stays free on GitHub and is planned as a free Mac App Store
 download for users who prefer Store installation and updates. The public
+[Support](https://lachi90.github.io/MacStorageAtlas/support.html) page explains
+how to report issues, and the
 [Privacy Policy](https://lachi90.github.io/MacStorageAtlas/privacy.html)
 describes the app's local-only data handling.
 
@@ -317,6 +319,7 @@ tools/
 
 ## Documentation
 
+- Public support page: [`docs/support.html`](docs/support.html)
 - Product backlog and feature specifications: [`docs/FEATURES.md`](docs/FEATURES.md)
 - Market-driven implementation roadmap: [`docs/IMPLEMENTATION_ROADMAP.md`](docs/IMPLEMENTATION_ROADMAP.md)
 - Storage measurement semantics and verification: [`docs/STORAGE_MEASUREMENT.md`](docs/STORAGE_MEASUREMENT.md)

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Support
+    url: https://lachi90.github.io/MacStorageAtlas/support.html
+    about: Read support guidance before opening a public issue.
+  - name: Security vulnerability
+    url: https://github.com/Lachi90/MacStorageAtlas/security/policy
+    about: Report vulnerabilities privately instead of opening a public issue.
