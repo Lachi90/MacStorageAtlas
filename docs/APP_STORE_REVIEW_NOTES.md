@@ -45,8 +45,9 @@ submitted binary is a universal build for Apple Silicon (arm64) and Intel
   Finder, and file access integrations were additionally verified while running
   inside the App Sandbox with the entitlements of the submitted build.
 - The same Mac running the Intel (x86_64) slice under Rosetta 2. Verified that
-  the Intel slice starts inside the App Sandbox and that its macOS integrations
-  behave identically to the Apple Silicon slice.
+  the Intel slice starts inside the App Sandbox and reaches its main window. It
+  runs the same application code as the Apple Silicon slice; only the runtime
+  payload differs.
 
 No physical Intel Mac is available for testing, so the Intel slice was verified
 through Rosetta 2 rather than on Intel hardware. If App Review considers that
