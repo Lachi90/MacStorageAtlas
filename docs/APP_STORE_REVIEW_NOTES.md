@@ -138,3 +138,14 @@ entitlement required by the .NET runtime. File access is granted exclusively by
 the user through the standard macOS open panel. The app uses no Apple event
 automation and launches no external processes for its Trash and Finder
 integrations, so no automation consent prompt can appear.
+
+The build additionally declares
+com.apple.security.temporary-exception.mach-lookup.global-name for the single
+name com.apple.coreservices.launchservicesd. This is a startup requirement of
+the cross-platform UI framework the app is built with, not a feature of the app.
+The framework creates NSApplication during startup, AppKit registers the process
+with LaunchServices from that call, and without the exception the App Sandbox
+denies that lookup and the process aborts before its first window appears. The
+exception grants nothing beyond that one system service, and the app makes no
+LaunchServices calls of its own. It requests no other temporary exception, no
+network access, and no additional file access.

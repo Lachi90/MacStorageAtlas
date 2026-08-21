@@ -198,7 +198,13 @@ Mac App Store distribution uses a separate signing path from Developer ID DMGs:
    Distribution certificate for the App Store Connect team.
 2. **App Sandbox entitlements** — sign with
    `MacStorageAtlas.AppStore.entitlements`, which enables App Sandbox, CoreCLR
-   JIT support, and user-selected file read/write access.
+   JIT support, user-selected file read/write access, and a temporary mach-lookup
+   exception for `com.apple.coreservices.launchservicesd`. Avalonia creates
+   `NSApplication` during startup, and on current macOS AppKit registers the
+   process with LaunchServices from that call. Without the exception the App
+   Sandbox denies the lookup and the app aborts before its first window appears,
+   so the exception is required for the sandboxed build to start at all. See
+   [Avalonia macOS deployment](https://docs.avaloniaui.net/docs/deployment/macos).
 3. **Provisioning profile embedding** — copy the Mac App Store provisioning
    profile to `Contents/embedded.provisionprofile` before signing.
 4. **Profile-derived signing entitlements** — merge the profile's application
@@ -255,16 +261,28 @@ The Mac App Store build runs in the macOS App Sandbox with only
 behavior on a real Mac before uploading, because these paths cannot be observed
 in an unsandboxed development build:
 
-1. Install the signed `.app` from the App Store package, or ad-hoc sign a local
-   build with the App Store entitlements for testing:
+1. Install the signed `.app` from the App Store package, or re-sign a local
+   build with the App Store entitlements for testing. The signature must come
+   from a real signing identity; the Developer ID Application certificate works
+   and needs no provisioning profile. An ad-hoc signature (`--sign -`) is not a
+   valid substitute: macOS then initializes the sandbox container without a
+   signer, and the app fails before any of the behavior below can be observed.
 
    ```shell
-   codesign --force --deep --sign - \
+   codesign --force --timestamp --options runtime \
      --entitlements src/MacStorageAtlas.App/MacStorageAtlas.AppStore.entitlements \
+     --sign "Developer ID Application: <team>" \
+     MacStorageAtlas.app/Contents/MacOS/MacStorageAtlas.App
+   codesign --force --timestamp --options runtime \
+     --entitlements src/MacStorageAtlas.App/MacStorageAtlas.AppStore.entitlements \
+     --sign "Developer ID Application: <team>" \
      MacStorageAtlas.app
    ```
 
-2. Launch the app and select a folder in the open panel, then scan it.
+2. Launch the app and confirm that its window appears. A launch that aborts with
+   `abort() called` in `_RegisterApplication` means the mach-lookup exception for
+   `com.apple.coreservices.launchservicesd` is missing from the signed
+   entitlements. Then select a folder in the open panel and scan it.
 3. Move an item to the Trash from the cleanup basket and confirm that it arrives
    in the macOS Trash and can be put back.
 4. Reveal an item in Finder and preview one with Quick Look.
