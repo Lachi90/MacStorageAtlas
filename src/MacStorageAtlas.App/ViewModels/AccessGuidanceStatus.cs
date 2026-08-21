@@ -6,5 +6,6 @@ public enum AccessGuidanceStatus
     IncompleteScan,
     LikelyMissingFullDiskAccess,
     Indeterminate,
-    SettingsOpenFailure
+    SettingsOpenFailure,
+    SandboxedSelectionRequired
 }

@@ -248,6 +248,46 @@ embedded profile with `security cms -D -i <profile>` and check that its
 `visionOS`, recreate the profile in the Apple Developer portal as a macOS App
 Store provisioning profile, replace the local profile, and rebuild the package.
 
+## Sandbox verification before an App Store upload
+
+The Mac App Store build runs in the macOS App Sandbox with only
+`com.apple.security.files.user-selected.read-write`. Verify the sandboxed
+behavior on a real Mac before uploading, because these paths cannot be observed
+in an unsandboxed development build:
+
+1. Install the signed `.app` from the App Store package, or ad-hoc sign a local
+   build with the App Store entitlements for testing:
+
+   ```shell
+   codesign --force --deep --sign - \
+     --entitlements src/MacStorageAtlas.App/MacStorageAtlas.AppStore.entitlements \
+     MacStorageAtlas.app
+   ```
+
+2. Launch the app and select a folder in the open panel, then scan it.
+3. Move an item to the Trash from the cleanup basket and confirm that it arrives
+   in the macOS Trash and can be put back.
+4. Reveal an item in Finder and preview one with Quick Look.
+5. Scan a location that contains a folder you did not select, and confirm the
+   guidance asks you to select the missing location instead of offering Full
+   Disk Access.
+
+The app must not request Apple event automation permission at any point. If a
+consent dialog for controlling Finder appears, a macOS integration regressed to
+AppleScript and must be fixed before uploading.
+
+Without an Intel Mac, verify the `osx-x64` slice of the universal build under
+Rosetta 2 on an Apple Silicon Mac, so both submitted architectures have been
+launched at least once:
+
+```shell
+arch -x86_64 /Applications/MacStorageAtlas.app/Contents/MacOS/MacStorageAtlas
+```
+
+Record the review information for the submission in
+[APP_STORE_REVIEW_NOTES.md](APP_STORE_REVIEW_NOTES.md) and paste it into the App
+Review Information section of App Store Connect.
+
 ## DMG creation
 
 `build-dmg.sh` assembles a staging folder containing the `.app` bundle and a

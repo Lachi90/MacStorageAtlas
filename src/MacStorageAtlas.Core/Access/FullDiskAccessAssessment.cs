@@ -9,4 +9,7 @@ public sealed record FullDiskAccessAssessment(
 
     public static FullDiskAccessAssessment Indeterminate { get; } =
         new(FullDiskAccessStatus.Indeterminate);
+
+    public static FullDiskAccessAssessment SandboxRestricted { get; } =
+        new(FullDiskAccessStatus.SandboxRestricted);
 }

@@ -17,6 +17,8 @@ public static class ScanCompletenessClassifier
         {
             AccessGuidanceStatus.LikelyMissingFullDiskAccess =>
                 ScanCompleteness.IncompleteAccessRestricted,
+            AccessGuidanceStatus.SandboxedSelectionRequired =>
+                ScanCompleteness.IncompleteAccessRestricted,
             AccessGuidanceStatus.Indeterminate => ScanCompleteness.Undetermined,
             AccessGuidanceStatus.IncompleteScan =>
                 ScanCompleteness.IncompleteRecoverableErrors,

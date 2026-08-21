@@ -370,6 +370,7 @@ public partial class MainWindowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(AccessGuidanceMessage))]
     [NotifyPropertyChangedFor(nameof(FullDiskAccessManualFallback))]
     [NotifyPropertyChangedFor(nameof(ShowFullDiskAccessManualFallback))]
+    [NotifyPropertyChangedFor(nameof(IsFullDiskAccessActionVisible))]
     private AccessGuidance _accessGuidance = AccessGuidance.None;
 
     [ObservableProperty]
@@ -534,6 +535,8 @@ public partial class MainWindowViewModel : ViewModelBase
                 "Access status is unclear",
             AccessGuidanceStatus.SettingsOpenFailure =>
                 "Open Full Disk Access manually",
+            AccessGuidanceStatus.SandboxedSelectionRequired =>
+                "Only selected locations can be scanned",
             AccessGuidanceStatus.None => string.Empty,
             _ => throw new ArgumentOutOfRangeException(
                 nameof(AccessGuidance.Status),
@@ -554,6 +557,9 @@ public partial class MainWindowViewModel : ViewModelBase
                 "MacStorageAtlas cannot confirm whether macOS access is sufficient for this scan. If protected folders are missing, grant Full Disk Access, restart if needed, and rescan.",
             AccessGuidanceStatus.SettingsOpenFailure =>
                 "System Settings could not be opened automatically. Use the manual path below to grant access, then restart MacStorageAtlas if macOS asks and rescan.",
+            AccessGuidanceStatus.SandboxedSelectionRequired =>
+                InaccessiblePathMessage(
+                    "This build runs in the macOS App Sandbox and can only read locations you select yourself. Select the missing folder or volume with Select folder, then rescan. Full Disk Access does not widen what a sandboxed app can read."),
             AccessGuidanceStatus.None => string.Empty,
             _ => throw new ArgumentOutOfRangeException(
                 nameof(AccessGuidance.Status),
@@ -565,8 +571,12 @@ public partial class MainWindowViewModel : ViewModelBase
         "System Settings > Privacy & Security > Full Disk Access";
 
     public bool ShowFullDiskAccessManualFallback =>
-        AccessGuidance.Status == AccessGuidanceStatus.SettingsOpenFailure
-        || AccessGuidance.ShowsManualSettingsFallback;
+        IsFullDiskAccessActionVisible
+        && (AccessGuidance.Status == AccessGuidanceStatus.SettingsOpenFailure
+            || AccessGuidance.ShowsManualSettingsFallback);
+
+    public bool IsFullDiskAccessActionVisible =>
+        AccessGuidance.Status != AccessGuidanceStatus.SandboxedSelectionRequired;
 
     [RelayCommand]
     private async Task SelectFolderAsync()
@@ -802,12 +812,12 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     private bool CanOpenFullDiskAccessSettings() =>
-        IsAccessGuidanceVisible && !IsScanning;
+        IsAccessGuidanceVisible && IsFullDiskAccessActionVisible && !IsScanning;
 
     [RelayCommand(CanExecute = nameof(CanOpenFullDiskAccessSettings))]
     private void OpenFullDiskAccessSettings()
     {
-        if (!IsAccessGuidanceVisible || IsScanning)
+        if (!CanOpenFullDiskAccessSettings())
         {
             return;
         }

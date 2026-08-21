@@ -89,6 +89,90 @@ public class MainWindowViewModelAccessGuidanceTests
     }
 
     [Test]
+    public async Task SandboxedScanWithPermissionErrorsGuidesTheUserToSelectTheLocation()
+    {
+        var error = new ScanError(
+            "/Users/test/Documents",
+            "Access denied.",
+            nameof(UnauthorizedAccessException));
+        var root = CreateRoot();
+        var accessService = new FakeFullDiskAccessService
+        {
+            Assessment = FullDiskAccessAssessment.SandboxRestricted
+        };
+        var viewModel = CreateViewModel(root, [error], accessService);
+        viewModel.SelectedFolderPath = root.Path;
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.IsAccessGuidanceVisible, Is.True);
+            Assert.That(
+                viewModel.AccessGuidanceStatus,
+                Is.EqualTo(AccessGuidanceStatus.SandboxedSelectionRequired));
+            Assert.That(viewModel.InaccessiblePathCount, Is.EqualTo(1));
+            Assert.That(viewModel.AccessGuidanceMessage, Does.Contain("select"));
+            Assert.That(
+                viewModel.AccessGuidanceMessage,
+                Does.Not.Contain("Grant Full Disk Access"));
+            Assert.That(viewModel.ScanErrors, Is.EqualTo(new[] { error }));
+        });
+    }
+
+    [Test]
+    public async Task SandboxedGuidanceHidesTheFullDiskAccessActionAndKeepsRescan()
+    {
+        var error = new ScanError(
+            "/Users/test/Documents",
+            "Access denied.",
+            nameof(UnauthorizedAccessException));
+        var root = CreateRoot();
+        var accessService = new FakeFullDiskAccessService
+        {
+            Assessment = FullDiskAccessAssessment.SandboxRestricted
+        };
+        var viewModel = CreateViewModel(root, [error], accessService);
+        viewModel.SelectedFolderPath = root.Path;
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+        viewModel.OpenFullDiskAccessSettingsCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.IsFullDiskAccessActionVisible, Is.False);
+            Assert.That(viewModel.ShowFullDiskAccessManualFallback, Is.False);
+            Assert.That(
+                viewModel.OpenFullDiskAccessSettingsCommand.CanExecute(null),
+                Is.False);
+            Assert.That(accessService.OpenSettingsCount, Is.Zero);
+            Assert.That(
+                viewModel.RescanAfterFullDiskAccessCommand.CanExecute(null),
+                Is.True);
+        });
+    }
+
+    [Test]
+    public async Task SandboxedScanWithoutPermissionErrorsShowsNoGuidance()
+    {
+        var root = CreateRoot();
+        var accessService = new FakeFullDiskAccessService
+        {
+            Assessment = FullDiskAccessAssessment.SandboxRestricted
+        };
+        var viewModel = CreateViewModel(root, [], accessService);
+        viewModel.SelectedFolderPath = root.Path;
+
+        await viewModel.ScanFolderCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.IsAccessGuidanceVisible, Is.False);
+            Assert.That(viewModel.AccessGuidanceStatus, Is.EqualTo(AccessGuidanceStatus.None));
+        });
+    }
+
+    [Test]
     public async Task OpenFullDiskAccessSettingsKeepsGuidanceWhenSettingsOpenDirectly()
     {
         var error = new ScanError(

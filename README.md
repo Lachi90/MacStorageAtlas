@@ -155,9 +155,10 @@ remembered between runs.
   after the copy is verified.
 - Inspect files and folders that couldn't be scanned, and copy their paths to
   the clipboard.
-- Get Full Disk Access guidance when macOS-protected locations make a scan
-  appear incomplete, with a shortcut to Privacy & Security, manual fallback
-  instructions, and a rescan action.
+- Get access guidance when macOS-protected locations make a scan appear
+  incomplete: a shortcut to Privacy & Security with manual fallback
+  instructions in the GitHub build, selection guidance in the sandboxed Mac App
+  Store build, and a rescan action in both.
 - Configurable scanning: hidden files, symbolic links, `.app` package
   expansion, and logical, per-path allocated, or shared-aware allocated size
   measurement.
@@ -284,18 +285,27 @@ certificates and produce uploadable `.pkg` files:
   "3rd Party Mac Developer Installer: Lachmann Thiem Software GbR (2G3HGCLNFN)"
 ```
 
-## Full Disk Access
+## Access to protected locations
 
-macOS can block third-party apps from reading protected locations such as some
-Mail, Messages, Safari, Time Machine, and administrative data. When a completed
-scan has permission-related inaccessible paths, MacStorageAtlas shows guidance
-that the result may be incomplete, keeps the detailed errors visible, and offers
-to open Privacy & Security.
+macOS can block an app from reading a location, and the remedy differs per
+distribution channel. In both cases MacStorageAtlas shows guidance that the
+result may be incomplete, keeps the detailed errors visible, and offers a
+rescan. Inaccessible paths are not purgeable space, free space, or files that
+MacStorageAtlas says are safe to delete.
 
-Grant access manually in **System Settings > Privacy & Security > Full Disk
-Access**, add or enable MacStorageAtlas, restart the app if macOS asks, then
-rescan the same location. Inaccessible paths are not purgeable space, free
-space, or files that MacStorageAtlas says are safe to delete.
+The **GitHub Release build** is not sandboxed. macOS can block protected
+locations such as some Mail, Messages, Safari, Time Machine, and administrative
+data. Grant access manually in **System Settings > Privacy & Security > Full
+Disk Access**, add or enable MacStorageAtlas, restart the app if macOS asks,
+then rescan the same location.
+
+The **Mac App Store build** runs in the macOS App Sandbox and can only read
+folders and volumes you select in the open panel. Full Disk Access does not
+change that, so the guidance asks you to select the missing location and rescan
+instead, and the Full Disk Access action is not shown.
+
+Trash and Finder reveal use macOS file and workspace APIs directly, so both work
+in the sandboxed build without Apple event automation.
 
 ## Project structure
 

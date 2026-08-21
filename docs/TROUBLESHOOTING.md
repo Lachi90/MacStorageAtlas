@@ -1,6 +1,25 @@
 # Troubleshooting
 
-## Full Disk Access
+## Incomplete scans
+
+macOS can stop a scan from reading a location. The remedy depends on which build
+you use, because the Mac App Store edition runs in the macOS App Sandbox and the
+GitHub Release edition does not. The in-app guidance banner already shows the
+guidance that matches your build.
+
+## Mac App Store edition: select the location
+
+A sandboxed app can only read folders and volumes you select yourself. If a scan
+reports inaccessible paths:
+
+1. Choose **Select folder**.
+2. Select the location that was skipped, or a parent that contains it.
+3. Rescan.
+
+Full Disk Access does not widen what a sandboxed app can read, so the Mac App
+Store edition neither requests it nor offers the settings action.
+
+## GitHub Release edition: Full Disk Access
 
 macOS may prevent MacStorageAtlas from reading protected locations even when the
 selected folder exists and ordinary files scan normally. If a completed scan has

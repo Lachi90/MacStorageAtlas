@@ -12,7 +12,8 @@ public class MacFullDiskAccessServiceTests
             new FakeProbe(new FullDiskAccessProbeResult(
                 SuccessfulProbeCount: 0,
                 PermissionDenied: true)),
-            new FakeSettingsOpener());
+            new FakeSettingsOpener(),
+            new FakeSandboxDetector());
 
         var assessment = service.CheckAccess("/scan/root");
 
@@ -30,7 +31,8 @@ public class MacFullDiskAccessServiceTests
             new FakeProbe(new FullDiskAccessProbeResult(
                 SuccessfulProbeCount: 1,
                 PermissionDenied: false)),
-            new FakeSettingsOpener());
+            new FakeSettingsOpener(),
+            new FakeSandboxDetector());
 
         var assessment = service.CheckAccess("/scan/root");
 
@@ -48,7 +50,8 @@ public class MacFullDiskAccessServiceTests
             new FakeProbe(new FullDiskAccessProbeResult(
                 SuccessfulProbeCount: 2,
                 PermissionDenied: false)),
-            new FakeSettingsOpener());
+            new FakeSettingsOpener(),
+            new FakeSandboxDetector());
 
         var assessment = service.CheckAccess("/scan/root");
 
@@ -57,6 +60,30 @@ public class MacFullDiskAccessServiceTests
             OperatingSystem.IsMacOS()
                 ? Is.EqualTo(FullDiskAccessStatus.LikelyGranted)
                 : Is.EqualTo(FullDiskAccessStatus.NotApplicable));
+    }
+
+    [Test]
+    public void CheckAccessReportsSandboxRestrictedWithoutProbingInsideTheAppSandboxOnMacOS()
+    {
+        var probe = new CountingProbe();
+        var service = new MacFullDiskAccessService(
+            probe,
+            new FakeSettingsOpener(),
+            new FakeSandboxDetector { IsSandboxed = true });
+
+        var assessment = service.CheckAccess("/scan/root");
+
+        if (!OperatingSystem.IsMacOS())
+        {
+            Assert.That(assessment.Status, Is.EqualTo(FullDiskAccessStatus.NotApplicable));
+            return;
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(assessment.Status, Is.EqualTo(FullDiskAccessStatus.SandboxRestricted));
+            Assert.That(probe.ProbeCount, Is.Zero);
+        });
     }
 
     [Test]
@@ -69,7 +96,8 @@ public class MacFullDiskAccessServiceTests
         };
         var service = new MacFullDiskAccessService(
             new FakeProbe(new FullDiskAccessProbeResult(0, PermissionDenied: false)),
-            opener);
+            opener,
+            new FakeSandboxDetector());
 
         var result = service.OpenSettings();
 
@@ -97,7 +125,8 @@ public class MacFullDiskAccessServiceTests
         };
         var service = new MacFullDiskAccessService(
             new FakeProbe(new FullDiskAccessProbeResult(0, PermissionDenied: false)),
-            opener);
+            opener,
+            new FakeSandboxDetector());
 
         var result = service.OpenSettings();
 
@@ -131,7 +160,8 @@ public class MacFullDiskAccessServiceTests
         };
         var service = new MacFullDiskAccessService(
             new FakeProbe(new FullDiskAccessProbeResult(0, PermissionDenied: false)),
-            opener);
+            opener,
+            new FakeSandboxDetector());
 
         var result = service.OpenSettings();
 
@@ -141,6 +171,25 @@ public class MacFullDiskAccessServiceTests
     private sealed class FakeProbe(FullDiskAccessProbeResult result) : IFullDiskAccessProbe
     {
         public FullDiskAccessProbeResult Probe() => result;
+    }
+
+    private sealed class CountingProbe : IFullDiskAccessProbe
+    {
+        public int ProbeCount { get; private set; }
+
+        public FullDiskAccessProbeResult Probe()
+        {
+            ProbeCount++;
+
+            return new FullDiskAccessProbeResult(
+                SuccessfulProbeCount: 0,
+                PermissionDenied: false);
+        }
+    }
+
+    private sealed class FakeSandboxDetector : IAppSandboxDetector
+    {
+        public bool IsSandboxed { get; init; }
     }
 
     private sealed class FakeSettingsOpener : ISystemSettingsOpener

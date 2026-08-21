@@ -22,6 +22,15 @@ internal sealed class AccessGuidanceClassifier
             .Distinct(StringComparer.Ordinal)
             .Count();
 
+        if (assessment.Status == FullDiskAccessStatus.SandboxRestricted)
+        {
+            return inaccessiblePathCount > 0
+                ? new AccessGuidance(
+                    AccessGuidanceStatus.SandboxedSelectionRequired,
+                    inaccessiblePathCount)
+                : AccessGuidance.None;
+        }
+
         if (inaccessiblePathCount > 0)
         {
             return assessment.Status == FullDiskAccessStatus.LikelyMissing

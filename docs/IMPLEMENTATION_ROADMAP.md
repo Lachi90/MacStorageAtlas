@@ -1100,7 +1100,7 @@ folder-matching domain namespaces.
 | ID | Status | Owner/branch | Notes |
 | --- | --- | --- | --- |
 | WP-00 | Complete | `codex/storage-feature-roadmap` | Comparison corrected and verified 2026-07-24; OpenSpec change: `correct-market-comparison` |
-| WP-01 | Planned | `codex/storage-feature-roadmap` | Requires Apple Developer account |
+| WP-01 | Partial | `codex/storage-feature-roadmap` | Local Developer ID signing, notarization, and stapling (`sign-and-notarize-releases`) plus Mac App Store packaging complete; sandbox-compatible Trash, Finder reveal, and sandbox-aware access guidance for the App Store build (`fix-sandboxed-mac-integrations`) complete. In-app update checking remains outstanding |
 | WP-02 | Complete | `codex/storage-feature-roadmap` | Measurement definitions (`define-storage-measurement`), hardlink accounting (`deduplicate-hardlinks`), capability-gated verified full-clone accounting (`investigate-apfs-clone-accounting`), and scan benchmark tooling with local baseline verification on 2026-07-29 (`benchmark-and-optimize-scans`) complete |
 | WP-03 | Complete | `codex/storage-feature-roadmap` | Metadata details (`add-file-metadata`) plus Quick Look preview, Space handling, and Command-I details shortcut (`add-quick-look`) complete |
 | WP-04 | Complete | `codex/storage-feature-roadmap` | Preparatory lazy/off-thread result tree (`virtualize-result-tree`) plus advanced filters and presets (`add-advanced-filters`). Scope changes: file-versus-folder, hidden-status, and package-membership dimensions dropped; "large downloads" preset replaced by "Large disk images and installers" because filters evaluate within the current scan root |

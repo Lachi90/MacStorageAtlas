@@ -209,7 +209,9 @@ Requirements:
 ## Purpose
 
 Help users understand incomplete macOS scans when protected locations cannot be
-read, and guide them to grant Full Disk Access manually.
+read, and guide them to the remedy that fits their build: granting Full Disk
+Access manually, or selecting the missing location in the sandboxed Mac App
+Store build.
 
 ## Acceptance Criteria
 
@@ -227,6 +229,9 @@ read, and guide them to grant Full Disk Access manually.
   safe-to-delete space.
 - App does not request administrator credentials or read file contents for
   access checks.
+- In the sandboxed Mac App Store build, guidance asks the user to select the
+  missing location, does not mention Full Disk Access, and does not offer the
+  settings action.
 
 ## Affected Projects
 

@@ -5,5 +5,6 @@ public enum FullDiskAccessStatus
     NotApplicable,
     Indeterminate,
     LikelyGranted,
-    LikelyMissing
+    LikelyMissing,
+    SandboxRestricted
 }

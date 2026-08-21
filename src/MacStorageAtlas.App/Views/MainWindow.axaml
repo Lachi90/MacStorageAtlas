@@ -636,6 +636,7 @@
                     </StackPanel>
                     <Button Grid.Column="1"
                             VerticalAlignment="Center"
+                            IsVisible="{Binding IsFullDiskAccessActionVisible}"
                             Command="{Binding OpenFullDiskAccessSettingsCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <PathIcon Data="{StaticResource IconOptions}"/>

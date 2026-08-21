@@ -43,6 +43,50 @@ public class AccessGuidanceClassifierTests
     }
 
     [Test]
+    public void ClassifySandboxRestrictedPermissionErrorsAsRequiringSelection()
+    {
+        var classifier = new AccessGuidanceClassifier();
+        var errors = new[]
+        {
+            new ScanError(
+                "/Users/test/Documents",
+                "Access denied.",
+                nameof(UnauthorizedAccessException))
+        };
+
+        var guidance = classifier.Classify(
+            errors,
+            FullDiskAccessAssessment.SandboxRestricted);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                guidance.Status,
+                Is.EqualTo(AccessGuidanceStatus.SandboxedSelectionRequired));
+            Assert.That(guidance.InaccessiblePathCount, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void ClassifySandboxRestrictedScanWithoutPermissionErrorsAsNoGuidance()
+    {
+        var classifier = new AccessGuidanceClassifier();
+        var errors = new[]
+        {
+            new ScanError(
+                "/Volumes/Disk/file.bin",
+                "The device is not ready.",
+                nameof(IOException))
+        };
+
+        var guidance = classifier.Classify(
+            errors,
+            FullDiskAccessAssessment.SandboxRestricted);
+
+        Assert.That(guidance.Status, Is.EqualTo(AccessGuidanceStatus.None));
+    }
+
+    [Test]
     public void ClassifyDoesNotTreatOrdinaryIoErrorsAsFullDiskAccessFailures()
     {
         var classifier = new AccessGuidanceClassifier();

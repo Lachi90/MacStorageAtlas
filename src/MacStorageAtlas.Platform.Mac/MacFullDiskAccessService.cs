@@ -12,18 +12,21 @@ public sealed class MacFullDiskAccessService : IFullDiskAccessService
     private const int MinimumSuccessfulProbesForLikelyGranted = 2;
     private readonly IFullDiskAccessProbe _probe;
     private readonly ISystemSettingsOpener _settingsOpener;
+    private readonly IAppSandboxDetector _sandboxDetector;
 
     public MacFullDiskAccessService()
-        : this(new FullDiskAccessProbe(), new SystemSettingsOpener())
+        : this(new FullDiskAccessProbe(), new SystemSettingsOpener(), new MacAppSandboxDetector())
     {
     }
 
     internal MacFullDiskAccessService(
         IFullDiskAccessProbe probe,
-        ISystemSettingsOpener settingsOpener)
+        ISystemSettingsOpener settingsOpener,
+        IAppSandboxDetector sandboxDetector)
     {
         _probe = probe ?? throw new ArgumentNullException(nameof(probe));
         _settingsOpener = settingsOpener ?? throw new ArgumentNullException(nameof(settingsOpener));
+        _sandboxDetector = sandboxDetector ?? throw new ArgumentNullException(nameof(sandboxDetector));
     }
 
     public FullDiskAccessAssessment CheckAccess(string scanRootPath)
@@ -31,6 +34,11 @@ public sealed class MacFullDiskAccessService : IFullDiskAccessService
         if (!OperatingSystem.IsMacOS())
         {
             return FullDiskAccessAssessment.NotApplicable;
+        }
+
+        if (_sandboxDetector.IsSandboxed)
+        {
+            return FullDiskAccessAssessment.SandboxRestricted;
         }
 
         try
