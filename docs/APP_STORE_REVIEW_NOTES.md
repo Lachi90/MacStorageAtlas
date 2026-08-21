@@ -91,7 +91,10 @@ Because the app is sandboxed, it can only read locations the reviewer selects:
    duplicate analysis become available, and any listed item can be previewed,
    revealed in Finder, or added to the cleanup basket. Items in the cleanup
    basket are moved to the macOS Trash only after the review sheet is confirmed,
-   and they can be put back from the Trash afterwards.
+   and they stay there until the Trash is emptied. The app moves items with the
+   system file API instead of automating Finder, and macOS records no Put Back
+   entry for items moved that way, so a trashed item is restored by dragging it
+   out of the Trash rather than through Finder's Put Back command.
 
 If a scan reports inaccessible paths, that is the macOS App Sandbox refusing
 locations the reviewer has not selected. The app then explains that only

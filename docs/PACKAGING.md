@@ -317,7 +317,10 @@ in an unsandboxed development build:
    `com.apple.coreservices.launchservicesd` is missing from the signed
    entitlements. Then select a folder in the open panel and scan it.
 3. Move an item to the Trash from the cleanup basket and confirm that it arrives
-   in the macOS Trash and can be put back.
+   in the macOS Trash. Finder's Put Back command stays greyed out for it, because
+   macOS records no Put Back entry for items moved with the system file API. That
+   is expected and applies to the Developer ID build as well; the item is
+   restored by dragging it out of the Trash.
 4. Reveal an item in Finder and preview one with Quick Look.
 5. Scan a location that contains a folder you did not select, and confirm the
    guidance asks you to select the missing location instead of offering Full
