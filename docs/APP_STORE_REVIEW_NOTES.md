@@ -10,7 +10,7 @@ screen, and run the sandbox checks in docs/PACKAGING.md.
 
 ---
 
-MacStorageAtlas 1.0.1 - App Review Information
+MacStorageAtlas 1.0.2 - App Review Information
 
 1. SCREEN RECORDING
 

@@ -16,7 +16,7 @@
 
 - [x] 3.1 Require `clang` and the launcher source when building the universal target.
 - [x] 3.2 Verify the main executable carries both architectures and the nested slice carries x86_64.
-- [ ] 3.3 Launch both slices of the built package on a Mac and confirm each reaches its main window.
+- [x] 3.3 Launch both slices of the built package on a Mac and confirm each reaches its main window.
 
 ## 4. Documentation
 
