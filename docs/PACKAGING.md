@@ -54,9 +54,9 @@ For a Mac App Store package, use appstore mode:
 
 App Store packages are named
 `MacStorageAtlas-<version>-<runtime>-appstore.pkg`. For App Store uploads,
-prefer the `both` target, which publishes arm64 and x64 builds, merges Mach-O
-executables and libraries into a single universal app bundle with `lipo`, and
-writes `MacStorageAtlas-<version>-universal-appstore.pkg`.
+prefer the `both` target, which publishes arm64 and x64 builds, combines them
+into a single app bundle that runs on both architectures, and writes
+`MacStorageAtlas-<version>-universal-appstore.pkg`.
 
 The sections below document the individual steps the script performs, for
 reference and manual builds.
@@ -216,6 +216,39 @@ Mac App Store distribution uses a separate signing path from Developer ID DMGs:
 6. **Installer signing** — create the uploadable `.pkg` with `productbuild` and
    the Mac Installer Distribution certificate.
 
+### Universal app bundle layout
+
+A .NET app bundle cannot be made universal by merging its files. The native
+binaries can be combined with `lipo`, but the managed assemblies cannot: the
+framework assemblies of a self-contained publish, `System.Private.CoreLib.dll`
+above all, are precompiled per architecture. A bundle that keeps only the arm64
+managed payload aborts on Intel Macs while CoreCLR starts:
+
+```text
+Failed to load System.Private.CoreLib.dll (error code 0x8007000B)
+Failed to create CoreCLR, HRESULT: 0x8007000B
+```
+
+The `both` target therefore keeps one complete payload per architecture:
+
+- `Contents/MacOS` holds the arm64 payload.
+- `Contents/Helpers/MacStorageAtlas-x86_64.app` holds the complete x64 payload
+  as a nested bundle with its own `Info.plist` and the bundle identifier
+  `de.ltsoftware.macstorageatlas.x86-64`.
+- `Contents/MacOS/MacStorageAtlas.App` is a universal binary created with
+  `lipo` from the arm64 app host and the x86_64 launcher built from
+  `packaging/universal-launcher.c`. On Apple Silicon the app host runs directly.
+  On Intel the launcher replaces its own process with the nested x64 app host
+  through `execv`, so the app keeps the process, the sandbox, and the container
+  of the outer bundle.
+
+The nested slice must be signed before the outer bundle, and its executable
+needs `MacStorageAtlas.AppStore.Slice.entitlements`: App Sandbox inheritance
+plus the JIT entitlement CoreCLR requires. Signing it with the plain inherited
+entitlements instead makes the Intel slice abort in `InitThreadManager` with a
+`KERN_PROTECTION_FAILURE`, because the .NET JIT cannot allocate executable
+memory.
+
 The local release machine currently stores private App Store signing inputs
 outside the repository under:
 
@@ -296,11 +329,20 @@ AppleScript and must be fixed before uploading.
 
 Without an Intel Mac, verify the `osx-x64` slice of the universal build under
 Rosetta 2 on an Apple Silicon Mac, so both submitted architectures have been
-launched at least once:
+launched at least once. Launch it through LaunchServices rather than by running
+the executable directly, because only that path applies the App Sandbox the
+nested slice inherits:
 
 ```shell
-arch -x86_64 /Applications/MacStorageAtlas.app/Contents/MacOS/MacStorageAtlas
+open -n --arch x86_64 /Applications/MacStorageAtlas.app
 ```
+
+Repeat the checks above for that slice, and confirm the running process is the
+translated one, for example with Activity Monitor's Kind column.
+
+The screen must be unlocked while verifying. On a locked screen every launch
+fails with `Avalonia.Native was not able to start the RenderTimer`, which is an
+artifact of the locked session rather than a defect of the build.
 
 Record the review information for the submission in
 [APP_STORE_REVIEW_NOTES.md](APP_STORE_REVIEW_NOTES.md) and paste it into the App

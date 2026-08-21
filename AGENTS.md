@@ -30,6 +30,8 @@ synchronized.
 - NUnit tests live in assembly-aligned projects under `tests/`: Core, Rendering,
   Platform.Mac, App, and Benchmarks. Core tests mirror Core's domain folders and
   use matching `MacStorageAtlas.Core.Tests.<Folder>` namespaces.
+- `packaging` owns non-.NET packaging sources, such as the universal launcher
+  used by the Mac App Store build.
 - Keep dependencies flowing toward Core. Do not add UI dependencies to Core or
   platform dependencies to Rendering.
 

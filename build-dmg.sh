@@ -11,7 +11,11 @@ ICON_SOURCE="$PROJECT/Assets/MacStorageAtlas.icns"
 ENTITLEMENTS_SOURCE="$PROJECT/MacStorageAtlas.entitlements"
 APPSTORE_ENTITLEMENTS_SOURCE="$PROJECT/MacStorageAtlas.AppStore.entitlements"
 APPSTORE_INHERIT_ENTITLEMENTS_SOURCE="$PROJECT/MacStorageAtlas.AppStore.Inherit.entitlements"
+APPSTORE_SLICE_ENTITLEMENTS_SOURCE="$PROJECT/MacStorageAtlas.AppStore.Slice.entitlements"
 APPSTORE_DEFAULT_PROFILE="$HOME/.macstorageatlas-apple-certificates/MacStorageAtlas_Mac_App_Store.provisionprofile"
+UNIVERSAL_LAUNCHER_SOURCE="packaging/universal-launcher.c"
+X86_64_SLICE_BUNDLE_NAME="$APP_NAME-x86_64.app"
+X86_64_SLICE_BUNDLE_ID="$BUNDLE_ID.x86-64"
 LAUNCH_SMOKE_TEST_SECONDS=5
 
 MODE="unsigned"
@@ -189,6 +193,13 @@ check_appstore_prerequisites() {
   require_command xattr
   if [ "$APPSTORE_UNIVERSAL" = "true" ]; then
     require_command lipo
+    require_command clang
+
+    [ -f "$UNIVERSAL_LAUNCHER_SOURCE" ] ||
+      fail "Universal launcher source was not found at '$UNIVERSAL_LAUNCHER_SOURCE'."
+
+    [ -f "$APPSTORE_SLICE_ENTITLEMENTS_SOURCE" ] ||
+      fail "App Store slice entitlements file was not found at '$APPSTORE_SLICE_ENTITLEMENTS_SOURCE'."
   fi
 
   security find-identity -v -p codesigning | grep -F -- "$SIGNING_IDENTITY" >/dev/null ||
@@ -288,49 +299,38 @@ copy_publish_output() {
   fi
 }
 
-is_macho_file() {
-  file -b "$1" | grep -q "Mach-O"
+build_universal_launcher() {
+  local output_path="$1"
+  local slice_path="/Contents/Helpers/$X86_64_SLICE_BUNDLE_NAME/Contents/MacOS/$EXECUTABLE_NAME"
+
+  clang -arch x86_64 -mmacosx-version-min=11.0 -O2 \
+    -DMACSTORAGEATLAS_SLICE_PATH="\"$slice_path\"" \
+    -o "$output_path" "$UNIVERSAL_LAUNCHER_SOURCE"
 }
 
-is_universal_macho_file() {
-  lipo "$1" -verify_arch arm64 x86_64 >/dev/null 2>&1
-}
+create_slice_info_plist() {
+  local app_bundle="$1"
+  local slice_bundle="$2"
 
-merge_universal_publish_output() {
-  local arm64_publish_dir="$1"
-  local x64_publish_dir="$2"
-  local bundle_macos_dir="$3"
-  local x64_file
-  local relative_path
-  local arm64_file
-  local target_file
-
-  while IFS= read -r x64_file; do
-    relative_path="${x64_file#"$x64_publish_dir/"}"
-    arm64_file="$arm64_publish_dir/$relative_path"
-    target_file="$bundle_macos_dir/$relative_path"
-
-    if [ -f "$arm64_file" ] && is_macho_file "$arm64_file" && is_macho_file "$x64_file"; then
-      if is_universal_macho_file "$arm64_file"; then
-        cp "$arm64_file" "$target_file"
-      elif is_universal_macho_file "$x64_file"; then
-        cp "$x64_file" "$target_file"
-      else
-        lipo -create "$arm64_file" "$x64_file" -output "$target_file"
-      fi
-    elif [ ! -f "$arm64_file" ] && [ "${relative_path##*.}" != "pdb" ]; then
-      cp "$x64_file" "$target_file"
-    fi
-  done < <(find "$x64_publish_dir" -maxdepth 1 -type f | sort)
+  cp "$app_bundle/Contents/Info.plist" "$slice_bundle/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $X86_64_SLICE_BUNDLE_ID" \
+    "$slice_bundle/Contents/Info.plist" >/dev/null
 }
 
 normalize_app_bundle_permissions() {
   local app_bundle="$1"
 
+  local slice_executable="$app_bundle/Contents/Helpers/$X86_64_SLICE_BUNDLE_NAME/Contents/MacOS/$EXECUTABLE_NAME"
+
   find "$app_bundle" -type d -exec chmod 755 {} \;
   find "$app_bundle" -type f -exec chmod u+rw,go+r {} \;
   chmod +x "$app_bundle/Contents/MacOS/$EXECUTABLE_NAME"
-  find "$app_bundle/Contents/MacOS" -type f -perm -111 -exec chmod a+rx {} \;
+
+  if [ -f "$slice_executable" ]; then
+    chmod +x "$slice_executable"
+  fi
+
+  find "$app_bundle/Contents" -type f -perm -111 -exec chmod a+rx {} \;
 }
 
 clear_app_bundle_extended_attributes() {
@@ -404,6 +404,8 @@ create_universal_app_bundle() {
   local app_bundle="$1"
   local arm64_publish_dir="$PROJECT/bin/Release/$TARGET_FRAMEWORK/osx-arm64/publish"
   local x64_publish_dir="$PROJECT/bin/Release/$TARGET_FRAMEWORK/osx-x64/publish"
+  local slice_bundle="$app_bundle/Contents/Helpers/$X86_64_SLICE_BUNDLE_NAME"
+  local launcher_binary
 
   printf 'Publishing arm64 app...\n'
   dotnet publish "$PROJECT" -c Release -r osx-arm64 --self-contained true
@@ -414,30 +416,62 @@ create_universal_app_bundle() {
   printf 'Creating universal .app bundle...\n'
   mkdir -p "$app_bundle/Contents/MacOS"
   mkdir -p "$app_bundle/Contents/Resources"
+  mkdir -p "$slice_bundle/Contents/MacOS"
+  mkdir -p "$slice_bundle/Contents/Resources"
   copy_publish_output "$arm64_publish_dir" "$app_bundle/Contents/MacOS"
-  merge_universal_publish_output "$arm64_publish_dir" "$x64_publish_dir" "$app_bundle/Contents/MacOS"
+  copy_publish_output "$x64_publish_dir" "$slice_bundle/Contents/MacOS"
 
   if [ -f "$ICON_SOURCE" ]; then
     cp "$ICON_SOURCE" "$app_bundle/Contents/Resources/AppIcon.icns"
+    cp "$ICON_SOURCE" "$slice_bundle/Contents/Resources/AppIcon.icns"
   else
     printf 'Warning: icon not found at %s, bundling without icon.\n' "$ICON_SOURCE"
   fi
 
   create_info_plist "$app_bundle"
+  create_slice_info_plist "$app_bundle" "$slice_bundle"
+
+  printf 'Building universal launcher...\n'
+  launcher_binary="$(mktemp "${TMPDIR:-/tmp}/macstorageatlas-launcher.XXXXXX")"
+  build_universal_launcher "$launcher_binary"
+  lipo -create "$arm64_publish_dir/$EXECUTABLE_NAME" "$launcher_binary" \
+    -output "$app_bundle/Contents/MacOS/$EXECUTABLE_NAME"
+  rm -f "$launcher_binary"
+
   cp "$PROVISIONING_PROFILE" "$app_bundle/Contents/embedded.provisionprofile"
   clear_app_bundle_extended_attributes "$app_bundle"
   normalize_app_bundle_permissions "$app_bundle"
   lipo "$app_bundle/Contents/MacOS/$EXECUTABLE_NAME" -verify_arch arm64 x86_64
+  lipo "$slice_bundle/Contents/MacOS/$EXECUTABLE_NAME" -verify_arch x86_64
+}
+
+sign_slice_bundle() {
+  local slice_bundle="$1"
+  local slice_executable="$slice_bundle/Contents/MacOS/$EXECUTABLE_NAME"
+  local file
+
+  printf 'Signing x86_64 slice...\n'
+  while IFS= read -r file; do
+    codesign --force --timestamp --options runtime --entitlements "$APPSTORE_INHERIT_ENTITLEMENTS_SOURCE" --sign "$SIGNING_IDENTITY" "$file"
+  done < <(find "$slice_bundle/Contents/MacOS" -type f ! -name "$EXECUTABLE_NAME" | sort)
+
+  codesign --force --timestamp --options runtime --entitlements "$APPSTORE_SLICE_ENTITLEMENTS_SOURCE" --sign "$SIGNING_IDENTITY" "$slice_executable"
+  codesign --force --timestamp --options runtime --entitlements "$APPSTORE_SLICE_ENTITLEMENTS_SOURCE" --sign "$SIGNING_IDENTITY" "$slice_bundle"
 }
 
 sign_app_bundle() {
   local app_bundle="$1"
   local main_executable="$app_bundle/Contents/MacOS/$EXECUTABLE_NAME"
   local entitlements_source="$ENTITLEMENTS_SOURCE"
+  local slice_bundle="$app_bundle/Contents/Helpers/$X86_64_SLICE_BUNDLE_NAME"
 
   if [ "$MODE" = "appstore" ]; then
     entitlements_source="$(mktemp "${TMPDIR:-/tmp}/macstorageatlas-entitlements.XXXXXX")"
     create_appstore_signing_entitlements "$entitlements_source"
+  fi
+
+  if [ -d "$slice_bundle" ]; then
+    sign_slice_bundle "$slice_bundle"
   fi
 
   printf 'Signing nested app content...\n'
@@ -580,6 +614,7 @@ verify_appstore_artifact() {
   codesign --display --entitlements :- "$app_bundle" >/dev/null
   if [ "$APPSTORE_UNIVERSAL" = "true" ]; then
     lipo "$app_bundle/Contents/MacOS/$EXECUTABLE_NAME" -verify_arch arm64 x86_64
+    lipo "$app_bundle/Contents/Helpers/$X86_64_SLICE_BUNDLE_NAME/Contents/MacOS/$EXECUTABLE_NAME" -verify_arch x86_64
   fi
   pkgutil --check-signature "$pkg_name"
 }
