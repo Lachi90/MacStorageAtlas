@@ -1,72 +1,59 @@
 # App Store review notes
 
-This document is the source for the **App Review Information** notes and for the
-reply to an App Review message in App Store Connect. Paste the sections below
-into the Notes field, and keep this file updated whenever the submitted build
-changes.
+Everything below the separator is the exact text for the App Review Information
+notes field in App Store Connect, and for the reply to the Guideline 2.1 review
+message. Copy it as is. Keep it updated whenever the submitted build changes.
 
-The first submission of version 1.0 was rejected under Guideline 2.1
-(Information Needed / Performance: App Completeness) because the App Review
-Information section did not contain this information.
+Before submitting: record the screen recording described in section 1, confirm
+the App Store screenshots show a real scan result rather than the empty start
+screen, and run the sandbox checks in docs/PACKAGING.md.
 
-## Before submitting
+---
 
-- [ ] Update [Tested configurations](#2-tested-configurations) if the build was
-      tested on additional hardware or a newer macOS version.
-- [ ] Record the screen recording described in
-      [Screen recording](#1-screen-recording) on a physical Mac running the
-      latest released macOS.
-- [ ] Confirm the App Store screenshots show the app in use with a real scan
-      result, not the empty start screen.
-- [ ] Verify Trash, Finder reveal, and Quick Look in the signed sandboxed build
-      as described in [docs/PACKAGING.md](PACKAGING.md).
+MacStorageAtlas 1.0.1 - App Review Information
 
-## 1. Screen recording
+1. SCREEN RECORDING
 
-Record on a physical Mac, running the latest released macOS, with the App Store
-build. The recording must start with launching the app.
+The attached screen recording was captured on a physical Mac running macOS
+26.6.2. It starts with launching the app from the Applications folder and shows
+the typical user flow: selecting a folder in the macOS open panel, scanning it,
+browsing the folder tree and the treemap, inspecting item details, the file type
+breakdown, the largest files, the duplicate analysis with its live progress,
+Quick Look preview, Reveal in Finder, and moving an item to the Trash through
+the cleanup basket review, which reports the itemized result.
 
-1. Launch MacStorageAtlas from the Dock or Launchpad.
-2. Choose **Select folder** and pick `Downloads` in the open panel. Keep any
-   macOS access prompt visible in the recording.
-3. Start the scan and let the live progress run: current path, file and folder
-   counts, and bytes scanned.
-4. Cancel the running scan once to show that partial results stay visible, then
-   scan again and let it finish.
-5. Show the folder tree and the treemap side by side, then select a treemap
-   block to show the item details.
-6. Open the **File types** tab and the **Largest files** tab.
-7. Start the opt-in duplicate analysis and show the result.
-8. Select an item, press Space for Quick Look, then use **Reveal in Finder**.
-9. Add an item to the cleanup basket, open the review, confirm, and show that the
-   item is now in the macOS Trash and can be put back.
-10. Open the settings surface to show the measurement mode, hidden files, and
-    package expansion options.
+The scan itself completes in about a second for the 122,000 files and 8.2 GB in
+the demo folder, so the scan progress display is only briefly visible. The
+recording uses a prepared demo folder rather than personal files.
 
 MacStorageAtlas has no account registration, no login, no account deletion, no
-in-app purchase, no subscription, and no user-generated content, so those flows
-cannot be shown.
+in-app purchase, no subscription, and no user-generated content, so none of
+those flows appear in the recording. The app requests no privacy-protected data
+classes, so no location, contacts, camera, photos, or App Tracking Transparency
+prompt appears either. The only access mechanism is the standard macOS open
+panel, which is shown in the recording.
 
-## 2. Tested configurations
+2. DEVICES AND OPERATING SYSTEMS TESTED
 
-MacStorageAtlas is developed and tested by a small independent developer with
-one Mac. The submitted binary is a universal build for Apple Silicon
-(`osx-arm64`) and Intel (`osx-x64`).
+MacStorageAtlas is developed by a small independent developer with one Mac. The
+submitted binary is a universal build for Apple Silicon (arm64) and Intel
+(x86_64).
 
-- MacBook Pro (Mac16,6), Apple M4 Max, 64 GB, macOS 26.6.2 (25G83) — full
-  testing of the Apple Silicon slice, including scanning, duplicate analysis,
-  Quick Look, Finder reveal, and moving items to the Trash from a sandboxed
-  build signed with the App Store entitlements.
-- The same Mac, running the Intel (`x86_64`) slice under Rosetta 2 — verified
-  that the Intel slice launches sandboxed and that the macOS integrations
-  behave identically.
+- MacBook Pro (Mac16,6), Apple M4 Max, 64 GB RAM, macOS 26.6.2 (build 25G83).
+  Full testing of the Apple Silicon slice: scanning, duplicate analysis, Quick
+  Look, Reveal in Finder, and moving items to the Trash. The macOS Trash,
+  Finder, and file access integrations were additionally verified while running
+  inside the App Sandbox with the entitlements of the submitted build.
+- The same Mac running the Intel (x86_64) slice under Rosetta 2. Verified that
+  the Intel slice starts inside the App Sandbox and that its macOS integrations
+  behave identically to the Apple Silicon slice.
 
-No physical Intel Mac is available for testing. The Intel slice is therefore
-verified through Rosetta 2 rather than on Intel hardware. If App Review
-considers that insufficient, we can remove the `x86_64` slice and submit an
-Apple Silicon only build instead.
+No physical Intel Mac is available for testing, so the Intel slice was verified
+through Rosetta 2 rather than on Intel hardware. If App Review considers that
+insufficient, we will gladly remove the x86_64 slice and submit an Apple
+Silicon only build.
 
-## 3. What the app does and who it is for
+3. WHAT THE APP DOES, AND FOR WHOM
 
 MacStorageAtlas is a local disk space analyzer for macOS. It answers the
 question "what is using my disk space, and what can I safely reclaim?"
@@ -78,71 +65,76 @@ byte-identical duplicate files. Items can be previewed with Quick Look, revealed
 in Finder, collected in a cleanup basket, and then moved to the macOS Trash
 after an explicit confirmation, or moved or copied to another volume instead.
 
-Target audience: Mac users who are running out of storage, including
+The target audience is Mac users who are running out of storage, including
 photographers, video editors, and developers whose caches, build outputs, and
 media libraries grow silently. The value is that the app turns "the disk is
-full" into a specific, reviewable list of large items, without deleting anything
+full" into a specific, reviewable list of large items without deleting anything
 on its own.
 
-Files are never deleted permanently by the app. Every cleanup goes to the macOS
-Trash and stays recoverable, protected and system locations are blocked from
-in-app cleanup, and no item is preselected for deletion.
+The app never deletes a file permanently. Every cleanup goes to the macOS Trash
+and stays recoverable, protected and system locations are blocked from in-app
+cleanup, and no item is ever preselected for deletion.
 
-## 4. Setup and access instructions
+4. SETUP AND HOW TO REACH THE MAIN FEATURES
 
 No account, no login credentials, no demo user, no configuration, and no sample
 files are required. The app is fully functional on first launch.
 
 Because the app is sandboxed, it can only read locations the reviewer selects:
 
-1. Launch the app. The window starts empty until a location is selected. This is
-   expected, not an incomplete state.
-2. Choose **Select folder** and pick a folder in the macOS open panel, for
-   example `Downloads`, `Movies`, or an entire volume under `/Volumes`.
-3. Choose **Scan** to analyze the selected location.
+1. Launch the app. The window is empty until a location is selected. This is
+   the expected initial state, not an incomplete screen.
+2. Choose "Select folder" and pick a folder in the macOS open panel, for
+   example Downloads or Movies, or an entire volume under /Volumes.
+3. Choose "Scan" to analyze the selected location.
+4. After the scan completes, the tabs for file types, largest files, and
+   duplicate analysis become available, and any listed item can be previewed,
+   revealed in Finder, or added to the cleanup basket. Items in the cleanup
+   basket are moved to the macOS Trash only after the review sheet is confirmed,
+   and they can be put back from the Trash afterwards.
 
 If a scan reports inaccessible paths, that is the macOS App Sandbox refusing
-locations the reviewer has not selected. The app then shows guidance explaining
-that only selected locations can be scanned and offers a rescan. Full Disk
-Access is intentionally not requested and would not change this behavior for a
-sandboxed app.
+locations the reviewer has not selected. The app then explains that only
+selected locations can be scanned and offers a rescan. Full Disk Access is
+deliberately not requested, because it would not widen what a sandboxed app can
+read.
 
-## 5. External services
+5. EXTERNAL SERVICES USED TO DELIVER CORE FUNCTIONALITY
 
 None. MacStorageAtlas performs no network requests of any kind.
 
-- No data providers, no authentication services, no payment processors, and no
-  AI services.
-- No analytics, telemetry, crash reporting, advertising, or tracking.
-- No accounts and no server component.
-- The app does not request the network entitlement.
+There are no data providers, no authentication services, no payment processors,
+and no AI services. There is no analytics, telemetry, crash reporting,
+advertising, or tracking, no user accounts, and no server component. The app
+does not request the network entitlement.
 
 All scanning, duplicate analysis, and cleanup happens locally on the user's Mac.
 Scan results, paths, and file metadata never leave the device. File contents are
 never uploaded, logged, or persisted; duplicate analysis reads file bytes only
-locally and only to confirm that two candidates are identical. Cloud-only
-placeholder files are skipped rather than downloaded. The privacy policy is
-published at
-<https://lachi90.github.io/MacStorageAtlas/privacy.html>.
+locally and only to confirm that two candidate files are identical. Cloud-only
+placeholder files are skipped rather than downloaded.
 
-## 6. Regional differences
+Privacy policy: https://lachi90.github.io/MacStorageAtlas/privacy.html
+Support: https://lachi90.github.io/MacStorageAtlas/support.html
+
+6. REGIONAL DIFFERENCES
 
 The app functions identically in all regions. There are no region-specific
-features, no region-locked content, and no regional pricing behavior. The user
-interface is English only.
+features, no region-locked content, and no regional differences in behavior.
+The user interface is English only.
 
-## 7. Regulated industries and third-party material
+7. REGULATED INDUSTRIES AND PROTECTED THIRD-PARTY MATERIAL
 
-Not applicable. MacStorageAtlas does not operate in a regulated industry, does
-not provide medical, financial, legal, gambling, or similar services, and does
-not include protected third-party material. It is a general-purpose utility that
+Not applicable. MacStorageAtlas does not operate in a regulated industry and
+does not provide medical, financial, legal, gambling, or similar services. It
+includes no protected third-party material. It is a general-purpose utility that
 analyzes storage on the user's own Mac.
 
-## 8. Permissions and purpose strings
+8. ENTITLEMENTS AND PERMISSIONS
 
-The app requests no privacy-protected data classes: no location, contacts,
-camera, microphone, photos, calendar, or App Tracking Transparency. File access
-is granted exclusively by the user through the standard macOS open panel, which
-is why the app declares `com.apple.security.files.user-selected.read-write` and
-no other file entitlement. The app does not use Apple event automation and does
-not launch external processes for Trash or Finder integration.
+The app is sandboxed and declares only
+com.apple.security.files.user-selected.read-write for file access, plus the JIT
+entitlement required by the .NET runtime. File access is granted exclusively by
+the user through the standard macOS open panel. The app uses no Apple event
+automation and launches no external processes for its Trash and Finder
+integrations, so no automation consent prompt can appear.
