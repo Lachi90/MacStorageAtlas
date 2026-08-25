@@ -1,6 +1,6 @@
-# Storage Atlas Feature Backlog
+# Atlas Storage Analyzer Feature Backlog
 
-Storage Atlas is a macOS disk usage analyzer inspired by WinDirStat-style tools.
+Atlas Storage Analyzer is a macOS disk usage analyzer inspired by WinDirStat-style tools.
 
 The app helps users understand what consumes storage on their Mac by scanning folders, visualizing disk usage, and showing large files, folders, file types, and scan errors.
 
@@ -67,7 +67,7 @@ Use Avalonia's storage provider API from the top-level window.
 ## Codex Prompt
 
 ```text
-Implement the Folder Selection feature for Storage Atlas.
+Implement the Folder Selection feature for Atlas Storage Analyzer.
 
 Requirements:
 - Use Avalonia's storage provider API to open a native folder picker.
@@ -1136,7 +1136,7 @@ Give the app a recognizable product identity.
 ## Acceptance Criteria
 
 - App has placeholder icon assets.
-- App name is consistently Storage Atlas.
+- App name is consistently Atlas Storage Analyzer.
 - README contains product description.
 
 ## Affected Projects
@@ -1154,7 +1154,7 @@ Keep placeholder assets clearly replaceable and avoid treating generated artwork
 Add App Icon and Branding placeholders.
 
 Requirements:
-- Ensure the app display name is Storage Atlas.
+- Ensure the app display name is Atlas Storage Analyzer.
 - Add placeholder icon assets if the project structure supports them.
 - Add product name and short description to README.md.
 - Do not generate final production artwork.
@@ -1191,7 +1191,7 @@ Create README setup documentation.
 
 Requirements:
 - Add README.md at the repository root.
-- Explain what Storage Atlas is.
+- Explain what Atlas Storage Analyzer is.
 - List prerequisites:
   - macOS
   - .NET 10 SDK
@@ -1409,7 +1409,7 @@ scan of roughly 500,000 items produces about 12 MB rather than the roughly
   rm -rf ~/Library/Application\ Support/MacStorageAtlas/history
   ```
 
-Removing snapshots outside the app is fully supported. Storage Atlas treats a
+Removing snapshots outside the app is fully supported. Atlas Storage Analyzer treats a
 snapshot that disappears as gone rather than damaged, and recreates the store
 the next time a scan is recorded.
 

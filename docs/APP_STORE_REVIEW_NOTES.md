@@ -10,7 +10,7 @@ screen, and run the sandbox checks in docs/PACKAGING.md.
 
 ---
 
-Storage Atlas 1.0.3 - App Review Information
+Atlas Storage Analyzer 1.0.3 - App Review Information
 
 1. SCREEN RECORDING
 
@@ -28,7 +28,7 @@ roughly half a minute in the shared-aware allocated measurement mode the app
 uses by default, so the scan progress display is visible for that time. The
 recording uses a prepared demo folder rather than personal files.
 
-Storage Atlas has no account registration, no login, no account deletion, no
+Atlas Storage Analyzer has no account registration, no login, no account deletion, no
 in-app purchase, no subscription, and no user-generated content, so none of
 those flows appear in the recording. The app requests no privacy-protected data
 classes, so no location, contacts, camera, photos, or App Tracking Transparency
@@ -37,7 +37,7 @@ panel, which is shown in the recording.
 
 2. DEVICES AND OPERATING SYSTEMS TESTED
 
-Storage Atlas is developed by a small independent developer with one Mac. The
+Atlas Storage Analyzer is developed by a small independent developer with one Mac. The
 submitted binary is a universal build for Apple Silicon (arm64) and Intel
 (x86_64).
 
@@ -58,10 +58,10 @@ Silicon only build.
 
 3. WHAT THE APP DOES, AND FOR WHOM
 
-Storage Atlas is a local disk space analyzer for macOS. It answers the
+Atlas Storage Analyzer is a local disk space analyzer for macOS. It answers the
 question "what is using my disk space, and what can I safely reclaim?"
 
-The user selects a folder or a volume. Storage Atlas scans it and presents the
+The user selects a folder or a volume. Atlas Storage Analyzer scans it and presents the
 result as a folder tree sorted by size, a proportional treemap, a breakdown by
 file type, and a list of the largest files. An opt-in analysis finds
 byte-identical duplicate files. Items can be previewed with Quick Look, revealed
@@ -107,7 +107,7 @@ read.
 
 5. EXTERNAL SERVICES USED TO DELIVER CORE FUNCTIONALITY
 
-None. Storage Atlas performs no network requests of any kind.
+None. Atlas Storage Analyzer performs no network requests of any kind.
 
 There are no data providers, no authentication services, no payment processors,
 and no AI services. There is no analytics, telemetry, crash reporting,
@@ -131,7 +131,7 @@ The user interface is English only.
 
 7. REGULATED INDUSTRIES AND PROTECTED THIRD-PARTY MATERIAL
 
-Not applicable. Storage Atlas does not operate in a regulated industry and
+Not applicable. Atlas Storage Analyzer does not operate in a regulated industry and
 does not provide medical, financial, legal, gambling, or similar services. It
 includes no protected third-party material. It is a general-purpose utility that
 analyzes storage on the user's own Mac.
@@ -152,7 +152,7 @@ access, and no additional file access.
 
 Guideline 5.2.5. The app name no longer contains "Mac". The App Store name, the
 bundle display name, the macOS menu bar title, and the window title are now
-"Storage Atlas". The bundle identifier is unchanged, as App Store Connect Help
+"Atlas Storage Analyzer". The bundle identifier is unchanged, as App Store Connect Help
 advises, so this remains an update of the existing app rather than a new one.
 
 Guideline 2.4.5(i). The temporary mach-lookup exception for

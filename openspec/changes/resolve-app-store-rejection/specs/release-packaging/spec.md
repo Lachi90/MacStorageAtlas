@@ -51,7 +51,7 @@ in process. Packaging MUST NOT leave the published app host in the bundle.
 
 ### Requirement: The universal App Store package runs on both architectures
 
-Storage Atlas SHALL produce a universal Mac App Store package whose app bundle
+Atlas Storage Analyzer SHALL produce a universal Mac App Store package whose app bundle
 starts on Apple Silicon and on Intel Macs. The bundle MUST carry a complete
 self-contained payload for each supported architecture, because the precompiled
 framework assemblies of a self-contained .NET publish cannot be shared between

@@ -1,13 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-APP_NAME="StorageAtlas"
-APP_DISPLAY_NAME="Storage Atlas"
+APP_NAME="AtlasStorageAnalyzer"
+APP_DISPLAY_NAME="Atlas Storage Analyzer"
 BUNDLE_ID="de.ltsoftware.macstorageatlas"
 DEFAULT_VERSION="0.0.2"
 TARGET_FRAMEWORK="net10.0"
 PROJECT="src/MacStorageAtlas.App"
-EXECUTABLE_NAME="StorageAtlas"
+EXECUTABLE_NAME="AtlasStorageAnalyzer"
 PUBLISHED_APP_HOST_NAME="MacStorageAtlas.App"
 MANAGED_ASSEMBLY_NAME="MacStorageAtlas.App.dll"
 ICON_SOURCE="$PROJECT/Assets/MacStorageAtlas.icns"

@@ -1,6 +1,6 @@
 # Storage measurement semantics
 
-Storage Atlas reports the size of entries it successfully visits. Scan totals
+Atlas Storage Analyzer reports the size of entries it successfully visits. Scan totals
 are not interchangeable with macOS volume-capacity numbers, unique physical
 storage, or the bytes that deleting one path would reclaim.
 
@@ -17,7 +17,7 @@ storage, or the bytes that deleting one path would reclaim.
   Allocation outside the verified data stream continues to count for each
   identity.
 - **Unique allocated size** would count allocation once across every file
-  identity and shared physical extent in a stated scope. Storage Atlas does
+  identity and shared physical extent in a stated scope. Atlas Storage Analyzer does
   not report this value.
 
 Logical and allocated measurement use metadata only. Scanning does not compare
@@ -47,7 +47,7 @@ These terms describe a filesystem or APFS volume, not the sum of a scan tree:
 - **Purgeable space** is used capacity that macOS reports as reclaimable without
   deleting user-designated files.
 
-Storage Atlas does not currently display volume capacity, used, available, or
+Atlas Storage Analyzer does not currently display volume capacity, used, available, or
 purgeable values. A folder or volume scan total must not be labeled as volume
 used space.
 

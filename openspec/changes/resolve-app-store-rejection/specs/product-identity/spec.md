@@ -2,27 +2,27 @@
 
 ### Requirement: The user-visible product name carries no Apple trademark
 
-The product SHALL present itself as "Storage Atlas" everywhere a user or a
+The product SHALL present itself as "Atlas Storage Analyzer" everywhere a user or a
 reviewer can see its name. No user-visible name may use "Mac" as a prefix,
 because the Guidelines for Using Apple's Trademarks and Copyrights do not permit
 it and App Review rejects it under Guideline 5.2.5.
 
-#### Scenario: The installed app identifies itself as Storage Atlas
+#### Scenario: The installed app identifies itself as Atlas Storage Analyzer
 
 - **GIVEN** the packaged app bundle
-- **THEN** `CFBundleName` and `CFBundleDisplayName` are "Storage Atlas"
-- **AND** the macOS menu bar title is "Storage Atlas"
-- **AND** the main window title is "Storage Atlas"
+- **THEN** `CFBundleName` and `CFBundleDisplayName` are "Atlas Storage Analyzer"
+- **AND** the macOS menu bar title is "Atlas Storage Analyzer"
+- **AND** the main window title is "Atlas Storage Analyzer"
 
 #### Scenario: User-facing text uses the product name
 
 - **GIVEN** guidance the app shows when macOS blocks access to a location
-- **THEN** it refers to the app as "Storage Atlas"
+- **THEN** it refers to the app as "Atlas Storage Analyzer"
 
 #### Scenario: Release artifacts carry the product name
 
 - **WHEN** the release operator builds a DMG or an App Store package
-- **THEN** the app bundle directory and the artifact file names start with "StorageAtlas"
+- **THEN** the app bundle directory and the artifact file names start with "AtlasStorageAnalyzer"
 - **AND** no artifact name contains "Mac" as a name prefix
 
 ### Requirement: The bundle identifier and user data locations are preserved

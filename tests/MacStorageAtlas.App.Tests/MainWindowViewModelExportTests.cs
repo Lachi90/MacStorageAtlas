@@ -145,10 +145,10 @@ public class MainWindowViewModelExportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(csvName, Does.StartWith("StorageAtlas-test-").And.EndWith(".csv"));
+            Assert.That(csvName, Does.StartWith("AtlasStorageAnalyzer-test-").And.EndWith(".csv"));
             Assert.That(
                 picker.LastSuggestedFileName,
-                Does.StartWith("StorageAtlas-test-").And.EndWith(".json"));
+                Does.StartWith("AtlasStorageAnalyzer-test-").And.EndWith(".json"));
         });
     }
 

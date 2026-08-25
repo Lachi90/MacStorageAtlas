@@ -23,7 +23,7 @@ public class MainWindowViewModelTests
 
         var applicationName = viewModel.ApplicationName;
 
-        Assert.That(applicationName, Is.EqualTo("Storage Atlas"));
+        Assert.That(applicationName, Is.EqualTo("Atlas Storage Analyzer"));
     }
 
     [Test]

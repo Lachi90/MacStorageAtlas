@@ -35,7 +35,7 @@ falls back to a global-name lookup that the sandbox denies, which makes
   `packaging/universal-launcher.c`. An `execv` discards the LaunchServices
   registration, so the Intel slice would keep aborting even with a main
   executable that links CoreFoundation.
-- Rename the product to "Storage Atlas" everywhere it is user visible: the
+- Rename the product to "Atlas Storage Analyzer" everywhere it is user visible: the
   bundle name and display name, the macOS menu bar title, the window title, the
   in-app guidance text, the export file name prefix, the release artifacts, and
   the documentation. The bundle identifier stays `de.ltsoftware.macstorageatlas`

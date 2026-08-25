@@ -1,7 +1,7 @@
-# Storage Atlas Implementation Roadmap
+# Atlas Storage Analyzer Implementation Roadmap
 
 This document turns the market analysis into an implementation plan. It is the
-working roadmap for the features that move Storage Atlas from a capable disk
+working roadmap for the features that move Atlas Storage Analyzer from a capable disk
 visualizer to a trustworthy, precise, and safe macOS storage-management tool.
 
 Feature-level planning and implementation follows the
@@ -23,7 +23,7 @@ code is written.
 
 ## Product direction
 
-Storage Atlas should be positioned as:
+Atlas Storage Analyzer should be positioned as:
 
 > A transparent, open-source storage inspector for macOS with precise numbers,
 > understandable results, and safe, user-controlled cleanup.
@@ -190,7 +190,7 @@ claims about competitors.
 ### Acceptance criteria
 
 - No competitor is shown as missing a feature it officially documents.
-- Storage Atlas limitations are stated in neutral language.
+- Atlas Storage Analyzer limitations are stated in neutral language.
 - Documentation distinguishes implemented features from roadmap items.
 
 ### Tests and verification
@@ -802,7 +802,7 @@ Users can find byte-identical duplicate files with a low false-positive risk.
 
 ### Outcome
 
-Storage Atlas becomes especially useful to developers by explaining large,
+Atlas Storage Analyzer becomes especially useful to developers by explaining large,
 regenerable build and tool data.
 
 ### Initial supported categories
@@ -869,7 +869,7 @@ Users can opt into a small local warning before low disk space becomes critical.
 - Monitor only selected local volumes.
 - Configure warning thresholds by percentage or absolute free space.
 - Use native local notifications with cooldown and hysteresis.
-- Notification actions open Storage Atlas at the affected volume.
+- Notification actions open Atlas Storage Analyzer at the affected volume.
 - Do not perform a full scan in the background.
 - Do not monitor network or cloud locations by default.
 
@@ -1100,7 +1100,7 @@ folder-matching domain namespaces.
 | ID | Status | Owner/branch | Notes |
 | --- | --- | --- | --- |
 | WP-00 | Complete | `codex/storage-feature-roadmap` | Comparison corrected and verified 2026-07-24; OpenSpec change: `correct-market-comparison` |
-| WP-01 | Partial | `codex/storage-feature-roadmap` | Local Developer ID signing, notarization, and stapling (`sign-and-notarize-releases`) plus Mac App Store packaging complete; sandbox-compatible Trash, Finder reveal, and sandbox-aware access guidance for the App Store build (`fix-sandboxed-mac-integrations`) complete. App Review rejection of 1.0.2 resolved on 2026-08-25 by renaming the product to Storage Atlas and removing the temporary LaunchServices entitlement exception (`resolve-app-store-rejection`). In-app update checking remains outstanding |
+| WP-01 | Partial | `codex/storage-feature-roadmap` | Local Developer ID signing, notarization, and stapling (`sign-and-notarize-releases`) plus Mac App Store packaging complete; sandbox-compatible Trash, Finder reveal, and sandbox-aware access guidance for the App Store build (`fix-sandboxed-mac-integrations`) complete. App Review rejection of 1.0.2 resolved on 2026-08-25 by renaming the product to Atlas Storage Analyzer and removing the temporary LaunchServices entitlement exception (`resolve-app-store-rejection`). In-app update checking remains outstanding |
 | WP-02 | Complete | `codex/storage-feature-roadmap` | Measurement definitions (`define-storage-measurement`), hardlink accounting (`deduplicate-hardlinks`), capability-gated verified full-clone accounting (`investigate-apfs-clone-accounting`), and scan benchmark tooling with local baseline verification on 2026-07-29 (`benchmark-and-optimize-scans`) complete |
 | WP-03 | Complete | `codex/storage-feature-roadmap` | Metadata details (`add-file-metadata`) plus Quick Look preview, Space handling, and Command-I details shortcut (`add-quick-look`) complete |
 | WP-04 | Complete | `codex/storage-feature-roadmap` | Preparatory lazy/off-thread result tree (`virtualize-result-tree`) plus advanced filters and presets (`add-advanced-filters`). Scope changes: file-versus-folder, hidden-status, and package-membership dimensions dropped; "large downloads" preset replaced by "Large disk images and installers" because filters evaluate within the current scan root |

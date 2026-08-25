@@ -1,4 +1,4 @@
-# Packaging Storage Atlas for macOS
+# Packaging Atlas Storage Analyzer for macOS
 
 This document describes how to publish the Avalonia desktop app for macOS. The
 [`build-dmg.sh`](../build-dmg.sh) script automates publishing, `.app` bundling,
@@ -10,14 +10,14 @@ Mac App Store package path for App Store Connect uploads.
 From the repository root:
 
 ```shell
-./build-dmg.sh            # Apple Silicon (default) → StorageAtlas.dmg
+./build-dmg.sh            # Apple Silicon (default) → AtlasStorageAnalyzer.dmg
 ./build-dmg.sh arm64      # Apple Silicon (osx-arm64)
 ./build-dmg.sh x64        # Intel (osx-x64)
 ./build-dmg.sh both       # both architectures, one DMG each
 ```
 
 The script publishes a self-contained Release build, wraps it in a
-`StorageAtlas.app` bundle with the `.icns` icon, and produces a DMG with a
+`AtlasStorageAnalyzer.app` bundle with the `.icns` icon, and produces a DMG with a
 drag-to-`Applications` shortcut. These default builds are unsigned development
 artifacts for local testing.
 
@@ -34,7 +34,7 @@ mode:
   "MacStorageAtlas-notary"
 ```
 
-Release DMGs are named `StorageAtlas-<version>-<runtime>.dmg`; each one gets a
+Release DMGs are named `AtlasStorageAnalyzer-<version>-<runtime>.dmg`; each one gets a
 matching `.sha256` file after signing, notarization, stapling, and verification
 all pass.
 
@@ -53,10 +53,10 @@ For a Mac App Store package, use appstore mode:
 ```
 
 App Store packages are named
-`StorageAtlas-<version>-<runtime>-appstore.pkg`. For App Store uploads,
+`AtlasStorageAnalyzer-<version>-<runtime>-appstore.pkg`. For App Store uploads,
 prefer the `both` target, which publishes arm64 and x64 builds, combines them
 into a single app bundle that runs on both architectures, and writes
-`StorageAtlas-<version>-universal-appstore.pkg`.
+`AtlasStorageAnalyzer-<version>-universal-appstore.pkg`.
 
 The sections below document the individual steps the script performs, for
 reference and manual builds.
@@ -106,26 +106,26 @@ The published output is written to
 ## Building a `.app` bundle
 
 Avalonia produces a plain executable. For a distributable macOS application,
-wrap the published output in a `StorageAtlas.app` bundle directory with the
+wrap the published output in a `AtlasStorageAnalyzer.app` bundle directory with the
 standard layout:
 
 ```text
-StorageAtlas.app/
+AtlasStorageAnalyzer.app/
   Contents/
     Info.plist          app metadata (bundle id, version, icon name)
     MacOS/              the native host and the published runtime payload
     Resources/          AppIcon.icns and other assets
 ```
 
-`CFBundleName` and `CFBundleDisplayName` are `Storage Atlas`, while the bundle
-directory and the release artifacts use `StorageAtlas` so that no path contains
+`CFBundleName` and `CFBundleDisplayName` are `Atlas Storage Analyzer`, while the bundle
+directory and the release artifacts use `AtlasStorageAnalyzer` so that no path contains
 a space. The bundle identifier stays `de.ltsoftware.macstorageatlas`, because
 changing it would make the Mac App Store treat the upload as a new application
 instead of an update.
 
 ### The native host
 
-`Contents/MacOS/StorageAtlas` is not the .NET app host. `build-dmg.sh` compiles
+`Contents/MacOS/AtlasStorageAnalyzer` is not the .NET app host. `build-dmg.sh` compiles
 it from `packaging/native-host.c` and it replaces the published
 `MacStorageAtlas.App` app host in the bundle. The native host links
 CoreFoundation, resolves the runtime payload directory next to itself, and
@@ -165,7 +165,7 @@ right-click the installed app in `/Applications`, choose **Open**, and confirm
 the dialog, or remove quarantine:
 
 ```shell
-xattr -dr com.apple.quarantine /Applications/StorageAtlas.app
+xattr -dr com.apple.quarantine /Applications/AtlasStorageAnalyzer.app
 ```
 
 ## Signed release builds
@@ -255,10 +255,10 @@ Failed to create CoreCLR, HRESULT: 0x8007000B
 The `both` target therefore keeps one complete payload per architecture:
 
 - `Contents/MacOS` holds the arm64 payload.
-- `Contents/Helpers/StorageAtlas-x86_64.app` holds the complete x64 payload
+- `Contents/Helpers/AtlasStorageAnalyzer-x86_64.app` holds the complete x64 payload
   as a nested bundle with its own `Info.plist` and the bundle identifier
   `de.ltsoftware.macstorageatlas.x86-64`.
-- `Contents/MacOS/StorageAtlas` is a universal binary created with `lipo` from
+- `Contents/MacOS/AtlasStorageAnalyzer` is a universal binary created with `lipo` from
   two builds of `packaging/native-host.c`. The arm64 slice loads the payload
   next to itself. The x86_64 slice is compiled with `MACSTORAGEATLAS_PAYLOAD_PATH`
   and loads the nested x64 payload instead, in the same process.
@@ -332,11 +332,11 @@ in an unsandboxed development build:
    codesign --force --timestamp --options runtime \
      --entitlements src/MacStorageAtlas.App/MacStorageAtlas.AppStore.entitlements \
      --sign "Developer ID Application: <team>" \
-     StorageAtlas.app/Contents/MacOS/StorageAtlas
+     AtlasStorageAnalyzer.app/Contents/MacOS/AtlasStorageAnalyzer
    codesign --force --timestamp --options runtime \
      --entitlements src/MacStorageAtlas.App/MacStorageAtlas.AppStore.entitlements \
      --sign "Developer ID Application: <team>" \
-     StorageAtlas.app
+     AtlasStorageAnalyzer.app
    ```
 
    A Mac App Store provisioning profile does not authorize a local launch, so
@@ -347,7 +347,7 @@ in an unsandboxed development build:
    `abort() called` in `_RegisterApplication` means the main executable no longer
    links CoreFoundation at load time, so the process missed its LaunchServices
    registration during launch. Confirm the dependency with
-   `otool -L StorageAtlas.app/Contents/MacOS/StorageAtlas`, and confirm the
+   `otool -L AtlasStorageAnalyzer.app/Contents/MacOS/AtlasStorageAnalyzer`, and confirm the
    system log records no denial with:
 
    ```shell
@@ -376,7 +376,7 @@ the executable directly, because only that path applies the App Sandbox and the
 LaunchServices registration the slice depends on:
 
 ```shell
-open -n --arch x86_64 /Applications/StorageAtlas.app
+open -n --arch x86_64 /Applications/AtlasStorageAnalyzer.app
 ```
 
 Repeat the checks above for that slice, and confirm the running process is the
@@ -384,10 +384,10 @@ translated one, for example with Activity Monitor's Kind column. Confirm that it
 loaded the nested payload rather than the arm64 one:
 
 ```shell
-lsof -p "$(pgrep -n -f 'MacOS/StorageAtlas')" | grep libcoreclr.dylib
+lsof -p "$(pgrep -n -f 'MacOS/AtlasStorageAnalyzer')" | grep libcoreclr.dylib
 ```
 
-The reported path must be inside `Contents/Helpers/StorageAtlas-x86_64.app`.
+The reported path must be inside `Contents/Helpers/AtlasStorageAnalyzer-x86_64.app`.
 
 The screen must be unlocked while verifying. On a locked screen every launch
 fails with `Avalonia.Native was not able to start the RenderTimer`, which is an
@@ -405,11 +405,11 @@ image with `hdiutil`:
 
 ```shell
 hdiutil create \
-  -volname "Storage Atlas" \
+  -volname "Atlas Storage Analyzer" \
   -srcfolder dmg-content \
   -ov \
   -format UDZO \
-  StorageAtlas.dmg
+  AtlasStorageAnalyzer.dmg
 ```
 
 ## Release verification
@@ -417,14 +417,14 @@ hdiutil create \
 The release script performs these checks before writing checksum files:
 
 ```shell
-codesign --verify --deep --strict --verbose=2 StorageAtlas.app
-codesign --verify --verbose=2 StorageAtlas-1.2.3-osx-arm64.dmg
-spctl --assess --type execute --verbose=2 StorageAtlas.app
-StorageAtlas.app/Contents/MacOS/StorageAtlas
-hdiutil verify StorageAtlas-1.2.3-osx-arm64.dmg
-xcrun stapler validate StorageAtlas-1.2.3-osx-arm64.dmg
-spctl --assess --type open --context context:primary-signature --verbose=2 StorageAtlas-1.2.3-osx-arm64.dmg
-shasum -a 256 StorageAtlas-1.2.3-osx-arm64.dmg
+codesign --verify --deep --strict --verbose=2 AtlasStorageAnalyzer.app
+codesign --verify --verbose=2 AtlasStorageAnalyzer-1.2.3-osx-arm64.dmg
+spctl --assess --type execute --verbose=2 AtlasStorageAnalyzer.app
+AtlasStorageAnalyzer.app/Contents/MacOS/AtlasStorageAnalyzer
+hdiutil verify AtlasStorageAnalyzer-1.2.3-osx-arm64.dmg
+xcrun stapler validate AtlasStorageAnalyzer-1.2.3-osx-arm64.dmg
+spctl --assess --type open --context context:primary-signature --verbose=2 AtlasStorageAnalyzer-1.2.3-osx-arm64.dmg
+shasum -a 256 AtlasStorageAnalyzer-1.2.3-osx-arm64.dmg
 ```
 
 Before publishing, also download or copy the final DMGs through a
@@ -438,8 +438,8 @@ Use the GitHub web UI, or a locally authenticated GitHub CLI session:
 
 ```shell
 gh release upload v1.2.3 \
-  StorageAtlas-1.2.3-osx-arm64.dmg \
-  StorageAtlas-1.2.3-osx-arm64.dmg.sha256 \
-  StorageAtlas-1.2.3-osx-x64.dmg \
-  StorageAtlas-1.2.3-osx-x64.dmg.sha256
+  AtlasStorageAnalyzer-1.2.3-osx-arm64.dmg \
+  AtlasStorageAnalyzer-1.2.3-osx-arm64.dmg.sha256 \
+  AtlasStorageAnalyzer-1.2.3-osx-x64.dmg \
+  AtlasStorageAnalyzer-1.2.3-osx-x64.dmg.sha256
 ```

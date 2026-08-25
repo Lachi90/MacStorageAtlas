@@ -85,6 +85,6 @@ process. The bundle keeps one complete payload per architecture, and
 - The nested slice bundle keeps its own executable so it remains a valid, signable
   bundle, even though the outer x86_64 slice no longer runs it.
 - Renaming the bundle directory means a Developer ID user who installed
-  `MacStorageAtlas.app` keeps it alongside `StorageAtlas.app` until they remove
+  `MacStorageAtlas.app` keeps it alongside `AtlasStorageAnalyzer.app` until they remove
   it. The application support directory is deliberately unchanged, so scan
   history and settings carry over.

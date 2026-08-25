@@ -12,4 +12,4 @@ If private vulnerability reporting is unavailable, open a minimal public issue t
 
 ## Scope
 
-Security reports should focus on vulnerabilities in Storage Atlas itself, including unsafe file operations, permission handling issues, unintended data exposure, or packaging/signing problems.
+Security reports should focus on vulnerabilities in Atlas Storage Analyzer itself, including unsafe file operations, permission handling issues, unintended data exposure, or packaging/signing problems.

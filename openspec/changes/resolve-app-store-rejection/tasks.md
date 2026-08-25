@@ -17,8 +17,8 @@
 
 ## 4. Product Name
 
-- [x] 4.1 Set `CFBundleName` and `CFBundleDisplayName` to "Storage Atlas" and keep the bundle identifier unchanged.
-- [x] 4.2 Name the app bundle directory and the release artifacts `StorageAtlas`.
+- [x] 4.1 Set `CFBundleName` and `CFBundleDisplayName` to "Atlas Storage Analyzer" and keep the bundle identifier unchanged.
+- [x] 4.2 Name the app bundle directory and the release artifacts `AtlasStorageAnalyzer`.
 - [x] 4.3 Rename the macOS menu bar title, the window title, the in-app guidance text, and the export file name prefix.
 - [x] 4.4 Leave namespaces, assembly names, and the application support directory unchanged so existing scan history and settings stay readable.
 

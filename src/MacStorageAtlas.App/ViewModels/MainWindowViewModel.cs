@@ -193,7 +193,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ScheduleTreePreparation();
     }
 
-    public string ApplicationName { get; } = "Storage Atlas";
+    public string ApplicationName { get; } = "Atlas Storage Analyzer";
 
     public double? InitialWindowWidth => _windowWidth;
 
@@ -549,14 +549,14 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             AccessGuidanceStatus.LikelyMissingFullDiskAccess =>
                 InaccessiblePathMessage(
-                    "macOS blocked access to protected locations. Grant Full Disk Access to Storage Atlas, restart the app if macOS asks, then rescan this location."),
+                    "macOS blocked access to protected locations. Grant Full Disk Access to Atlas Storage Analyzer, restart the app if macOS asks, then rescan this location."),
             AccessGuidanceStatus.IncompleteScan =>
                 InaccessiblePathMessage(
                     "The scan result may be incomplete. Some failures can be normal file permissions, removed files, removable media, or protected macOS locations."),
             AccessGuidanceStatus.Indeterminate =>
-                "Storage Atlas cannot confirm whether macOS access is sufficient for this scan. If protected folders are missing, grant Full Disk Access, restart if needed, and rescan.",
+                "Atlas Storage Analyzer cannot confirm whether macOS access is sufficient for this scan. If protected folders are missing, grant Full Disk Access, restart if needed, and rescan.",
             AccessGuidanceStatus.SettingsOpenFailure =>
-                "System Settings could not be opened automatically. Use the manual path below to grant access, then restart Storage Atlas if macOS asks and rescan.",
+                "System Settings could not be opened automatically. Use the manual path below to grant access, then restart Atlas Storage Analyzer if macOS asks and rescan.",
             AccessGuidanceStatus.SandboxedSelectionRequired =>
                 InaccessiblePathMessage(
                     "This build runs in the macOS App Sandbox and can only read locations you select yourself. Select the missing folder or volume with Select folder, then rescan. Full Disk Access does not widen what a sandboxed app can read."),
@@ -2384,7 +2384,7 @@ public partial class MainWindowViewModel : ViewModelBase
             .ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
         var extension = format == ScanExportFormat.Csv ? "csv" : "json";
 
-        return $"StorageAtlas-{label}-{stamp}.{extension}";
+        return $"AtlasStorageAnalyzer-{label}-{stamp}.{extension}";
     }
 
     private static string ExportCompletionMessage(
