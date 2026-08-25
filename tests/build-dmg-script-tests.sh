@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$ROOT_DIR/build-dmg.sh"
+NATIVE_HOST_SOURCE="$ROOT_DIR/packaging/native-host.c"
 
 assert_contains() {
   local haystack="$1"
@@ -36,19 +37,19 @@ assert_contains "$help_output" "./build-dmg.sh appstore [--dry-run] <arm64|x64|b
 
 unsigned_output="$("$SCRIPT" --dry-run both)"
 assert_contains "$unsigned_output" "mode=unsigned"
-assert_contains "$unsigned_output" "runtime=osx-arm64 artifact=MacStorageAtlas-osx-arm64.dmg"
-assert_contains "$unsigned_output" "runtime=osx-x64 artifact=MacStorageAtlas-osx-x64.dmg"
+assert_contains "$unsigned_output" "runtime=osx-arm64 artifact=StorageAtlas-osx-arm64.dmg"
+assert_contains "$unsigned_output" "runtime=osx-x64 artifact=StorageAtlas-osx-x64.dmg"
 
 release_output="$("$SCRIPT" release --dry-run both 1.2.3 "Developer ID Application: Example (TEAMID)" "Example-notary")"
 assert_contains "$release_output" "mode=release"
 assert_contains "$release_output" "version=1.2.3"
-assert_contains "$release_output" "runtime=osx-arm64 artifact=MacStorageAtlas-1.2.3-osx-arm64.dmg"
-assert_contains "$release_output" "runtime=osx-x64 artifact=MacStorageAtlas-1.2.3-osx-x64.dmg"
+assert_contains "$release_output" "runtime=osx-arm64 artifact=StorageAtlas-1.2.3-osx-arm64.dmg"
+assert_contains "$release_output" "runtime=osx-x64 artifact=StorageAtlas-1.2.3-osx-x64.dmg"
 
 appstore_output="$("$SCRIPT" appstore --dry-run both 1.2.3 "Apple Distribution: Example (TEAMID)" "3rd Party Mac Developer Installer: Example (TEAMID)" "/tmp/example.provisionprofile")"
 assert_contains "$appstore_output" "mode=appstore"
 assert_contains "$appstore_output" "version=1.2.3"
-assert_contains "$appstore_output" "runtime=universal artifact=MacStorageAtlas-1.2.3-universal-appstore.pkg"
+assert_contains "$appstore_output" "runtime=universal artifact=StorageAtlas-1.2.3-universal-appstore.pkg"
 
 invalid_target_output="$(assert_fails "$SCRIPT" nope)"
 assert_contains "$invalid_target_output" "Unknown target 'nope'"
@@ -107,8 +108,33 @@ if ! grep -q "OSX|macOS" "$SCRIPT"; then
   exit 1
 fi
 
-if ! grep -q "merge_universal_publish_output" "$SCRIPT"; then
+if ! grep -q "create_universal_app_bundle" "$SCRIPT"; then
   printf 'Expected App Store packaging to create universal app bundles\n' >&2
+  exit 1
+fi
+
+if grep -q "temporary-exception" "$ROOT_DIR/src/MacStorageAtlas.App/MacStorageAtlas.AppStore.entitlements"; then
+  printf 'Expected App Store entitlements to request no temporary exception\n' >&2
+  exit 1
+fi
+
+if [ ! -f "$NATIVE_HOST_SOURCE" ]; then
+  printf 'Expected the native host source at %s\n' "$NATIVE_HOST_SOURCE" >&2
+  exit 1
+fi
+
+if ! grep -q -- "-framework CoreFoundation" "$SCRIPT"; then
+  printf 'Expected the native host to link CoreFoundation so LaunchServices registration happens at launch\n' >&2
+  exit 1
+fi
+
+if ! grep -q "MACSTORAGEATLAS_PAYLOAD_PATH" "$SCRIPT"; then
+  printf 'Expected the x86_64 slice host to load the nested payload in process\n' >&2
+  exit 1
+fi
+
+if grep -q "execv" "$NATIVE_HOST_SOURCE"; then
+  printf 'Expected the native host to host the runtime in process instead of replacing it\n' >&2
   exit 1
 fi
 
@@ -145,6 +171,35 @@ fi
 if ! grep -q "com.apple.application-identifier" "$SCRIPT"; then
   printf 'Expected App Store signing entitlements to include the application identifier\n' >&2
   exit 1
+fi
+
+if command -v clang >/dev/null 2>&1 && command -v otool >/dev/null 2>&1; then
+  host_build_dir="$(mktemp -d "${TMPDIR:-/tmp}/macstorageatlas-host-tests.XXXXXX")"
+  trap 'rm -rf "$host_build_dir"' EXIT
+
+  for architecture in arm64 x86_64; do
+    if ! clang -arch "$architecture" -mmacosx-version-min=11.0 -O2 \
+      -DMACSTORAGEATLAS_MANAGED_ASSEMBLY='"MacStorageAtlas.App.dll"' \
+      -framework CoreFoundation \
+      -o "$host_build_dir/host-$architecture" "$NATIVE_HOST_SOURCE"; then
+      printf 'Expected the native host to compile for %s\n' "$architecture" >&2
+      exit 1
+    fi
+
+    if ! otool -L "$host_build_dir/host-$architecture" | grep -q "CoreFoundation.framework"; then
+      printf 'Expected the %s native host to depend on CoreFoundation at load time\n' "$architecture" >&2
+      exit 1
+    fi
+  done
+
+  if ! clang -arch x86_64 -mmacosx-version-min=11.0 -O2 \
+    -DMACSTORAGEATLAS_MANAGED_ASSEMBLY='"MacStorageAtlas.App.dll"' \
+    -DMACSTORAGEATLAS_PAYLOAD_PATH='"/Contents/Helpers/StorageAtlas-x86_64.app/Contents/MacOS"' \
+    -framework CoreFoundation \
+    -o "$host_build_dir/host-slice" "$NATIVE_HOST_SOURCE"; then
+    printf 'Expected the x86_64 slice host to compile with a nested payload path\n' >&2
+    exit 1
+  fi
 fi
 
 printf 'build-dmg.sh script tests passed\n'

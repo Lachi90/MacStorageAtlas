@@ -14,7 +14,7 @@ public class AppMetadataTests
         var application = document.Element(AvaloniaNamespace + "Application");
 
         Assert.That(application, Is.Not.Null);
-        Assert.That(application!.Attribute("Name")?.Value, Is.EqualTo("MacStorageAtlas"));
+        Assert.That(application!.Attribute("Name")?.Value, Is.EqualTo("Storage Atlas"));
     }
 
     private static string LocateAppMarkup()

@@ -1,19 +1,22 @@
 #!/bin/bash
 set -euo pipefail
 
-APP_NAME="MacStorageAtlas"
+APP_NAME="StorageAtlas"
+APP_DISPLAY_NAME="Storage Atlas"
 BUNDLE_ID="de.ltsoftware.macstorageatlas"
 DEFAULT_VERSION="0.0.2"
 TARGET_FRAMEWORK="net10.0"
 PROJECT="src/MacStorageAtlas.App"
-EXECUTABLE_NAME="MacStorageAtlas.App"
+EXECUTABLE_NAME="StorageAtlas"
+PUBLISHED_APP_HOST_NAME="MacStorageAtlas.App"
+MANAGED_ASSEMBLY_NAME="MacStorageAtlas.App.dll"
 ICON_SOURCE="$PROJECT/Assets/MacStorageAtlas.icns"
 ENTITLEMENTS_SOURCE="$PROJECT/MacStorageAtlas.entitlements"
 APPSTORE_ENTITLEMENTS_SOURCE="$PROJECT/MacStorageAtlas.AppStore.entitlements"
 APPSTORE_INHERIT_ENTITLEMENTS_SOURCE="$PROJECT/MacStorageAtlas.AppStore.Inherit.entitlements"
 APPSTORE_SLICE_ENTITLEMENTS_SOURCE="$PROJECT/MacStorageAtlas.AppStore.Slice.entitlements"
 APPSTORE_DEFAULT_PROFILE="$HOME/.macstorageatlas-apple-certificates/MacStorageAtlas_Mac_App_Store.provisionprofile"
-UNIVERSAL_LAUNCHER_SOURCE="packaging/universal-launcher.c"
+NATIVE_HOST_SOURCE="packaging/native-host.c"
 X86_64_SLICE_BUNDLE_NAME="$APP_NAME-x86_64.app"
 X86_64_SLICE_BUNDLE_ID="$BUNDLE_ID.x86-64"
 LAUNCH_SMOKE_TEST_SECONDS=5
@@ -193,10 +196,6 @@ check_appstore_prerequisites() {
   require_command xattr
   if [ "$APPSTORE_UNIVERSAL" = "true" ]; then
     require_command lipo
-    require_command clang
-
-    [ -f "$UNIVERSAL_LAUNCHER_SOURCE" ] ||
-      fail "Universal launcher source was not found at '$UNIVERSAL_LAUNCHER_SOURCE'."
 
     [ -f "$APPSTORE_SLICE_ENTITLEMENTS_SOURCE" ] ||
       fail "App Store slice entitlements file was not found at '$APPSTORE_SLICE_ENTITLEMENTS_SOURCE'."
@@ -262,9 +261,9 @@ create_info_plist() {
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>$APP_NAME</string>
+    <string>$APP_DISPLAY_NAME</string>
     <key>CFBundleDisplayName</key>
-    <string>$APP_NAME</string>
+    <string>$APP_DISPLAY_NAME</string>
     <key>CFBundleIdentifier</key>
     <string>$BUNDLE_ID</string>
     <key>CFBundleVersion</key>
@@ -299,13 +298,41 @@ copy_publish_output() {
   fi
 }
 
-build_universal_launcher() {
+build_native_host() {
   local output_path="$1"
-  local slice_path="/Contents/Helpers/$X86_64_SLICE_BUNDLE_NAME/Contents/MacOS/$EXECUTABLE_NAME"
+  local architecture="$2"
+
+  clang -arch "$architecture" -mmacosx-version-min=11.0 -O2 \
+    -DMACSTORAGEATLAS_MANAGED_ASSEMBLY="\"$MANAGED_ASSEMBLY_NAME\"" \
+    -framework CoreFoundation \
+    -o "$output_path" "$NATIVE_HOST_SOURCE"
+}
+
+build_x86_64_slice_host() {
+  local output_path="$1"
+  local payload_path="/Contents/Helpers/$X86_64_SLICE_BUNDLE_NAME/Contents/MacOS"
 
   clang -arch x86_64 -mmacosx-version-min=11.0 -O2 \
-    -DMACSTORAGEATLAS_SLICE_PATH="\"$slice_path\"" \
-    -o "$output_path" "$UNIVERSAL_LAUNCHER_SOURCE"
+    -DMACSTORAGEATLAS_MANAGED_ASSEMBLY="\"$MANAGED_ASSEMBLY_NAME\"" \
+    -DMACSTORAGEATLAS_PAYLOAD_PATH="\"$payload_path\"" \
+    -framework CoreFoundation \
+    -o "$output_path" "$NATIVE_HOST_SOURCE"
+}
+
+architecture_for_runtime() {
+  case "$1" in
+    osx-arm64) printf 'arm64\n' ;;
+    osx-x64) printf 'x86_64\n' ;;
+    *) fail "Unknown runtime '$1'." ;;
+  esac
+}
+
+install_native_host() {
+  local bundle_macos_dir="$1"
+  local architecture="$2"
+
+  rm -f "$bundle_macos_dir/$PUBLISHED_APP_HOST_NAME"
+  build_native_host "$bundle_macos_dir/$EXECUTABLE_NAME" "$architecture"
 }
 
 create_slice_info_plist() {
@@ -386,6 +413,9 @@ create_app_bundle() {
   mkdir -p "$app_bundle/Contents/Resources"
   copy_publish_output "$publish_dir" "$app_bundle/Contents/MacOS"
 
+  printf 'Building native host...\n'
+  install_native_host "$app_bundle/Contents/MacOS" "$(architecture_for_runtime "$runtime")"
+
   if [ -f "$ICON_SOURCE" ]; then
     cp "$ICON_SOURCE" "$app_bundle/Contents/Resources/AppIcon.icns"
   else
@@ -405,7 +435,8 @@ create_universal_app_bundle() {
   local arm64_publish_dir="$PROJECT/bin/Release/$TARGET_FRAMEWORK/osx-arm64/publish"
   local x64_publish_dir="$PROJECT/bin/Release/$TARGET_FRAMEWORK/osx-x64/publish"
   local slice_bundle="$app_bundle/Contents/Helpers/$X86_64_SLICE_BUNDLE_NAME"
-  local launcher_binary
+  local arm64_host_binary
+  local x86_64_host_binary
 
   printf 'Publishing arm64 app...\n'
   dotnet publish "$PROJECT" -c Release -r osx-arm64 --self-contained true
@@ -421,6 +452,10 @@ create_universal_app_bundle() {
   copy_publish_output "$arm64_publish_dir" "$app_bundle/Contents/MacOS"
   copy_publish_output "$x64_publish_dir" "$slice_bundle/Contents/MacOS"
 
+  printf 'Building native hosts...\n'
+  rm -f "$app_bundle/Contents/MacOS/$PUBLISHED_APP_HOST_NAME"
+  install_native_host "$slice_bundle/Contents/MacOS" "x86_64"
+
   if [ -f "$ICON_SOURCE" ]; then
     cp "$ICON_SOURCE" "$app_bundle/Contents/Resources/AppIcon.icns"
     cp "$ICON_SOURCE" "$slice_bundle/Contents/Resources/AppIcon.icns"
@@ -431,12 +466,14 @@ create_universal_app_bundle() {
   create_info_plist "$app_bundle"
   create_slice_info_plist "$app_bundle" "$slice_bundle"
 
-  printf 'Building universal launcher...\n'
-  launcher_binary="$(mktemp "${TMPDIR:-/tmp}/macstorageatlas-launcher.XXXXXX")"
-  build_universal_launcher "$launcher_binary"
-  lipo -create "$arm64_publish_dir/$EXECUTABLE_NAME" "$launcher_binary" \
+  printf 'Building universal host...\n'
+  arm64_host_binary="$(mktemp "${TMPDIR:-/tmp}/macstorageatlas-host-arm64.XXXXXX")"
+  x86_64_host_binary="$(mktemp "${TMPDIR:-/tmp}/macstorageatlas-host-x86-64.XXXXXX")"
+  build_native_host "$arm64_host_binary" "arm64"
+  build_x86_64_slice_host "$x86_64_host_binary"
+  lipo -create "$arm64_host_binary" "$x86_64_host_binary" \
     -output "$app_bundle/Contents/MacOS/$EXECUTABLE_NAME"
-  rm -f "$launcher_binary"
+  rm -f "$arm64_host_binary" "$x86_64_host_binary"
 
   cp "$PROVISIONING_PROFILE" "$app_bundle/Contents/embedded.provisionprofile"
   clear_app_bundle_extended_attributes "$app_bundle"
@@ -549,7 +586,7 @@ create_dmg() {
 
   printf 'Creating DMG...\n'
   hdiutil create \
-    -volname "$APP_NAME" \
+    -volname "$APP_DISPLAY_NAME" \
     -srcfolder "$dmg_dir" \
     -ov \
     -format UDZO \
@@ -682,6 +719,10 @@ fi
 
 require_command dotnet
 require_command hdiutil
+require_command clang
+
+[ -f "$NATIVE_HOST_SOURCE" ] ||
+  fail "Native host source was not found at '$NATIVE_HOST_SOURCE'."
 
 if [ "$MODE" = "release" ]; then
   check_release_prerequisites

@@ -1,4 +1,4 @@
-# Packaging MacStorageAtlas for macOS
+# Packaging Storage Atlas for macOS
 
 This document describes how to publish the Avalonia desktop app for macOS. The
 [`build-dmg.sh`](../build-dmg.sh) script automates publishing, `.app` bundling,
@@ -10,14 +10,14 @@ Mac App Store package path for App Store Connect uploads.
 From the repository root:
 
 ```shell
-./build-dmg.sh            # Apple Silicon (default) → MacStorageAtlas.dmg
+./build-dmg.sh            # Apple Silicon (default) → StorageAtlas.dmg
 ./build-dmg.sh arm64      # Apple Silicon (osx-arm64)
 ./build-dmg.sh x64        # Intel (osx-x64)
 ./build-dmg.sh both       # both architectures, one DMG each
 ```
 
 The script publishes a self-contained Release build, wraps it in a
-`MacStorageAtlas.app` bundle with the `.icns` icon, and produces a DMG with a
+`StorageAtlas.app` bundle with the `.icns` icon, and produces a DMG with a
 drag-to-`Applications` shortcut. These default builds are unsigned development
 artifacts for local testing.
 
@@ -34,7 +34,7 @@ mode:
   "MacStorageAtlas-notary"
 ```
 
-Release DMGs are named `MacStorageAtlas-<version>-<runtime>.dmg`; each one gets a
+Release DMGs are named `StorageAtlas-<version>-<runtime>.dmg`; each one gets a
 matching `.sha256` file after signing, notarization, stapling, and verification
 all pass.
 
@@ -53,10 +53,10 @@ For a Mac App Store package, use appstore mode:
 ```
 
 App Store packages are named
-`MacStorageAtlas-<version>-<runtime>-appstore.pkg`. For App Store uploads,
+`StorageAtlas-<version>-<runtime>-appstore.pkg`. For App Store uploads,
 prefer the `both` target, which publishes arm64 and x64 builds, combines them
 into a single app bundle that runs on both architectures, and writes
-`MacStorageAtlas-<version>-universal-appstore.pkg`.
+`StorageAtlas-<version>-universal-appstore.pkg`.
 
 The sections below document the individual steps the script performs, for
 reference and manual builds.
@@ -106,16 +106,43 @@ The published output is written to
 ## Building a `.app` bundle
 
 Avalonia produces a plain executable. For a distributable macOS application,
-wrap the published output in a `MacStorageAtlas.app` bundle directory with the
+wrap the published output in a `StorageAtlas.app` bundle directory with the
 standard layout:
 
 ```text
-MacStorageAtlas.app/
+StorageAtlas.app/
   Contents/
     Info.plist          app metadata (bundle id, version, icon name)
-    MacOS/              the published executable
+    MacOS/              the native host and the published runtime payload
     Resources/          AppIcon.icns and other assets
 ```
+
+`CFBundleName` and `CFBundleDisplayName` are `Storage Atlas`, while the bundle
+directory and the release artifacts use `StorageAtlas` so that no path contains
+a space. The bundle identifier stays `de.ltsoftware.macstorageatlas`, because
+changing it would make the Mac App Store treat the upload as a new application
+instead of an update.
+
+### The native host
+
+`Contents/MacOS/StorageAtlas` is not the .NET app host. `build-dmg.sh` compiles
+it from `packaging/native-host.c` and it replaces the published
+`MacStorageAtlas.App` app host in the bundle. The native host links
+CoreFoundation, resolves the runtime payload directory next to itself, and
+starts the managed entry assembly in process through
+`hostfxr_main_startupinfo` in `libhostfxr.dylib`.
+
+Linking CoreFoundation is what makes the sandboxed build work. The .NET app host
+links only `libSystem` and `libc++`, so a .NET app loads AppKit later at runtime
+through `dlopen`. By then the process has missed the LaunchServices registration
+that happens during launch, and AppKit falls back to a mach-lookup of
+`com.apple.coreservices.launchservicesd` by global name. The App Sandbox profile
+in `/System/Library/Sandbox/Profiles/application.sb` does not allow that lookup,
+so `_RegisterApplication` calls `abort()` before the first window appears. A
+main executable that links CoreFoundation registers during launch and never
+reaches that fallback. Loading CoreFoundation with `dlopen` at the start of
+`main` is not sufficient; it has to be a load-time dependency of the main
+executable.
 
 The bundled icon comes from `src/MacStorageAtlas.App/Assets/MacStorageAtlas.icns`;
 `build-dmg.sh` copies it to `Contents/Resources/AppIcon.icns` and references it
@@ -138,7 +165,7 @@ right-click the installed app in `/Applications`, choose **Open**, and confirm
 the dialog, or remove quarantine:
 
 ```shell
-xattr -dr com.apple.quarantine /Applications/MacStorageAtlas.app
+xattr -dr com.apple.quarantine /Applications/StorageAtlas.app
 ```
 
 ## Signed release builds
@@ -198,12 +225,8 @@ Mac App Store distribution uses a separate signing path from Developer ID DMGs:
    Distribution certificate for the App Store Connect team.
 2. **App Sandbox entitlements** — sign with
    `MacStorageAtlas.AppStore.entitlements`, which enables App Sandbox, CoreCLR
-   JIT support, user-selected file read/write access, and a temporary mach-lookup
-   exception for `com.apple.coreservices.launchservicesd`. Avalonia creates
-   `NSApplication` during startup, and on current macOS AppKit registers the
-   process with LaunchServices from that call. Without the exception the App
-   Sandbox denies the lookup and the app aborts before its first window appears,
-   so the exception is required for the sandboxed build to start at all. See
+   JIT support, and user-selected file read/write access. The build requests no
+   temporary entitlement exception. See
    [Avalonia macOS deployment](https://docs.avaloniaui.net/docs/deployment/macos).
 3. **Provisioning profile embedding** — copy the Mac App Store provisioning
    profile to `Contents/embedded.provisionprofile` before signing.
@@ -232,15 +255,19 @@ Failed to create CoreCLR, HRESULT: 0x8007000B
 The `both` target therefore keeps one complete payload per architecture:
 
 - `Contents/MacOS` holds the arm64 payload.
-- `Contents/Helpers/MacStorageAtlas-x86_64.app` holds the complete x64 payload
+- `Contents/Helpers/StorageAtlas-x86_64.app` holds the complete x64 payload
   as a nested bundle with its own `Info.plist` and the bundle identifier
   `de.ltsoftware.macstorageatlas.x86-64`.
-- `Contents/MacOS/MacStorageAtlas.App` is a universal binary created with
-  `lipo` from the arm64 app host and the x86_64 launcher built from
-  `packaging/universal-launcher.c`. On Apple Silicon the app host runs directly.
-  On Intel the launcher replaces its own process with the nested x64 app host
-  through `execv`, so the app keeps the process, the sandbox, and the container
-  of the outer bundle.
+- `Contents/MacOS/StorageAtlas` is a universal binary created with `lipo` from
+  two builds of `packaging/native-host.c`. The arm64 slice loads the payload
+  next to itself. The x86_64 slice is compiled with `MACSTORAGEATLAS_PAYLOAD_PATH`
+  and loads the nested x64 payload instead, in the same process.
+
+The x86_64 slice must load the nested payload in process rather than replacing
+itself with a nested executable through `execv`. An `execv` discards the
+LaunchServices registration the process received at launch, so the new image
+falls back to the denied mach-lookup and the Intel slice aborts inside the App
+Sandbox even though its main executable links CoreFoundation.
 
 The nested slice must be signed before the outer bundle, and its executable
 needs `MacStorageAtlas.AppStore.Slice.entitlements`: App Sandbox inheritance
@@ -305,17 +332,29 @@ in an unsandboxed development build:
    codesign --force --timestamp --options runtime \
      --entitlements src/MacStorageAtlas.App/MacStorageAtlas.AppStore.entitlements \
      --sign "Developer ID Application: <team>" \
-     MacStorageAtlas.app/Contents/MacOS/MacStorageAtlas.App
+     StorageAtlas.app/Contents/MacOS/StorageAtlas
    codesign --force --timestamp --options runtime \
      --entitlements src/MacStorageAtlas.App/MacStorageAtlas.AppStore.entitlements \
      --sign "Developer ID Application: <team>" \
-     MacStorageAtlas.app
+     StorageAtlas.app
    ```
 
+   A Mac App Store provisioning profile does not authorize a local launch, so
+   an Apple Distribution signature cannot be used for these checks. `open` then
+   fails with `Launchd job spawn failed` before the app runs.
+
 2. Launch the app and confirm that its window appears. A launch that aborts with
-   `abort() called` in `_RegisterApplication` means the mach-lookup exception for
-   `com.apple.coreservices.launchservicesd` is missing from the signed
-   entitlements. Then select a folder in the open panel and scan it.
+   `abort() called` in `_RegisterApplication` means the main executable no longer
+   links CoreFoundation at load time, so the process missed its LaunchServices
+   registration during launch. Confirm the dependency with
+   `otool -L StorageAtlas.app/Contents/MacOS/StorageAtlas`, and confirm the
+   system log records no denial with:
+
+   ```shell
+   log show --last 5m --style compact --predicate 'eventMessage CONTAINS[c] "launchservicesd"'
+   ```
+
+   Then select a folder in the open panel and scan it.
 3. Move an item to the Trash from the cleanup basket and confirm that it arrives
    in the macOS Trash. Finder's Put Back command stays greyed out for it, because
    macOS records no Put Back entry for items moved with the system file API. That
@@ -333,15 +372,22 @@ AppleScript and must be fixed before uploading.
 Without an Intel Mac, verify the `osx-x64` slice of the universal build under
 Rosetta 2 on an Apple Silicon Mac, so both submitted architectures have been
 launched at least once. Launch it through LaunchServices rather than by running
-the executable directly, because only that path applies the App Sandbox the
-nested slice inherits:
+the executable directly, because only that path applies the App Sandbox and the
+LaunchServices registration the slice depends on:
 
 ```shell
-open -n --arch x86_64 /Applications/MacStorageAtlas.app
+open -n --arch x86_64 /Applications/StorageAtlas.app
 ```
 
 Repeat the checks above for that slice, and confirm the running process is the
-translated one, for example with Activity Monitor's Kind column.
+translated one, for example with Activity Monitor's Kind column. Confirm that it
+loaded the nested payload rather than the arm64 one:
+
+```shell
+lsof -p "$(pgrep -n -f 'MacOS/StorageAtlas')" | grep libcoreclr.dylib
+```
+
+The reported path must be inside `Contents/Helpers/StorageAtlas-x86_64.app`.
 
 The screen must be unlocked while verifying. On a locked screen every launch
 fails with `Avalonia.Native was not able to start the RenderTimer`, which is an
@@ -359,11 +405,11 @@ image with `hdiutil`:
 
 ```shell
 hdiutil create \
-  -volname MacStorageAtlas \
+  -volname "Storage Atlas" \
   -srcfolder dmg-content \
   -ov \
   -format UDZO \
-  MacStorageAtlas.dmg
+  StorageAtlas.dmg
 ```
 
 ## Release verification
@@ -371,14 +417,14 @@ hdiutil create \
 The release script performs these checks before writing checksum files:
 
 ```shell
-codesign --verify --deep --strict --verbose=2 MacStorageAtlas.app
-codesign --verify --verbose=2 MacStorageAtlas-1.2.3-osx-arm64.dmg
-spctl --assess --type execute --verbose=2 MacStorageAtlas.app
-MacStorageAtlas.app/Contents/MacOS/MacStorageAtlas.App
-hdiutil verify MacStorageAtlas-1.2.3-osx-arm64.dmg
-xcrun stapler validate MacStorageAtlas-1.2.3-osx-arm64.dmg
-spctl --assess --type open --context context:primary-signature --verbose=2 MacStorageAtlas-1.2.3-osx-arm64.dmg
-shasum -a 256 MacStorageAtlas-1.2.3-osx-arm64.dmg
+codesign --verify --deep --strict --verbose=2 StorageAtlas.app
+codesign --verify --verbose=2 StorageAtlas-1.2.3-osx-arm64.dmg
+spctl --assess --type execute --verbose=2 StorageAtlas.app
+StorageAtlas.app/Contents/MacOS/StorageAtlas
+hdiutil verify StorageAtlas-1.2.3-osx-arm64.dmg
+xcrun stapler validate StorageAtlas-1.2.3-osx-arm64.dmg
+spctl --assess --type open --context context:primary-signature --verbose=2 StorageAtlas-1.2.3-osx-arm64.dmg
+shasum -a 256 StorageAtlas-1.2.3-osx-arm64.dmg
 ```
 
 Before publishing, also download or copy the final DMGs through a
@@ -392,8 +438,8 @@ Use the GitHub web UI, or a locally authenticated GitHub CLI session:
 
 ```shell
 gh release upload v1.2.3 \
-  MacStorageAtlas-1.2.3-osx-arm64.dmg \
-  MacStorageAtlas-1.2.3-osx-arm64.dmg.sha256 \
-  MacStorageAtlas-1.2.3-osx-x64.dmg \
-  MacStorageAtlas-1.2.3-osx-x64.dmg.sha256
+  StorageAtlas-1.2.3-osx-arm64.dmg \
+  StorageAtlas-1.2.3-osx-arm64.dmg.sha256 \
+  StorageAtlas-1.2.3-osx-x64.dmg \
+  StorageAtlas-1.2.3-osx-x64.dmg.sha256
 ```

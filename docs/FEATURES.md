@@ -1,6 +1,6 @@
-# MacStorageAtlas Feature Backlog
+# Storage Atlas Feature Backlog
 
-MacStorageAtlas is a macOS disk usage analyzer inspired by WinDirStat-style tools.
+Storage Atlas is a macOS disk usage analyzer inspired by WinDirStat-style tools.
 
 The app helps users understand what consumes storage on their Mac by scanning folders, visualizing disk usage, and showing large files, folders, file types, and scan errors.
 
@@ -67,7 +67,7 @@ Use Avalonia's storage provider API from the top-level window.
 ## Codex Prompt
 
 ```text
-Implement the Folder Selection feature for MacStorageAtlas.
+Implement the Folder Selection feature for Storage Atlas.
 
 Requirements:
 - Use Avalonia's storage provider API to open a native folder picker.
@@ -1136,7 +1136,7 @@ Give the app a recognizable product identity.
 ## Acceptance Criteria
 
 - App has placeholder icon assets.
-- App name is consistently MacStorageAtlas.
+- App name is consistently Storage Atlas.
 - README contains product description.
 
 ## Affected Projects
@@ -1154,7 +1154,7 @@ Keep placeholder assets clearly replaceable and avoid treating generated artwork
 Add App Icon and Branding placeholders.
 
 Requirements:
-- Ensure the app display name is MacStorageAtlas.
+- Ensure the app display name is Storage Atlas.
 - Add placeholder icon assets if the project structure supports them.
 - Add product name and short description to README.md.
 - Do not generate final production artwork.
@@ -1191,7 +1191,7 @@ Create README setup documentation.
 
 Requirements:
 - Add README.md at the repository root.
-- Explain what MacStorageAtlas is.
+- Explain what Storage Atlas is.
 - List prerequisites:
   - macOS
   - .NET 10 SDK
@@ -1409,7 +1409,7 @@ scan of roughly 500,000 items produces about 12 MB rather than the roughly
   rm -rf ~/Library/Application\ Support/MacStorageAtlas/history
   ```
 
-Removing snapshots outside the app is fully supported. MacStorageAtlas treats a
+Removing snapshots outside the app is fully supported. Storage Atlas treats a
 snapshot that disappears as gone rather than damaged, and recreates the store
 the next time a scan is recorded.
 

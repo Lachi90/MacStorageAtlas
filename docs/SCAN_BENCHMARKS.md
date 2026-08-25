@@ -1,6 +1,6 @@
 # Scan benchmarks
 
-MacStorageAtlas includes a developer benchmark tool for repeatable scanner
+Storage Atlas includes a developer benchmark tool for repeatable scanner
 measurements. It records scan duration, observed file and directory counts,
 byte totals, throughput, progress update count, recoverable error count, peak
 managed memory, scan options, runtime, architecture, operating system, fixture

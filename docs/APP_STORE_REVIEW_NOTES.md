@@ -1,7 +1,7 @@
 # App Store review notes
 
 Everything below the separator is the exact text for the App Review Information
-notes field in App Store Connect, and for the reply to the Guideline 2.1 review
+notes field in App Store Connect, and for the reply to the outstanding review
 message. Copy it as is. Keep it updated whenever the submitted build changes.
 
 Before submitting: record the screen recording described in section 1, confirm
@@ -10,7 +10,7 @@ screen, and run the sandbox checks in docs/PACKAGING.md.
 
 ---
 
-MacStorageAtlas 1.0.2 - App Review Information
+Storage Atlas 1.0.3 - App Review Information
 
 1. SCREEN RECORDING
 
@@ -26,7 +26,7 @@ The scan itself completes in about a second for the 122,000 files and 8.2 GB in
 the demo folder, so the scan progress display is only briefly visible. The
 recording uses a prepared demo folder rather than personal files.
 
-MacStorageAtlas has no account registration, no login, no account deletion, no
+Storage Atlas has no account registration, no login, no account deletion, no
 in-app purchase, no subscription, and no user-generated content, so none of
 those flows appear in the recording. The app requests no privacy-protected data
 classes, so no location, contacts, camera, photos, or App Tracking Transparency
@@ -35,7 +35,7 @@ panel, which is shown in the recording.
 
 2. DEVICES AND OPERATING SYSTEMS TESTED
 
-MacStorageAtlas is developed by a small independent developer with one Mac. The
+Storage Atlas is developed by a small independent developer with one Mac. The
 submitted binary is a universal build for Apple Silicon (arm64) and Intel
 (x86_64).
 
@@ -56,10 +56,10 @@ Silicon only build.
 
 3. WHAT THE APP DOES, AND FOR WHOM
 
-MacStorageAtlas is a local disk space analyzer for macOS. It answers the
+Storage Atlas is a local disk space analyzer for macOS. It answers the
 question "what is using my disk space, and what can I safely reclaim?"
 
-The user selects a folder or a volume. MacStorageAtlas scans it and presents the
+The user selects a folder or a volume. Storage Atlas scans it and presents the
 result as a folder tree sorted by size, a proportional treemap, a breakdown by
 file type, and a list of the largest files. An opt-in analysis finds
 byte-identical duplicate files. Items can be previewed with Quick Look, revealed
@@ -105,7 +105,7 @@ read.
 
 5. EXTERNAL SERVICES USED TO DELIVER CORE FUNCTIONALITY
 
-None. MacStorageAtlas performs no network requests of any kind.
+None. Storage Atlas performs no network requests of any kind.
 
 There are no data providers, no authentication services, no payment processors,
 and no AI services. There is no analytics, telemetry, crash reporting,
@@ -129,7 +129,7 @@ The user interface is English only.
 
 7. REGULATED INDUSTRIES AND PROTECTED THIRD-PARTY MATERIAL
 
-Not applicable. MacStorageAtlas does not operate in a regulated industry and
+Not applicable. Storage Atlas does not operate in a regulated industry and
 does not provide medical, financial, legal, gambling, or similar services. It
 includes no protected third-party material. It is a general-purpose utility that
 analyzes storage on the user's own Mac.
@@ -143,13 +143,24 @@ the user through the standard macOS open panel. The app uses no Apple event
 automation and launches no external processes for its Trash and Finder
 integrations, so no automation consent prompt can appear.
 
-The build additionally declares
-com.apple.security.temporary-exception.mach-lookup.global-name for the single
-name com.apple.coreservices.launchservicesd. This is a startup requirement of
-the cross-platform UI framework the app is built with, not a feature of the app.
-The framework creates NSApplication during startup, AppKit registers the process
-with LaunchServices from that call, and without the exception the App Sandbox
-denies that lookup and the process aborts before its first window appears. The
-exception grants nothing beyond that one system service, and the app makes no
-LaunchServices calls of its own. It requests no other temporary exception, no
-network access, and no additional file access.
+This build requests no temporary entitlement exception of any kind, no network
+access, and no additional file access.
+
+9. RESOLUTION OF THE PREVIOUS REVIEW ISSUES
+
+Guideline 5.2.5. The app name no longer contains "Mac". The App Store name, the
+bundle display name, the macOS menu bar title, and the window title are now
+"Storage Atlas". The bundle identifier is unchanged, as App Store Connect Help
+advises, so this remains an update of the existing app rather than a new one.
+
+Guideline 2.4.5(i). The temporary mach-lookup exception for
+com.apple.coreservices.launchservicesd has been removed, and the app no longer
+needs it. The cause was the executable's library load order, not a behavior of
+the app. The previous main executable linked only libSystem and libc++, so
+AppKit was loaded later at runtime; by then the process had missed its
+LaunchServices registration at launch and AppKit fell back to a global-name
+lookup that the App Sandbox denies. The main executable now links
+CoreFoundation, so registration happens during launch on the supported path,
+exactly as it does for any other Mac app. Both the Apple Silicon slice and the
+Intel slice were launched from the App Sandbox with the submitted entitlements
+and reach their main window with no sandbox denial in the system log.

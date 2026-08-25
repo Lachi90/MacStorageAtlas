@@ -1,4 +1,4 @@
-# MacStorageAtlas
+# Storage Atlas
 
 > **See what's eating your disk — at a glance.** A fast, native macOS disk usage
 > analyzer that turns a folder or volume into a sortable tree and an interactive
@@ -9,7 +9,7 @@
 ![UI: Avalonia](https://img.shields.io/badge/UI-Avalonia-8B5CF6)
 ![Arch: Apple Silicon + Intel](https://img.shields.io/badge/arch-arm64%20%2B%20x64-informational)
 
-**MacStorageAtlas** is a free, open-source **disk space analyzer for macOS** — a
+**Storage Atlas** is a free, open-source **disk space analyzer for macOS** — a
 native **WinDirStat, DaisyDisk, and GrandPerspective alternative** for Apple
 Silicon and Intel Macs. If you're wondering *what is using my disk space on Mac*
 and want to *free up storage*, it scans folders and volumes and visualizes the
@@ -17,7 +17,7 @@ results as a sortable folder tree, a proportional treemap, file-type statistics,
 and a list of the largest files — so you can find the space hogs and reclaim
 gigabytes in seconds.
 
-MacStorageAtlas stays free on GitHub and is planned as a free Mac App Store
+Storage Atlas stays free on GitHub and is planned as a free Mac App Store
 download for users who prefer Store installation and updates. The public
 [Support](https://lachi90.github.io/MacStorageAtlas/support.html) page explains
 how to report issues, and the
@@ -59,13 +59,13 @@ counts, sizes, and full paths.
 ### 🧩 Exact duplicate review
 
 After a scan completes, run an opt-in duplicate analysis to find byte-identical
-regular files. MacStorageAtlas narrows candidates by current logical length,
+regular files. Storage Atlas narrows candidates by current logical length,
 samples file edges, hashes surviving content with bounded buffers, and confirms
 matches byte for byte before showing them. Analysis can be cancelled, hardlinked
 paths are shown as linked paths rather than reclaimable copies, and known
 cloud-only placeholders are skipped instead of downloaded. Duplicate entries
 can be selected for Quick Look, Finder reveal, and the existing cleanup basket,
-but MacStorageAtlas never auto-selects a copy for cleanup.
+but Storage Atlas never auto-selects a copy for cleanup.
 
 ![Exact duplicate review tab with matching paths and reclaimable size](docs/images/07-duplicates.png)
 
@@ -167,7 +167,7 @@ remembered between runs.
 - Modern, native-feeling UI that follows the system light/dark appearance, with
   a responsive treemap and a live scan-progress overlay.
 
-> Completed-result screenshots above show MacStorageAtlas analyzing its own
+> Completed-result screenshots above show Storage Atlas analyzing its own
 > project folder — build artifacts included — which is why `.pdb`, `.dll`, and
 > `.dmg` files dominate the breakdown.
 
@@ -178,10 +178,10 @@ remembered between runs.
 ## How it compares
 
 Looking for a **free DaisyDisk alternative** or a **WinDirStat for Mac**?
-MacStorageAtlas focuses on the essentials — a fast scan, a treemap, and safe
+Storage Atlas focuses on the essentials — a fast scan, a treemap, and safe
 cleanup — without a subscription or a price tag.
 
-| Capability | MacStorageAtlas | [DaisyDisk][daisydisk] | [GrandPerspective][grandperspective] | [WinDirStat][windirstat] |
+| Capability | Storage Atlas | [DaisyDisk][daisydisk] | [GrandPerspective][grandperspective] | [WinDirStat][windirstat] |
 | --- | --- | --- | --- | --- |
 | Platform | macOS (Apple Silicon + Intel) | [macOS (Apple Silicon + Intel)][daisydisk-pricing] | [macOS (Apple Silicon + Intel)][grandperspective] | [Windows][windirstat] |
 | Distribution | [Free, MIT-licensed open source](LICENSE) | [$9.99 one-time commercial license][daisydisk-pricing] | [Free GPL build; $2.99 App Store build][grandperspective] | [Free, GPLv2 open source][windirstat] |
@@ -189,7 +189,7 @@ cleanup — without a subscription or a price tag.
 | File-size measurement | [Logical length, allocated blocks per path, or shared-aware allocated blocks](src/MacStorageAtlas.Platform.Mac/MacFileMetadataReader.cs); hardlinks and verified full-clone data count once where capability coverage permits | [Physical size; hardlinks and full APFS clones are counted once][daisydisk-hardlinks] | [Logical, physical, or file-count sizing][grandperspective-sizes]; [hardlinks counted once per view][grandperspective-hardlinks] | [Logical or physical sizing with hardlink deduplication][windirstat-source] |
 
 **Storage-measurement note:** these products do not use one interchangeable
-definition of “real size.” MacStorageAtlas handles sparse files and local cloud
+definition of “real size.” Storage Atlas handles sparse files and local cloud
 placeholders and, by default, counts hardlinks once plus verified full-clone
 data once on capable volumes. It does not deduplicate divergent clone extents
 and does not claim unique physical or reclaimable storage. The optional
@@ -246,18 +246,18 @@ dotnet run --project src/MacStorageAtlas.App
 ## Package
 
 Run the packaging script from the repository root. It publishes a self-contained
-Release build, wraps it in a `MacStorageAtlas.app` bundle (with the `.icns` app
+Release build, wraps it in a `StorageAtlas.app` bundle (with the `.icns` app
 icon), and creates a DMG with a drag-to-`Applications` shortcut.
 
 ```shell
-./build-dmg.sh            # Apple Silicon (default) → MacStorageAtlas.dmg
+./build-dmg.sh            # Apple Silicon (default) → StorageAtlas.dmg
 ./build-dmg.sh arm64      # Apple Silicon (osx-arm64)
 ./build-dmg.sh x64        # Intel (osx-x64)
 ./build-dmg.sh both       # both architectures, one DMG each
 ```
 
 When building `both`, the DMGs are named per architecture
-(`MacStorageAtlas-osx-arm64.dmg` and `MacStorageAtlas-osx-x64.dmg`). Each build
+(`StorageAtlas-osx-arm64.dmg` and `StorageAtlas-osx-x64.dmg`). Each build
 is self-contained and does **not** run under Rosetta on the other architecture —
 pick the DMG that matches the target Mac.
 
@@ -272,8 +272,8 @@ the DMG, verifies the result, and writes SHA-256 checksum files:
   "MacStorageAtlas-notary"
 ```
 
-Release DMGs are named `MacStorageAtlas-<version>-<runtime>.dmg`. See
-[Packaging MacStorageAtlas for macOS](docs/PACKAGING.md) for certificate,
+Release DMGs are named `StorageAtlas-<version>-<runtime>.dmg`. See
+[Packaging Storage Atlas for macOS](docs/PACKAGING.md) for certificate,
 notary profile, verification, and GitHub Release upload steps.
 
 Mac App Store packages use Apple Distribution and Mac Installer Distribution
@@ -288,15 +288,15 @@ certificates and produce uploadable `.pkg` files:
 ## Access to protected locations
 
 macOS can block an app from reading a location, and the remedy differs per
-distribution channel. In both cases MacStorageAtlas shows guidance that the
+distribution channel. In both cases Storage Atlas shows guidance that the
 result may be incomplete, keeps the detailed errors visible, and offers a
 rescan. Inaccessible paths are not purgeable space, free space, or files that
-MacStorageAtlas says are safe to delete.
+Storage Atlas says are safe to delete.
 
 The **GitHub Release build** is not sandboxed. macOS can block protected
 locations such as some Mail, Messages, Safari, Time Machine, and administrative
 data. Grant access manually in **System Settings > Privacy & Security > Full
-Disk Access**, add or enable MacStorageAtlas, restart the app if macOS asks,
+Disk Access**, add or enable Storage Atlas, restart the app if macOS asks,
 then rescan the same location.
 
 The **Mac App Store build** runs in the macOS App Sandbox and can only read

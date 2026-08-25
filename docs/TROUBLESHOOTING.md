@@ -21,7 +21,7 @@ Store edition neither requests it nor offers the settings action.
 
 ## GitHub Release edition: Full Disk Access
 
-macOS may prevent MacStorageAtlas from reading protected locations even when the
+macOS may prevent Storage Atlas from reading protected locations even when the
 selected folder exists and ordinary files scan normally. If a completed scan has
 permission-related inaccessible paths, the app shows a guidance banner with the
 number of inaccessible paths and keeps the detailed scan errors available.
@@ -32,11 +32,11 @@ not open to the right place, grant access manually:
 1. Open **System Settings**.
 2. Choose **Privacy & Security**.
 3. Open **Full Disk Access**.
-4. Add or enable **MacStorageAtlas**.
-5. Restart MacStorageAtlas if macOS asks.
+4. Add or enable **Storage Atlas**.
+5. Restart Storage Atlas if macOS asks.
 6. Rescan the same location.
 
-MacStorageAtlas cannot grant Full Disk Access itself and never asks for an
+Storage Atlas cannot grant Full Disk Access itself and never asks for an
 administrator password. A readable test path does not prove every protected
 location is available, so the app phrases access status conservatively.
 
