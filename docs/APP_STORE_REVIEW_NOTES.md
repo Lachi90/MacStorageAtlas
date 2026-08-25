@@ -18,12 +18,14 @@ The attached screen recording was captured on a physical Mac running macOS
 26.6.2. It starts with launching the app from the Applications folder and shows
 the typical user flow: selecting a folder in the macOS open panel, scanning it,
 browsing the folder tree and the treemap, inspecting item details, the file type
-breakdown, the largest files, the duplicate analysis with its live progress,
-Quick Look preview, Reveal in Finder, and moving an item to the Trash through
-the cleanup basket review, which reports the itemized result.
+breakdown, the largest files, Quick Look preview, Reveal in Finder, and moving
+an item to the Trash through the cleanup basket review, which reports the
+itemized result. It closes with the duplicate analysis and its live progress,
+run on a subfolder so the result is visible without a long wait.
 
-The scan itself completes in about a second for the 122,000 files and 8.2 GB in
-the demo folder, so the scan progress display is only briefly visible. The
+The demo folder holds about 122,000 files and 7.8 GB, and a scan of it takes
+roughly half a minute in the shared-aware allocated measurement mode the app
+uses by default, so the scan progress display is visible for that time. The
 recording uses a prepared demo folder rather than personal files.
 
 Storage Atlas has no account registration, no login, no account deletion, no
