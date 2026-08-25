@@ -167,9 +167,9 @@ remembered between runs.
 - Modern, native-feeling UI that follows the system light/dark appearance, with
   a responsive treemap and a live scan-progress overlay.
 
-> Completed-result screenshots above show Storage Atlas analyzing its own
-> project folder — build artifacts included — which is why `.pdb`, `.dll`, and
-> `.dmg` files dominate the breakdown.
+> Completed-result screenshots above show Storage Atlas analyzing a prepared
+> demo folder of photos, caches, archives, design assets, and video projects,
+> so the breakdown reflects the kind of library a real user scans.
 
 > Branding artwork lives under `src/MacStorageAtlas.App/Assets/`: `app.ico` (window
 > icon), `icon.png` (1024×1024 master), and `MacStorageAtlas.icns` for macOS app
