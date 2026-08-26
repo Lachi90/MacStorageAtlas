@@ -34,7 +34,7 @@
 
 - [x] 6.1 Launch the sandboxed arm64 build signed with the App Store entitlements and confirm it reaches its main window with no denied lookup.
 - [x] 6.2 Launch the x86_64 slice under Rosetta 2 and confirm it reaches its main window and loads the nested x64 payload.
-- [ ] 6.3 Build and upload the signed universal App Store package, and submit it with the updated review notes.
+- [x] 6.3 Build and upload the signed universal App Store package, and submit it with the updated review notes.
 
 ## 7. Documentation
 
