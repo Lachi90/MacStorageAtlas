@@ -1,6 +1,6 @@
 ## Purpose
 
-Define how MacStorageAtlas organizes Core source files so domain ownership, folder paths, namespaces, host-integration abstractions, and persisted-format compatibility remain clear.
+Define how Atlas Storage Analyzer organizes Core source files so domain ownership, folder paths, namespaces, host-integration abstractions, and persisted-format compatibility remain clear.
 
 ## Requirements
 
@@ -99,7 +99,7 @@ The folder and namespace restructure SHALL be a move-and-rename operation only. 
 
 ### Requirement: Repository documentation reflects the Core layout
 
-MacStorageAtlas SHALL keep repository documentation that describes project structure accurate after the Core restructure.
+Atlas Storage Analyzer SHALL keep repository documentation that describes project structure accurate after the Core restructure.
 
 #### Scenario: Structure documentation describes the folder layout
 

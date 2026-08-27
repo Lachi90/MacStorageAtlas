@@ -1,6 +1,6 @@
 ## Purpose
 
-Define how the MacStorageAtlas main window toolbar presents scan commands,
+Define how the Atlas Storage Analyzer main window toolbar presents scan commands,
 selected-item actions, cleanup basket actions, export actions, scan options,
 result filters, and search while preserving a compact single-row command surface
 and existing command behavior.
@@ -9,7 +9,7 @@ and existing command behavior.
 
 ### Requirement: Main commands use a single toolbar row
 
-MacStorageAtlas SHALL present the main window command surface as a single toolbar row at the default supported window size. The toolbar MUST include the primary scan controls, selected-item actions, cleanup basket actions, export actions, scan options, result filters, and search entry point without splitting those controls into separate toolbar bands at that size.
+Atlas Storage Analyzer SHALL present the main window command surface as a single toolbar row at the default supported window size. The toolbar MUST include the primary scan controls, selected-item actions, cleanup basket actions, export actions, scan options, result filters, and search entry point without splitting those controls into separate toolbar bands at that size.
 
 #### Scenario: Default window shows one toolbar row
 
@@ -26,7 +26,7 @@ MacStorageAtlas SHALL present the main window command surface as a single toolba
 
 ### Requirement: Toolbar is separated from content
 
-MacStorageAtlas SHALL render a visible separator between the main toolbar and the content or status area below it.
+Atlas Storage Analyzer SHALL render a visible separator between the main toolbar and the content or status area below it.
 
 #### Scenario: Toolbar divider is visible
 
@@ -42,7 +42,7 @@ MacStorageAtlas SHALL render a visible separator between the main toolbar and th
 
 ### Requirement: Narrow widths remain usable
 
-MacStorageAtlas SHALL keep toolbar controls usable when the available width is too narrow to display every command with its full label. The toolbar MUST NOT overlap controls, clip essential command affordances, or increase to an unpredictable height.
+Atlas Storage Analyzer SHALL keep toolbar controls usable when the available width is too narrow to display every command with its full label. The toolbar MUST NOT overlap controls, clip essential command affordances, or increase to an unpredictable height.
 
 #### Scenario: Narrow width does not overlap toolbar controls
 
@@ -66,7 +66,7 @@ MacStorageAtlas SHALL keep toolbar controls usable when the available width is t
 
 ### Requirement: Existing command behavior is preserved
 
-MacStorageAtlas SHALL preserve existing toolbar command semantics while changing layout. Moving, grouping, compacting, or overflowing a toolbar control MUST NOT change when its command is enabled, what it invokes, or what data it uses.
+Atlas Storage Analyzer SHALL preserve existing toolbar command semantics while changing layout. Moving, grouping, compacting, or overflowing a toolbar control MUST NOT change when its command is enabled, what it invokes, or what data it uses.
 
 #### Scenario: Toolbar layout does not change command enablement
 
@@ -78,4 +78,4 @@ MacStorageAtlas SHALL preserve existing toolbar command semantics while changing
 
 - **GIVEN** the user enters search text through the toolbar search entry point
 - **WHEN** the search text changes
-- **THEN** MacStorageAtlas filters the displayed result tree using the existing search behavior
+- **THEN** Atlas Storage Analyzer filters the displayed result tree using the existing search behavior

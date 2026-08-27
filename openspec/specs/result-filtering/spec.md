@@ -1,6 +1,6 @@
 ## Purpose
 
-Define how MacStorageAtlas narrows a completed scan result by size, age, type,
+Define how Atlas Storage Analyzer narrows a completed scan result by size, age, type,
 text, and shared-storage status; how a date bound is expressed either as a fixed
 instant or as an offset from the time the filter is evaluated; how filtered
 results are presented across the result views; how match totals and exclusions
@@ -12,13 +12,13 @@ changing the scan's measurement basis.
 
 ### Requirement: Filters narrow a completed scan result without rescanning
 
-MacStorageAtlas SHALL apply result filters to the completed scan result already held in memory. Applying, changing, or clearing a filter MUST NOT start a new scan, revisit the filesystem, read file contents, or change the scan's measurement mode.
+Atlas Storage Analyzer SHALL apply result filters to the completed scan result already held in memory. Applying, changing, or clearing a filter MUST NOT start a new scan, revisit the filesystem, read file contents, or change the scan's measurement mode.
 
 #### Scenario: Applying a filter does not rescan
 
 - **GIVEN** a completed scan result is displayed
 - **WHEN** the user applies a result filter
-- **THEN** MacStorageAtlas narrows the displayed results from the existing scan result
+- **THEN** Atlas Storage Analyzer narrows the displayed results from the existing scan result
 - **AND** it does not start a new scan
 - **AND** it does not read file contents
 
@@ -38,7 +38,7 @@ MacStorageAtlas SHALL apply result filters to the completed scan result already 
 
 ### Requirement: Filters match files and combine with AND semantics
 
-MacStorageAtlas SHALL evaluate every filter criterion against files. A file MUST be treated as matching only when it satisfies every active criterion. Directories MUST NOT be evaluated against size, age, extension, category, or shared-storage criteria.
+Atlas Storage Analyzer SHALL evaluate every filter criterion against files. A file MUST be treated as matching only when it satisfies every active criterion. Directories MUST NOT be evaluated against size, age, extension, category, or shared-storage criteria.
 
 #### Scenario: All active criteria must hold
 
@@ -72,7 +72,7 @@ MacStorageAtlas SHALL evaluate every filter criterion against files. A file MUST
 
 ### Requirement: Directories appear only as ancestors of matching files
 
-MacStorageAtlas SHALL display a directory in a filtered folder tree only when at least one of its descendant files matches the filter. Displayed ancestor directories MUST remain selectable so that existing per-item actions stay available.
+Atlas Storage Analyzer SHALL display a directory in a filtered folder tree only when at least one of its descendant files matches the filter. Displayed ancestor directories MUST remain selectable so that existing per-item actions stay available.
 
 #### Scenario: Ancestors of a match remain visible
 
@@ -96,7 +96,7 @@ MacStorageAtlas SHALL display a directory in a filtered folder tree only when at
 
 ### Requirement: Size criteria use the size basis shown for results
 
-MacStorageAtlas SHALL compare minimum and maximum size criteria against the same size value that the result views display for a file. Size bounds MUST be inclusive.
+Atlas Storage Analyzer SHALL compare minimum and maximum size criteria against the same size value that the result views display for a file. Size bounds MUST be inclusive.
 
 #### Scenario: Size bounds are inclusive
 
@@ -113,7 +113,7 @@ MacStorageAtlas SHALL compare minimum and maximum size criteria against the same
 
 ### Requirement: Age criteria exclude results with unknown dates
 
-MacStorageAtlas SHALL resolve every date criterion to an absolute instant before evaluating it, and SHALL evaluate creation, modification, and last-access criteria against the scan-time metadata retained for a file. When a required date is unavailable for a file, MacStorageAtlas MUST exclude that file from the matches rather than assume, infer, or substitute a date.
+Atlas Storage Analyzer SHALL resolve every date criterion to an absolute instant before evaluating it, and SHALL evaluate creation, modification, and last-access criteria against the scan-time metadata retained for a file. When a required date is unavailable for a file, Atlas Storage Analyzer MUST exclude that file from the matches rather than assume, infer, or substitute a date.
 
 #### Scenario: A file with an unknown required date is excluded
 
@@ -128,7 +128,7 @@ MacStorageAtlas SHALL resolve every date criterion to an absolute instant before
 - **GIVEN** a filter specifies a date criterion
 - **AND** some files were excluded only because the required date was unknown
 - **WHEN** the filter is applied
-- **THEN** MacStorageAtlas reports how many files were excluded because a required date was unknown
+- **THEN** Atlas Storage Analyzer reports how many files were excluded because a required date was unknown
 
 #### Scenario: An unknown date does not exclude a file when no date criterion is active
 
@@ -147,7 +147,7 @@ MacStorageAtlas SHALL resolve every date criterion to an absolute instant before
 
 ### Requirement: Date criteria can be expressed relative to evaluation time
 
-MacStorageAtlas SHALL allow each creation, modification, and last-access bound to be expressed either as an absolute instant or as an offset from the time the filter is evaluated. An offset MUST consist of a positive count and a unit of days, weeks, months, or years, and MUST be interpreted as that span before the reference time. Each bound MUST carry its own choice of absolute or relative form, independently of the other bounds. A relative bound MUST be stored as the offset itself and MUST NOT be stored as the instant it resolved to.
+Atlas Storage Analyzer SHALL allow each creation, modification, and last-access bound to be expressed either as an absolute instant or as an offset from the time the filter is evaluated. An offset MUST consist of a positive count and a unit of days, weeks, months, or years, and MUST be interpreted as that span before the reference time. Each bound MUST carry its own choice of absolute or relative form, independently of the other bounds. A relative bound MUST be stored as the offset itself and MUST NOT be stored as the instant it resolved to.
 
 #### Scenario: A relative bound resolves against the reference time
 
@@ -182,7 +182,7 @@ MacStorageAtlas SHALL allow each creation, modification, and last-access bound t
 
 - **GIVEN** the user enters a relative bound whose count is zero or negative
 - **WHEN** the filter is evaluated
-- **THEN** MacStorageAtlas reports that the filter is invalid and explains why
+- **THEN** Atlas Storage Analyzer reports that the filter is invalid and explains why
 - **AND** it does not present the state as a result with no matches
 
 #### Scenario: A resolved relative bound is reported alongside its offset
@@ -194,7 +194,7 @@ MacStorageAtlas SHALL allow each creation, modification, and last-access bound t
 
 ### Requirement: Results can be filtered by extension, category, and shared storage
 
-MacStorageAtlas SHALL support filtering files by file extension, by a named file category derived from extension, and by whether a file's storage is counted against another path in the same scan.
+Atlas Storage Analyzer SHALL support filtering files by file extension, by a named file category derived from extension, and by whether a file's storage is counted against another path in the same scan.
 
 #### Scenario: Extension criterion matches regardless of case
 
@@ -224,7 +224,7 @@ MacStorageAtlas SHALL support filtering files by file extension, by a named file
 
 ### Requirement: Filtered results are presented consistently across result views
 
-MacStorageAtlas SHALL apply the active filter to the folder tree, the largest-files list, and the file-type summary so that all three describe the same matched files. The treemap MUST retain its full unfiltered layout and MUST distinguish matching areas without removing non-matching areas.
+Atlas Storage Analyzer SHALL apply the active filter to the folder tree, the largest-files list, and the file-type summary so that all three describe the same matched files. The treemap MUST retain its full unfiltered layout and MUST distinguish matching areas without removing non-matching areas.
 
 #### Scenario: List views show matches only
 
@@ -250,13 +250,13 @@ MacStorageAtlas SHALL apply the active filter to the folder tree, the largest-fi
 
 ### Requirement: Match totals and matched directory subtotals are reported
 
-MacStorageAtlas SHALL report the number of matching files and their total matched size while a filter is active. When a filtered folder tree displays an ancestor directory, MacStorageAtlas MUST show the total matched size of that directory's descendants and MUST label it so that it is not read as the directory's full size.
+Atlas Storage Analyzer SHALL report the number of matching files and their total matched size while a filter is active. When a filtered folder tree displays an ancestor directory, Atlas Storage Analyzer MUST show the total matched size of that directory's descendants and MUST label it so that it is not read as the directory's full size.
 
 #### Scenario: Match count and total are shown
 
 - **GIVEN** a filter is active
 - **WHEN** the filtered result is displayed
-- **THEN** MacStorageAtlas shows the number of matching files
+- **THEN** Atlas Storage Analyzer shows the number of matching files
 - **AND** it shows the total matched size
 
 #### Scenario: A directory row shows its matched subtotal
@@ -282,13 +282,13 @@ MacStorageAtlas SHALL report the number of matching files and their total matche
 
 ### Requirement: Invalid filters are distinguished from empty results
 
-MacStorageAtlas SHALL distinguish a filter that cannot be satisfied by construction from a valid filter that matches nothing. A filter's date bounds MUST be checked after they are resolved to absolute instants. An invalid filter MUST be reported as invalid and MUST NOT be presented as a zero-match result.
+Atlas Storage Analyzer SHALL distinguish a filter that cannot be satisfied by construction from a valid filter that matches nothing. A filter's date bounds MUST be checked after they are resolved to absolute instants. An invalid filter MUST be reported as invalid and MUST NOT be presented as a zero-match result.
 
 #### Scenario: Minimum size above maximum size is invalid
 
 - **GIVEN** the user enters a minimum size greater than the maximum size
 - **WHEN** the filter is evaluated
-- **THEN** MacStorageAtlas reports that the filter is invalid and explains why
+- **THEN** Atlas Storage Analyzer reports that the filter is invalid and explains why
 - **AND** it does not present the state as a result with no matches
 
 #### Scenario: Resolved date bounds in the wrong order are invalid
@@ -296,20 +296,20 @@ MacStorageAtlas SHALL distinguish a filter that cannot be satisfied by construct
 - **GIVEN** the user enters an earliest and a latest bound on the same date dimension, at least one of them relative
 - **AND** the resolved earliest bound is later than the resolved latest bound
 - **WHEN** the filter is evaluated
-- **THEN** MacStorageAtlas reports that the filter is invalid and explains why
+- **THEN** Atlas Storage Analyzer reports that the filter is invalid and explains why
 - **AND** it does not present the state as a result with no matches
 
 #### Scenario: A valid filter with no matches shows an empty state
 
 - **GIVEN** a valid filter matches no file in the completed scan result
 - **WHEN** the filter is applied
-- **THEN** MacStorageAtlas shows an empty result state
+- **THEN** Atlas Storage Analyzer shows an empty result state
 - **AND** it reports a match count of zero
 - **AND** the completed scan result remains available for clearing the filter
 
 ### Requirement: Selection stays consistent with the filtered result
 
-MacStorageAtlas SHALL clear a selected item when a filter change makes that item invisible in the result view that owns the selection. A selection that remains visible MUST be preserved.
+Atlas Storage Analyzer SHALL clear a selected item when a filter change makes that item invisible in the result view that owns the selection. A selection that remains visible MUST be preserved.
 
 #### Scenario: A hidden selection is cleared
 
@@ -326,7 +326,7 @@ MacStorageAtlas SHALL clear a selected item when a filter change makes that item
 
 ### Requirement: Filter evaluation stays responsive and cancellable
 
-MacStorageAtlas SHALL evaluate filters without blocking the user interface thread. When filter criteria change while an evaluation is in progress, MacStorageAtlas MUST abandon the superseded evaluation and MUST display only the result of the most recent criteria.
+Atlas Storage Analyzer SHALL evaluate filters without blocking the user interface thread. When filter criteria change while an evaluation is in progress, Atlas Storage Analyzer MUST abandon the superseded evaluation and MUST display only the result of the most recent criteria.
 
 #### Scenario: Rapid criteria changes yield the latest result
 
@@ -344,7 +344,7 @@ MacStorageAtlas SHALL evaluate filters without blocking the user interface threa
 
 ### Requirement: Filter presets can be applied and persisted
 
-MacStorageAtlas SHALL provide built-in filter presets and SHALL allow users to save, apply, rename, and delete their own presets through the filter panel. User-created presets MUST persist across application restarts, including any relative date bounds they contain. A built-in preset that constrains age MUST express that constraint as a relative bound so that it does not drift. A stored preset that records a schema version the running application does not support, or that cannot be read, MUST be skipped without preventing the remaining settings from loading. A stored preset whose date bounds were saved as absolute instants MUST continue to be read as absolute instants and MUST NOT be reinterpreted as relative bounds.
+Atlas Storage Analyzer SHALL provide built-in filter presets and SHALL allow users to save, apply, rename, and delete their own presets through the filter panel. User-created presets MUST persist across application restarts, including any relative date bounds they contain. A built-in preset that constrains age MUST express that constraint as a relative bound so that it does not drift. A stored preset that records a schema version the running application does not support, or that cannot be read, MUST be skipped without preventing the remaining settings from loading. A stored preset whose date bounds were saved as absolute instants MUST continue to be read as absolute instants and MUST NOT be reinterpreted as relative bounds.
 
 #### Scenario: A built-in preset populates the filter
 
@@ -405,14 +405,14 @@ MacStorageAtlas SHALL provide built-in filter presets and SHALL allow users to s
 
 - **GIVEN** stored settings contain a preset that cannot be read
 - **WHEN** settings are loaded
-- **THEN** MacStorageAtlas skips that preset
+- **THEN** Atlas Storage Analyzer skips that preset
 - **AND** the remaining settings and presets load successfully
 
 #### Scenario: A preset from a newer schema version is skipped
 
 - **GIVEN** stored settings contain a preset recording a schema version the running application does not support
 - **WHEN** settings are loaded
-- **THEN** MacStorageAtlas skips that preset
+- **THEN** Atlas Storage Analyzer skips that preset
 - **AND** the remaining settings and presets load successfully
 
 #### Scenario: A preset applies to any scan root
@@ -424,26 +424,26 @@ MacStorageAtlas SHALL provide built-in filter presets and SHALL allow users to s
 
 ### Requirement: The applied preset and edited criteria are reported
 
-MacStorageAtlas SHALL report which available preset the current filter criteria correspond to, and MUST report that the criteria have been edited when they no longer correspond to the preset that was applied. MacStorageAtlas SHALL allow the user to replace a user-created preset's criteria with the current criteria. A built-in preset MUST NOT be replaceable.
+Atlas Storage Analyzer SHALL report which available preset the current filter criteria correspond to, and MUST report that the criteria have been edited when they no longer correspond to the preset that was applied. Atlas Storage Analyzer SHALL allow the user to replace a user-created preset's criteria with the current criteria. A built-in preset MUST NOT be replaceable.
 
 #### Scenario: An applied preset is identified
 
 - **GIVEN** the user applies a preset
 - **WHEN** the filter panel is displayed
-- **THEN** MacStorageAtlas identifies that preset as the one the criteria correspond to
+- **THEN** Atlas Storage Analyzer identifies that preset as the one the criteria correspond to
 
 #### Scenario: Editing criteria reports an edited state
 
 - **GIVEN** a preset was applied
 - **WHEN** the user changes any filter criterion
-- **THEN** MacStorageAtlas reports that the criteria have been edited
+- **THEN** Atlas Storage Analyzer reports that the criteria have been edited
 - **AND** it still identifies which preset they were edited from
 
 #### Scenario: Returning to a preset's criteria clears the edited state
 
 - **GIVEN** a preset was applied and its criteria were then edited
 - **WHEN** the criteria are changed back to that preset's criteria
-- **THEN** MacStorageAtlas no longer reports an edited state
+- **THEN** Atlas Storage Analyzer no longer reports an edited state
 
 #### Scenario: A user preset is updated from the edited criteria
 
@@ -464,12 +464,12 @@ MacStorageAtlas SHALL report which available preset the current filter criteria 
 
 - **GIVEN** the user has entered criteria that correspond to no available preset
 - **WHEN** the filter panel is displayed
-- **THEN** MacStorageAtlas identifies no applied preset
+- **THEN** Atlas Storage Analyzer identifies no applied preset
 - **AND** it does not report an edited state
 
 ### Requirement: Filtering does not authorize destructive actions
 
-MacStorageAtlas SHALL present filtered results as factual matches only. Filter names, preset names, applied-preset reporting, and match summaries MUST NOT describe matched items as safe to delete. A relative age bound MUST be described by the span it covers rather than by any implied consequence. Filtering MUST NOT bypass, weaken, or pre-authorize the existing confirmation required before moving an item to Trash.
+Atlas Storage Analyzer SHALL present filtered results as factual matches only. Filter names, preset names, applied-preset reporting, and match summaries MUST NOT describe matched items as safe to delete. A relative age bound MUST be described by the span it covers rather than by any implied consequence. Filtering MUST NOT bypass, weaken, or pre-authorize the existing confirmation required before moving an item to Trash.
 
 #### Scenario: A preset name states a fact rather than a recommendation
 
@@ -496,12 +496,12 @@ MacStorageAtlas SHALL present filtered results as factual matches only. Filter n
 
 - **GIVEN** a filter matches many files
 - **WHEN** the filter is applied
-- **THEN** MacStorageAtlas does not delete, move, or modify any matched file
+- **THEN** Atlas Storage Analyzer does not delete, move, or modify any matched file
 - **AND** it does not select matched files for a bulk action
 
 ### Requirement: Filtering preserves privacy
 
-MacStorageAtlas SHALL keep filter criteria, presets, and filtered results local. Filtering MUST NOT transmit paths, names, or match results, and MUST NOT materialize dataless cloud placeholders. Resolving a relative date bound MUST use a local clock and MUST NOT contact a network time source.
+Atlas Storage Analyzer SHALL keep filter criteria, presets, and filtered results local. Filtering MUST NOT transmit paths, names, or match results, and MUST NOT materialize dataless cloud placeholders. Resolving a relative date bound MUST use a local clock and MUST NOT contact a network time source.
 
 #### Scenario: Filtering transmits nothing
 
@@ -513,12 +513,12 @@ MacStorageAtlas SHALL keep filter criteria, presets, and filtered results local.
 
 - **GIVEN** a filter specifies a relative date bound
 - **WHEN** the bound is resolved
-- **THEN** MacStorageAtlas uses a local clock
+- **THEN** Atlas Storage Analyzer uses a local clock
 - **AND** it does not contact a network time source
 
 #### Scenario: Filtering does not materialize a cloud placeholder
 
 - **GIVEN** a completed scan result contains a dataless cloud placeholder
 - **WHEN** a filter is evaluated against it
-- **THEN** MacStorageAtlas uses only the metadata retained from the scan
+- **THEN** Atlas Storage Analyzer uses only the metadata retained from the scan
 - **AND** it does not request that a cloud provider download the item

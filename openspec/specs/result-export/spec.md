@@ -1,6 +1,6 @@
 ## Purpose
 
-Define how MacStorageAtlas writes a completed scan result to a local
+Define how Atlas Storage Analyzer writes a completed scan result to a local
 comma-separated-values or JSON document: which items the export covers under the
 active filter, what each exported row states about an item, how byte counts
 carry the scan's measurement basis, what versioned metadata identifies the scan
@@ -13,9 +13,9 @@ partial file behind.
 
 ### Requirement: A completed scan result can be exported to a local file
 
-MacStorageAtlas SHALL allow the user to export the current scan result as a
+Atlas Storage Analyzer SHALL allow the user to export the current scan result as a
 comma-separated-values document or as a JSON document. The user MUST choose the
-destination through the system save-file interface, and MacStorageAtlas MUST NOT
+destination through the system save-file interface, and Atlas Storage Analyzer MUST NOT
 write the export anywhere other than the chosen destination. Export MUST be
 available only while a completed scan result is displayed and no scan is
 running, and it MUST NOT start a scan, revisit the filesystem, or read file
@@ -25,7 +25,7 @@ contents.
 
 - **GIVEN** a completed scan result is displayed
 - **WHEN** the user exports the result and chooses a destination
-- **THEN** MacStorageAtlas writes the export to that destination
+- **THEN** Atlas Storage Analyzer writes the export to that destination
 - **AND** it reports that the export completed and how many items it contains
 - **AND** it does not start a scan or read file contents
 
@@ -41,11 +41,11 @@ contents.
 - **WHEN** the user starts an export and dismisses the destination picker
 - **THEN** no file is written
 - **AND** the displayed result is unchanged
-- **AND** MacStorageAtlas does not report a failure
+- **AND** Atlas Storage Analyzer does not report a failure
 
 ### Requirement: Export scope follows the active filter
 
-MacStorageAtlas SHALL export the full scan result when no filter is active, and
+Atlas Storage Analyzer SHALL export the full scan result when no filter is active, and
 only the matched files when a filter is active. A full export MUST contain one
 row for every scanned file and directory, and each directory row MUST carry that
 directory's subtree totals. A filtered export MUST contain one row for each
@@ -77,11 +77,11 @@ record which of the two scopes produced it.
   matches no files
 - **WHEN** the user exports the result
 - **THEN** the export contains its scan metadata and no rows
-- **AND** MacStorageAtlas reports that the export contains no items
+- **AND** Atlas Storage Analyzer reports that the export contains no items
 
 ### Requirement: Every exported row identifies and describes one scanned item
 
-MacStorageAtlas SHALL write, for each exported item, its full path, its name,
+Atlas Storage Analyzer SHALL write, for each exported item, its full path, its name,
 its item kind, its depth below the scan root, its size fields, its shared-storage
 indicator, its file extension, its file category, and its creation,
 modification, and last-access timestamps. A timestamp that the scan could not
@@ -116,12 +116,12 @@ that do not vary with the display language.
 
 ### Requirement: Exported byte counts state the scan's measurement basis
 
-MacStorageAtlas SHALL export three byte fields per item: the size the scan's
+Atlas Storage Analyzer SHALL export three byte fields per item: the size the scan's
 measurement mode measured, the size counted against that item, and the size
 attributed to another path in the same scan. Every row MUST also state the
 measurement mode that produced its byte fields, so that a row remains
 self-describing after it is sorted, filtered, or combined with rows from another
-export. MacStorageAtlas MUST NOT export a byte value measured under any mode
+export. Atlas Storage Analyzer MUST NOT export a byte value measured under any mode
 other than the one that produced the scan.
 
 #### Scenario: Byte fields follow the completed scan's mode
@@ -150,7 +150,7 @@ other than the one that produced the scan.
 
 ### Requirement: An export carries versioned scan metadata
 
-MacStorageAtlas SHALL record, with every export, a schema version, the scan root
+Atlas Storage Analyzer SHALL record, with every export, a schema version, the scan root
 path, the time the scan completed, the scan options that produced the result,
 the measurement mode, the clone-accounting coverage, the total number of
 exported items, the total exported bytes, and the export scope. The item total
@@ -188,10 +188,10 @@ redefined, so that a consumer can tell which shape it is reading.
 
 ### Requirement: Recoverable scan errors accompany a JSON export
 
-MacStorageAtlas SHALL record every recoverable error from the scan in a JSON
+Atlas Storage Analyzer SHALL record every recoverable error from the scan in a JSON
 export, each with the path it occurred on and a description of what failed. A
 comma-separated-values export MUST NOT be presented as a complete picture of the
-scanned location when the scan had recoverable errors; MacStorageAtlas MUST
+scanned location when the scan had recoverable errors; Atlas Storage Analyzer MUST
 report the number of such errors to the user when an export completes.
 
 #### Scenario: A JSON export lists the scan's errors
@@ -204,12 +204,12 @@ report the number of such errors to the user when an export completes.
 
 - **GIVEN** a scan completed with paths it could not read
 - **WHEN** the user exports the result as comma-separated values
-- **THEN** MacStorageAtlas reports how many paths the scan could not read
+- **THEN** Atlas Storage Analyzer reports how many paths the scan could not read
 - **AND** the reported count is the number of recoverable errors from that scan
 
 ### Requirement: Export row order is deterministic
 
-MacStorageAtlas SHALL write exported rows in an order that is fully determined
+Atlas Storage Analyzer SHALL write exported rows in an order that is fully determined
 by the scan result and the export scope, so that exporting the same result twice
 produces byte-identical documents. A full export MUST place each directory
 immediately before its descendants and MUST order siblings by descending counted
@@ -231,7 +231,7 @@ Items that compare equal MUST be ordered by their path.
 
 ### Requirement: A comma-separated-values export is readable by spreadsheet applications
 
-MacStorageAtlas SHALL write a comma-separated-values export with a single header
+Atlas Storage Analyzer SHALL write a comma-separated-values export with a single header
 row naming each field, and MUST quote and escape any field containing a comma, a
 quotation mark, or a line break so that the document parses correctly.
 Non-ASCII text MUST be encoded so that spreadsheet applications display it
@@ -263,7 +263,7 @@ the application treats it as text.
 
 ### Requirement: A JSON export preserves exact values and round-trips
 
-MacStorageAtlas SHALL write every JSON export field with the exact value the
+Atlas Storage Analyzer SHALL write every JSON export field with the exact value the
 scan produced, without the text substitutions a comma-separated-values export
 applies for spreadsheet safety. A JSON export MUST be readable back into the
 same metadata and item values it was written from.
@@ -284,7 +284,7 @@ same metadata and item values it was written from.
 
 ### Requirement: Export streams, stays responsive, and is cancellable
 
-MacStorageAtlas SHALL write an export incrementally as it walks the result, and
+Atlas Storage Analyzer SHALL write an export incrementally as it walks the result, and
 MUST NOT assemble the whole document in memory before writing it. The export
 MUST run without blocking the user interface, MUST leave the displayed scan
 result unchanged, and the user MUST be able to cancel an export in progress.
@@ -302,14 +302,14 @@ result unchanged, and the user MUST be able to cancel an export in progress.
 - **GIVEN** an export is running
 - **WHEN** the user cancels it
 - **THEN** the export stops
-- **AND** MacStorageAtlas reports that the export was cancelled
+- **AND** Atlas Storage Analyzer reports that the export was cancelled
 - **AND** the displayed scan result is unchanged
 
 ### Requirement: A cancelled or failed export never leaves a file presented as complete
 
-MacStorageAtlas SHALL publish an export at the chosen destination only after the
+Atlas Storage Analyzer SHALL publish an export at the chosen destination only after the
 whole document has been written. If the export is cancelled or the write fails,
-MacStorageAtlas MUST NOT leave a partial document at the chosen destination, and
+Atlas Storage Analyzer MUST NOT leave a partial document at the chosen destination, and
 MUST report what went wrong rather than reporting success. If a file already
 exists at the chosen destination, it MUST remain untouched unless the export
 completes.
@@ -319,7 +319,7 @@ completes.
 - **GIVEN** an export is running to a destination that becomes unwritable
 - **WHEN** the write fails
 - **THEN** no partial document remains at the destination
-- **AND** MacStorageAtlas reports that the export failed and why
+- **AND** Atlas Storage Analyzer reports that the export failed and why
 - **AND** it does not report that the export completed
 
 #### Scenario: Cancellation leaves an existing file intact
@@ -331,7 +331,7 @@ completes.
 
 ### Requirement: An export stays on the user's machine
 
-MacStorageAtlas SHALL treat an export as a user-initiated copy of scan metadata
+Atlas Storage Analyzer SHALL treat an export as a user-initiated copy of scan metadata
 that the user has chosen to persist. It MUST write only to the destination the
 user chose, MUST NOT transmit the export or any part of it anywhere, and MUST
 NOT read or include the contents of any scanned file.
@@ -340,7 +340,7 @@ NOT read or include the contents of any scanned file.
 
 - **GIVEN** the user exports a scan result to a chosen destination
 - **WHEN** the export completes
-- **THEN** the only file MacStorageAtlas created or modified is that destination
+- **THEN** the only file Atlas Storage Analyzer created or modified is that destination
 - **AND** no scan data was transmitted off the machine
 
 #### Scenario: Export never reads file contents

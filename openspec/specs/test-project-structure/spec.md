@@ -1,12 +1,12 @@
 ## Purpose
 
-Define how MacStorageAtlas organizes automated tests so test projects mirror production project ownership, keep references narrow, preserve platform gating, and remain runnable through the solution.
+Define how Atlas Storage Analyzer organizes automated tests so test projects mirror production project ownership, keep references narrow, preserve platform gating, and remain runnable through the solution.
 
 ## Requirements
 
 ### Requirement: Test projects mirror production ownership
 
-MacStorageAtlas SHALL organize automated test projects so each primary production project or tool with tests has a corresponding test project. The old umbrella test project MUST be removed after its tests are migrated.
+Atlas Storage Analyzer SHALL organize automated test projects so each primary production project or tool with tests has a corresponding test project. The old umbrella test project MUST be removed after its tests are migrated.
 
 #### Scenario: Assembly-aligned test projects exist
 
@@ -23,7 +23,7 @@ MacStorageAtlas SHALL organize automated test projects so each primary productio
 
 ### Requirement: Test project references stay narrow
 
-MacStorageAtlas SHALL keep test project references limited to the production assembly under test and the lower-level assemblies needed by that test project. A test project MUST NOT retain the old umbrella reference set unless every referenced assembly is needed by tests in that project.
+Atlas Storage Analyzer SHALL keep test project references limited to the production assembly under test and the lower-level assemblies needed by that test project. A test project MUST NOT retain the old umbrella reference set unless every referenced assembly is needed by tests in that project.
 
 #### Scenario: Core tests do not reference UI or platform projects
 
@@ -45,7 +45,7 @@ MacStorageAtlas SHALL keep test project references limited to the production ass
 
 ### Requirement: Internal access is scoped to owning and fixture-consuming assemblies
 
-MacStorageAtlas SHALL grant internal visibility only to test assemblies that own tests for the granting production assembly or that require internals for lower-level domain fixture construction, plus existing non-test tooling that still requires internal access.
+Atlas Storage Analyzer SHALL grant internal visibility only to test assemblies that own tests for the granting production assembly or that require internals for lower-level domain fixture construction, plus existing non-test tooling that still requires internal access.
 
 #### Scenario: Core internal access is narrow
 
@@ -64,7 +64,7 @@ MacStorageAtlas SHALL grant internal visibility only to test assemblies that own
 
 ### Requirement: Existing test behavior is preserved
 
-MacStorageAtlas SHALL preserve existing test names, assertions, platform gates, and validation intent while moving tests into aligned projects. The restructure MUST NOT change product behavior.
+Atlas Storage Analyzer SHALL preserve existing test names, assertions, platform gates, and validation intent while moving tests into aligned projects. The restructure MUST NOT change product behavior.
 
 #### Scenario: Full solution tests still pass
 
@@ -80,7 +80,7 @@ MacStorageAtlas SHALL preserve existing test names, assertions, platform gates, 
 
 ### Requirement: Test project layout mirrors the production project layout
 
-MacStorageAtlas SHALL organize the internal folders of a test project to mirror the folder layout of the production project it tests, whenever that production project groups its source files into folders. Each test file MUST live in the folder that mirrors the production folder holding the code under test, and its namespace MUST match that mirrored folder path.
+Atlas Storage Analyzer SHALL organize the internal folders of a test project to mirror the folder layout of the production project it tests, whenever that production project groups its source files into folders. Each test file MUST live in the folder that mirrors the production folder holding the code under test, and its namespace MUST match that mirrored folder path.
 
 #### Scenario: Test folders mirror production folders
 
@@ -111,7 +111,7 @@ MacStorageAtlas SHALL organize the internal folders of a test project to mirror 
 
 ### Requirement: Solution and documentation remain accurate
 
-MacStorageAtlas SHALL keep solution membership, repository documentation, and validation guidance accurate after the test project split.
+Atlas Storage Analyzer SHALL keep solution membership, repository documentation, and validation guidance accurate after the test project split.
 
 #### Scenario: Solution includes every migrated test project
 

@@ -1,6 +1,6 @@
 ## Purpose
 
-Define how MacStorageAtlas presents public feature comparisons so claims remain
+Define how Atlas Storage Analyzer presents public feature comparisons so claims remain
 accurate, verifiable, and clearly separated from planned work.
 
 ## Requirements
@@ -33,9 +33,9 @@ The comparison SHALL distinguish logical file size, allocated file blocks, and
 hardlink/clone-aware unique physical storage instead of grouping them under one
 undifferentiated real-size label.
 
-#### Scenario: MacStorageAtlas allocated-size behavior is described
+#### Scenario: Atlas Storage Analyzer allocated-size behavior is described
 
-- **GIVEN** MacStorageAtlas measures allocated blocks for scanned files
+- **GIVEN** Atlas Storage Analyzer measures allocated blocks for scanned files
 - **AND** it does not yet deduplicate all hardlink or APFS clone storage
 - **WHEN** its storage measurement capability is compared publicly
 - **THEN** the comparison describes allocated-block measurement as implemented
@@ -44,7 +44,7 @@ undifferentiated real-size label.
 ### Requirement: Implemented and planned capabilities remain separate
 
 The public comparison MUST present only behavior available in the referenced
-MacStorageAtlas release as implemented, while roadmap behavior MUST be labeled
+Atlas Storage Analyzer release as implemented, while roadmap behavior MUST be labeled
 as planned or omitted from the implemented-feature table.
 
 #### Scenario: A roadmap feature has not shipped

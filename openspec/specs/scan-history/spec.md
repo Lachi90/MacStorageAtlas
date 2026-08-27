@@ -1,6 +1,6 @@
 ## Purpose
 
-Define how MacStorageAtlas records completed scans as local snapshots once the
+Define how Atlas Storage Analyzer records completed scans as local snapshots once the
 user opts in: what each snapshot states about every scanned item, what
 measurement basis, scan options, recoverable errors, and completeness verdict
 identify the scan it came from, how snapshots are written whole or not at all
@@ -14,8 +14,8 @@ responsive, cancellable, and private to the user's machine.
 
 ### Requirement: Scan history is off until the user turns it on
 
-MacStorageAtlas SHALL NOT record any scan to the history store until the user
-has enabled scan history. While history is disabled, MacStorageAtlas MUST NOT
+Atlas Storage Analyzer SHALL NOT record any scan to the history store until the user
+has enabled scan history. While history is disabled, Atlas Storage Analyzer MUST NOT
 create the history store, MUST NOT write any scanned path to it, and MUST
 behave exactly as it does today when a scan completes. Turning history off MUST
 stop further capture and MUST leave already stored snapshots untouched until
@@ -25,26 +25,26 @@ the user removes them.
 
 - **GIVEN** the user has not enabled scan history
 - **WHEN** a scan completes
-- **THEN** MacStorageAtlas records nothing to the history store
+- **THEN** Atlas Storage Analyzer records nothing to the history store
 - **AND** no scanned path is written outside the running application
 
 #### Scenario: Enabling history begins capture
 
 - **GIVEN** the user enables scan history
 - **WHEN** the next scan completes
-- **THEN** MacStorageAtlas records that scan as a snapshot
+- **THEN** Atlas Storage Analyzer records that scan as a snapshot
 
 #### Scenario: Disabling history stops capture and keeps stored snapshots
 
 - **GIVEN** scan history is enabled and snapshots are stored
 - **WHEN** the user disables scan history
 - **AND** a later scan completes
-- **THEN** MacStorageAtlas records no new snapshot
+- **THEN** Atlas Storage Analyzer records no new snapshot
 - **AND** the previously stored snapshots remain stored
 
 ### Requirement: A completed scan is recorded as one snapshot
 
-MacStorageAtlas SHALL record a snapshot only from a scan that ran to
+Atlas Storage Analyzer SHALL record a snapshot only from a scan that ran to
 completion. A cancelled scan and a scan that failed before completing MUST NOT
 be recorded. Capture MUST NOT revisit the filesystem, MUST NOT read the
 contents of any scanned file, and MUST NOT alter the displayed scan result. A
@@ -57,7 +57,7 @@ the scanned location.
 
 - **GIVEN** scan history is enabled
 - **WHEN** a scan completes
-- **THEN** MacStorageAtlas records one snapshot for that scan
+- **THEN** Atlas Storage Analyzer records one snapshot for that scan
 - **AND** the displayed scan result is unchanged
 - **AND** no scanned file's contents were read
 
@@ -65,20 +65,20 @@ the scanned location.
 
 - **GIVEN** scan history is enabled
 - **WHEN** the user cancels a scan before it completes
-- **THEN** MacStorageAtlas records no snapshot
+- **THEN** Atlas Storage Analyzer records no snapshot
 - **AND** the history store is unchanged
 
 #### Scenario: An active filter does not narrow the snapshot
 
 - **GIVEN** scan history is enabled
 - **AND** a filter is active when a scan completes
-- **WHEN** MacStorageAtlas records the snapshot
+- **WHEN** Atlas Storage Analyzer records the snapshot
 - **THEN** the snapshot covers every scanned file and directory
 - **AND** it does not omit items the active filter excluded
 
 ### Requirement: A snapshot describes every scanned item
 
-MacStorageAtlas SHALL record, for each item in the scan, its full path, its
+Atlas Storage Analyzer SHALL record, for each item in the scan, its full path, its
 name, its item kind, its depth below the scan root, its size fields, its
 shared-storage indicator, its file extension, its file category, and its
 creation, modification, and last-access timestamps. A timestamp the scan could
@@ -105,23 +105,23 @@ scan, so that two snapshots of the same root describe the same kinds of items.
 #### Scenario: A snapshot reads back unchanged
 
 - **GIVEN** a stored snapshot
-- **WHEN** MacStorageAtlas reads it back
+- **WHEN** Atlas Storage Analyzer reads it back
 - **THEN** every recorded item field equals the value it was written from
 - **AND** every recorded scan field equals the value it was written from
 
 ### Requirement: A snapshot states the basis on which its scan was measured
 
-MacStorageAtlas SHALL record, with every snapshot, the scan root path, the time
+Atlas Storage Analyzer SHALL record, with every snapshot, the scan root path, the time
 the scan completed, the scan options that produced the result, the measurement
 mode, the clone-accounting coverage, the number of recorded items, and the
 total counted bytes. These fields exist so that a later reader can tell whether
-two snapshots describe comparable measurements, and MacStorageAtlas MUST NOT
+two snapshots describe comparable measurements, and Atlas Storage Analyzer MUST NOT
 record a snapshot that omits any of them.
 
 #### Scenario: A snapshot identifies its scan after the fact
 
 - **GIVEN** a stored snapshot
-- **WHEN** MacStorageAtlas reads it back
+- **WHEN** Atlas Storage Analyzer reads it back
 - **THEN** the snapshot states the scan root and the scan completion time
 - **AND** it states the scan options that produced the result
 - **AND** it states the measurement mode and the clone-accounting coverage
@@ -130,13 +130,13 @@ record a snapshot that omits any of them.
 
 - **GIVEN** two snapshots of the same scan root recorded under different scan
   options
-- **WHEN** MacStorageAtlas reads both back
+- **WHEN** Atlas Storage Analyzer reads both back
 - **THEN** each snapshot states the options that produced it
 - **AND** the difference between them is discoverable without rescanning
 
 ### Requirement: A snapshot states whether its scan could see everything
 
-MacStorageAtlas SHALL record, with every snapshot, every recoverable error from
+Atlas Storage Analyzer SHALL record, with every snapshot, every recoverable error from
 the scan together with the path it occurred on, and a completeness verdict
 stating whether the scan read every location it walked. A scan that was blocked
 from reading part of the scanned location measures what the application could
@@ -163,14 +163,14 @@ absent one.
 - **GIVEN** a stored snapshot recorded from a scan that could not read part of
   the scanned location
 - **WHEN** the user views the stored history
-- **THEN** MacStorageAtlas indicates that the scan behind that snapshot was
+- **THEN** Atlas Storage Analyzer indicates that the scan behind that snapshot was
   incomplete
 
 ### Requirement: A snapshot is recorded whole or not at all
 
-MacStorageAtlas SHALL add a snapshot to the history store only after the whole
+Atlas Storage Analyzer SHALL add a snapshot to the history store only after the whole
 snapshot has been written. If capture is cancelled or the write fails,
-MacStorageAtlas MUST NOT leave a partial snapshot in the store, MUST leave the
+Atlas Storage Analyzer MUST NOT leave a partial snapshot in the store, MUST leave the
 rest of the history unchanged, and MUST report what went wrong rather than
 reporting that the scan was recorded. A failed capture MUST NOT invalidate or
 alter the displayed scan result.
@@ -180,7 +180,7 @@ alter the displayed scan result.
 - **GIVEN** scan history is enabled
 - **WHEN** capture fails part-way through writing
 - **THEN** no partial snapshot remains in the store
-- **AND** MacStorageAtlas reports that the scan was not recorded and why
+- **AND** Atlas Storage Analyzer reports that the scan was not recorded and why
 - **AND** the previously stored snapshots are unchanged
 
 #### Scenario: A failed capture leaves the result usable
@@ -192,12 +192,12 @@ alter the displayed scan result.
 
 ### Requirement: A snapshot is never truncated to fit a limit
 
-MacStorageAtlas SHALL record every item of the scan in a snapshot or record no
+Atlas Storage Analyzer SHALL record every item of the scan in a snapshot or record no
 snapshot at all. It MUST NOT omit, summarize, or roll up items in order to fit
 a size limit, because a later reader cannot distinguish an item that was never
 recorded from an item that was deleted, and reporting the first as the second
 would state a change that never happened. When a scan cannot be recorded at
-full fidelity within the retention limits, MacStorageAtlas MUST decline to
+full fidelity within the retention limits, Atlas Storage Analyzer MUST decline to
 record it and MUST tell the user why.
 
 #### Scenario: A scan too large for the retention limits is declined
@@ -205,25 +205,25 @@ record it and MUST tell the user why.
 - **GIVEN** scan history is enabled
 - **AND** a completed scan whose snapshot would exceed the configured total
   store size on its own
-- **WHEN** MacStorageAtlas attempts to record it
+- **WHEN** Atlas Storage Analyzer attempts to record it
 - **THEN** no snapshot is recorded
-- **AND** MacStorageAtlas reports that the scan was too large to record and
+- **AND** Atlas Storage Analyzer reports that the scan was too large to record and
   what limit it exceeded
 - **AND** the previously stored snapshots are unchanged
 
 #### Scenario: Every scanned item appears in the snapshot
 
 - **GIVEN** a recorded snapshot of a completed scan
-- **WHEN** MacStorageAtlas reads it back
+- **WHEN** Atlas Storage Analyzer reads it back
 - **THEN** the number of recorded items equals the number of items the scan
   found
 - **AND** no item was omitted on account of its size or depth
 
 ### Requirement: Retention bounds the history store
 
-MacStorageAtlas SHALL bound the history store by a maximum number of snapshots
+Atlas Storage Analyzer SHALL bound the history store by a maximum number of snapshots
 per scan root and by a maximum total size across the whole store. When
-recording a new snapshot would exceed either limit, MacStorageAtlas MUST remove
+recording a new snapshot would exceed either limit, Atlas Storage Analyzer MUST remove
 the oldest snapshots first until the store is within both limits, and MUST NOT
 remove a snapshot that it is not required to remove. The user MUST be able to
 change both limits, and lowering a limit MUST bring the store within it.
@@ -240,7 +240,7 @@ change both limits, and lowering a limit MUST bring the store within it.
 
 - **GIVEN** a history store at its maximum total size
 - **WHEN** a new scan is recorded
-- **THEN** MacStorageAtlas removes the oldest snapshots until the store is
+- **THEN** Atlas Storage Analyzer removes the oldest snapshots until the store is
   within its total size limit
 - **AND** it removes no more snapshots than required
 
@@ -248,23 +248,23 @@ change both limits, and lowering a limit MUST bring the store within it.
 
 - **GIVEN** a history store within its configured limits
 - **WHEN** the user lowers the maximum number of snapshots per scan root
-- **THEN** MacStorageAtlas removes the oldest snapshots until the store is
+- **THEN** Atlas Storage Analyzer removes the oldest snapshots until the store is
   within the new limit
 
 ### Requirement: The user can inspect the stored history
 
-MacStorageAtlas SHALL show the user what the history store contains, grouped by
+Atlas Storage Analyzer SHALL show the user what the history store contains, grouped by
 scan root. For each stored snapshot it MUST state when the scan completed, how
 many items it covers, how much space it occupies in the store, the measurement
 mode it was recorded under, and whether the scan behind it was complete.
-MacStorageAtlas MUST also state where the store is located on disk and how much
+Atlas Storage Analyzer MUST also state where the store is located on disk and how much
 space it occupies in total.
 
 #### Scenario: Viewing stored snapshots
 
 - **GIVEN** snapshots are stored for more than one scan root
 - **WHEN** the user views the scan history
-- **THEN** MacStorageAtlas lists the snapshots grouped by scan root
+- **THEN** Atlas Storage Analyzer lists the snapshots grouped by scan root
 - **AND** each entry states its completion time, item count, stored size, and
   measurement mode
 
@@ -272,14 +272,14 @@ space it occupies in total.
 
 - **GIVEN** scan history is enabled
 - **WHEN** the user views the scan history
-- **THEN** MacStorageAtlas states where the history store is located
+- **THEN** Atlas Storage Analyzer states where the history store is located
 - **AND** it states how much space the store occupies in total
 
 #### Scenario: The store can be opened in the file browser
 
 - **GIVEN** snapshots are stored
 - **WHEN** the user asks to see the history store on disk
-- **THEN** MacStorageAtlas reveals the store in the system file browser
+- **THEN** Atlas Storage Analyzer reveals the store in the system file browser
 - **AND** the user can remove stored snapshots there without using the
   application
 
@@ -293,11 +293,11 @@ space it occupies in total.
 
 - **GIVEN** no snapshot has been recorded
 - **WHEN** the user views the scan history
-- **THEN** MacStorageAtlas reports that no scans have been recorded
+- **THEN** Atlas Storage Analyzer reports that no scans have been recorded
 
 ### Requirement: The user can remove stored history
 
-MacStorageAtlas SHALL let the user delete an individual snapshot and clear the
+Atlas Storage Analyzer SHALL let the user delete an individual snapshot and clear the
 entire history store. Clearing history MUST remove every stored snapshot and
 MUST NOT change the user's scan options, measurement mode, saved filter
 presets, recent locations, window size, or whether scan history is enabled.
@@ -324,11 +324,11 @@ application.
 - **GIVEN** scan history is enabled and snapshots are stored
 - **WHEN** the user clears the scan history
 - **AND** a later scan completes
-- **THEN** MacStorageAtlas records that scan as a snapshot
+- **THEN** Atlas Storage Analyzer records that scan as a snapshot
 
 ### Requirement: The store survives an unreadable snapshot
 
-MacStorageAtlas SHALL keep the rest of the history usable when one stored
+Atlas Storage Analyzer SHALL keep the rest of the history usable when one stored
 snapshot cannot be read. It MUST report the unreadable snapshot to the user,
 MUST let the user remove it, and MUST NOT delete it automatically, discard the
 whole store, or fail to start on account of it.
@@ -337,7 +337,7 @@ whole store, or fail to start on account of it.
 
 - **GIVEN** several stored snapshots, one of which is corrupt
 - **WHEN** the user views the scan history
-- **THEN** MacStorageAtlas lists the readable snapshots
+- **THEN** Atlas Storage Analyzer lists the readable snapshots
 - **AND** it reports that one snapshot could not be read
 - **AND** it does not delete the unreadable snapshot on its own
 
@@ -346,53 +346,53 @@ whole store, or fail to start on account of it.
 - **GIVEN** the history store cannot be read at all
 - **WHEN** the user starts the application and runs a scan
 - **THEN** the scan runs and completes normally
-- **AND** MacStorageAtlas reports that the history store could not be read
+- **AND** Atlas Storage Analyzer reports that the history store could not be read
 
 ### Requirement: The store tolerates being changed outside the application
 
-MacStorageAtlas SHALL treat the history store as a plain directory that the
+Atlas Storage Analyzer SHALL treat the history store as a plain directory that the
 user may inspect and modify with the file browser or the shell, because
 removing stored scan data must never require the application to be running.
-Removing the store, or any snapshot within it, from outside MacStorageAtlas
+Removing the store, or any snapshot within it, from outside Atlas Storage Analyzer
 MUST NOT cause an error, MUST NOT be reported as a corrupt snapshot, and MUST
 NOT prevent a later scan from being recorded.
 
 #### Scenario: The store is removed while the application is running
 
 - **GIVEN** snapshots are stored and the user is viewing the scan history
-- **WHEN** the store is removed outside MacStorageAtlas
+- **WHEN** the store is removed outside Atlas Storage Analyzer
 - **AND** the user views the scan history again
-- **THEN** MacStorageAtlas reports that no scans have been recorded
+- **THEN** Atlas Storage Analyzer reports that no scans have been recorded
 - **AND** it does not report a failure
 
 #### Scenario: Recording resumes after the store is removed
 
-- **GIVEN** the store has been removed outside MacStorageAtlas
+- **GIVEN** the store has been removed outside Atlas Storage Analyzer
 - **AND** scan history is enabled
 - **WHEN** a scan completes
-- **THEN** MacStorageAtlas records that scan as a snapshot
+- **THEN** Atlas Storage Analyzer records that scan as a snapshot
 
 #### Scenario: A snapshot removed mid-listing is not reported as corrupt
 
 - **GIVEN** snapshots are stored
-- **WHEN** one snapshot is removed outside MacStorageAtlas while the history is
+- **WHEN** one snapshot is removed outside Atlas Storage Analyzer while the history is
   being listed
 - **THEN** that snapshot is absent from the listing
 - **AND** it is not presented as a snapshot that could not be read
 
 ### Requirement: A snapshot states its own schema version
 
-MacStorageAtlas SHALL record an explicit schema version with every snapshot and
+Atlas Storage Analyzer SHALL record an explicit schema version with every snapshot and
 MUST change that version whenever a recorded field is added, removed, or
 redefined. When it encounters a snapshot whose schema version it cannot read,
-MacStorageAtlas MUST report which version the snapshot uses and what the user
+Atlas Storage Analyzer MUST report which version the snapshot uses and what the user
 can do about it, and MUST NOT interpret the snapshot's fields as though they
 were the shape it expects.
 
 #### Scenario: A snapshot records its version
 
 - **GIVEN** a recorded snapshot
-- **WHEN** MacStorageAtlas reads it back
+- **WHEN** Atlas Storage Analyzer reads it back
 - **THEN** the snapshot states the schema version it was written under
 
 #### Scenario: An unreadable schema version is reported, not guessed
@@ -400,14 +400,14 @@ were the shape it expects.
 - **GIVEN** a stored snapshot written under a schema version this application
   cannot read
 - **WHEN** the user views the scan history
-- **THEN** MacStorageAtlas reports that the snapshot's version is not readable
+- **THEN** Atlas Storage Analyzer reports that the snapshot's version is not readable
 - **AND** it states the version the snapshot uses
 - **AND** it does not present the snapshot's contents as though they were
   readable
 
 ### Requirement: Stored scan history stays private and local
 
-MacStorageAtlas SHALL treat the history store as private user data. It MUST
+Atlas Storage Analyzer SHALL treat the history store as private user data. It MUST
 write the store only within the application's own support location, MUST NOT
 transmit any snapshot or part of one anywhere, MUST NOT record the contents of
 any scanned file, and MUST restrict the store so that other users of the same
@@ -418,7 +418,7 @@ where it stores it, and how to remove it.
 
 - **GIVEN** scan history is enabled and snapshots are recorded
 - **WHEN** scans complete
-- **THEN** the only files MacStorageAtlas created are within its own history
+- **THEN** the only files Atlas Storage Analyzer created are within its own history
   store
 - **AND** no scan data was transmitted off the machine
 
@@ -437,7 +437,7 @@ where it stores it, and how to remove it.
 
 ### Requirement: Capture keeps the application responsive
 
-MacStorageAtlas SHALL write a snapshot without blocking the user interface and
+Atlas Storage Analyzer SHALL write a snapshot without blocking the user interface and
 MUST write it incrementally rather than assembling the whole snapshot in memory
 first. The user MUST be able to keep working with the completed scan result
 while capture runs, MUST be able to cancel capture, and MUST be able to start a
@@ -447,7 +447,7 @@ than recording a snapshot of a result that is no longer displayed.
 #### Scenario: Capturing a very large result
 
 - **GIVEN** a completed scan result containing hundreds of thousands of items
-- **WHEN** MacStorageAtlas records it
+- **WHEN** Atlas Storage Analyzer records it
 - **THEN** the application remains responsive while capture runs
 - **AND** capture does not hold the whole snapshot in memory
 

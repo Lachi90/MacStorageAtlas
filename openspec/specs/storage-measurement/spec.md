@@ -1,7 +1,7 @@
 ## Purpose
 
 Define the size basis and scope of every storage number reported by
-MacStorageAtlas so users can interpret scan totals without mistaking
+Atlas Storage Analyzer so users can interpret scan totals without mistaking
 per-path or shared-aware allocated bytes for unique physical storage or volume
 capacity.
 
@@ -9,7 +9,7 @@ capacity.
 
 ### Requirement: Verified full-clone data is counted once
 
-In shared-aware allocated mode, MacStorageAtlas SHALL count a data allocation
+In shared-aware allocated mode, Atlas Storage Analyzer SHALL count a data allocation
 once across distinct included filesystem identities only when supported local
 filesystem metadata verifies that the identities are full clones of the same
 data stream. Each identity's allocation outside that verified shared data
@@ -99,7 +99,7 @@ capability or metadata coverage was mixed or degraded.
 
 ### Requirement: Storage terms have canonical meanings
 
-MacStorageAtlas SHALL use the following meanings consistently in product,
+Atlas Storage Analyzer SHALL use the following meanings consistently in product,
 developer, and user-facing documentation:
 
 - logical size is the file length visible to an application;
@@ -112,7 +112,7 @@ developer, and user-facing documentation:
 - unique allocated size is the allocation attributed once across all file
   identities and shared physical extents in a stated scope;
 - volume used space is derived from volume-capacity metadata and is not a sum of
-  a MacStorageAtlas scan;
+  a Atlas Storage Analyzer scan;
 - volume free space is capacity currently reported as unallocated;
 - volume available space is capacity currently available for allocation and can
   differ from free space because of reservations or reclaimable storage; and
@@ -460,7 +460,7 @@ placeholder solely to calculate a size or determine shared storage.
 
 Developer documentation SHALL include representative normal-file, sparse-file,
 hardlink, ordinary-copy, full-clone, and divergent-clone examples that explain
-how to compare MacStorageAtlas logical, per-path allocated, and shared-aware
+how to compare Atlas Storage Analyzer logical, per-path allocated, and shared-aware
 allocated results with macOS metadata tools. It MUST treat Finder and other
 aggregate tools as comparison points rather than authoritative proof of unique
 physical usage.

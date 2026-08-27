@@ -9,7 +9,7 @@ responsive without rescanning or changing the scan's measurement basis.
 
 ### Requirement: The folder tree presents matching results and their ancestors
 
-MacStorageAtlas SHALL display the completed scan result as a folder tree. When search text is present, the tree MUST display items whose name or path contains that text, matched case-insensitively, together with the ancestor directories needed to reach them. When search text is absent, the tree MUST display the complete scan result.
+Atlas Storage Analyzer SHALL display the completed scan result as a folder tree. When search text is present, the tree MUST display items whose name or path contains that text, matched case-insensitively, together with the ancestor directories needed to reach them. When search text is absent, the tree MUST display the complete scan result.
 
 #### Scenario: Absent search text shows the whole result
 
@@ -39,7 +39,7 @@ MacStorageAtlas SHALL display the completed scan result as a folder tree. When s
 
 ### Requirement: The displayed tree reflects the most recent search text
 
-MacStorageAtlas SHALL display the folder tree corresponding to the most recently entered search text. When search text changes while the tree is still being prepared, MacStorageAtlas MUST abandon the superseded work and MUST NOT allow it to replace a newer result.
+Atlas Storage Analyzer SHALL display the folder tree corresponding to the most recently entered search text. When search text changes while the tree is still being prepared, Atlas Storage Analyzer MUST abandon the superseded work and MUST NOT allow it to replace a newer result.
 
 #### Scenario: Rapid edits yield the latest tree
 
@@ -57,7 +57,7 @@ MacStorageAtlas SHALL display the folder tree corresponding to the most recently
 
 ### Requirement: Browsing a large result stays responsive
 
-MacStorageAtlas SHALL keep the user interface responsive while preparing and browsing the folder tree for a completed scan result, including results containing a very large number of items. Preparation of the folder tree MUST NOT block the user interface thread.
+Atlas Storage Analyzer SHALL keep the user interface responsive while preparing and browsing the folder tree for a completed scan result, including results containing a very large number of items. Preparation of the folder tree MUST NOT block the user interface thread.
 
 #### Scenario: Typing stays responsive on a large result
 
@@ -75,13 +75,13 @@ MacStorageAtlas SHALL keep the user interface responsive while preparing and bro
 
 ### Requirement: Tree preparation preserves scan results and selection behavior
 
-MacStorageAtlas SHALL prepare the folder tree without starting a scan, revisiting the filesystem, reading file contents, or changing the completed scan result. A search change MUST clear the folder-tree selection only when the selected item is no longer displayed.
+Atlas Storage Analyzer SHALL prepare the folder tree without starting a scan, revisiting the filesystem, reading file contents, or changing the completed scan result. A search change MUST clear the folder-tree selection only when the selected item is no longer displayed.
 
 #### Scenario: Preparing the tree does not touch the filesystem
 
 - **GIVEN** a completed scan result is displayed
 - **WHEN** the search text changes and the folder tree is prepared again
-- **THEN** MacStorageAtlas does not start a scan
+- **THEN** Atlas Storage Analyzer does not start a scan
 - **AND** it does not read file contents
 - **AND** the completed scan result is unchanged
 

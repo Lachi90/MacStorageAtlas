@@ -7,7 +7,7 @@ notarized public release artifacts.
 ## Requirements
 ### Requirement: Local release packaging supports both macOS architectures
 
-MacStorageAtlas SHALL provide a local release packaging workflow that can produce separate distributable DMG artifacts for Apple Silicon and Intel Macs.
+Atlas Storage Analyzer SHALL provide a local release packaging workflow that can produce separate distributable DMG artifacts for Apple Silicon and Intel Macs.
 
 #### Scenario: Build both release artifacts locally
 
@@ -21,7 +21,7 @@ MacStorageAtlas SHALL provide a local release packaging workflow that can produc
 
 ### Requirement: Unsigned packaging remains available
 
-MacStorageAtlas SHALL preserve an unsigned packaging workflow that does not require Apple Developer credentials.
+Atlas Storage Analyzer SHALL preserve an unsigned packaging workflow that does not require Apple Developer credentials.
 
 #### Scenario: Build unsigned development DMG
 
@@ -30,7 +30,7 @@ MacStorageAtlas SHALL preserve an unsigned packaging workflow that does not requ
 
 ### Requirement: Release artifacts are signed before distribution
 
-MacStorageAtlas SHALL sign all distributable release app bundles with a Developer ID Application identity, hardened runtime enabled, a secure timestamp, and the runtime entitlements required for CoreCLR startup before creating final release artifacts.
+Atlas Storage Analyzer SHALL sign all distributable release app bundles with a Developer ID Application identity, hardened runtime enabled, a secure timestamp, and the runtime entitlements required for CoreCLR startup before creating final release artifacts.
 
 #### Scenario: Signing identity is configured
 
@@ -44,7 +44,7 @@ MacStorageAtlas SHALL sign all distributable release app bundles with a Develope
 
 ### Requirement: Release artifacts are notarized and stapled
 
-MacStorageAtlas SHALL submit each signed release DMG for Apple notarization, staple the accepted notarization ticket, and validate the stapled artifact before it is treated as distributable.
+Atlas Storage Analyzer SHALL submit each signed release DMG for Apple notarization, staple the accepted notarization ticket, and validate the stapled artifact before it is treated as distributable.
 
 #### Scenario: Notarization succeeds
 
@@ -58,7 +58,7 @@ MacStorageAtlas SHALL submit each signed release DMG for Apple notarization, sta
 
 ### Requirement: Release verification is explicit
 
-MacStorageAtlas SHALL verify signed release artifacts with local macOS signing, Gatekeeper, app launch, stapling, and disk image integrity checks before publication.
+Atlas Storage Analyzer SHALL verify signed release artifacts with local macOS signing, Gatekeeper, app launch, stapling, and disk image integrity checks before publication.
 
 #### Scenario: Verification succeeds
 
@@ -72,7 +72,7 @@ MacStorageAtlas SHALL verify signed release artifacts with local macOS signing, 
 
 ### Requirement: Release checksums are generated
 
-MacStorageAtlas SHALL generate SHA-256 checksum files for each final signed and notarized DMG.
+Atlas Storage Analyzer SHALL generate SHA-256 checksum files for each final signed and notarized DMG.
 
 #### Scenario: Checksums generated after final artifact validation
 
@@ -81,7 +81,7 @@ MacStorageAtlas SHALL generate SHA-256 checksum files for each final signed and 
 
 ### Requirement: Release credentials stay local
 
-MacStorageAtlas SHALL keep signing certificates, notarization credentials, and GitHub authentication out of repository files, generated artifacts, and CI/CD configuration.
+Atlas Storage Analyzer SHALL keep signing certificates, notarization credentials, and GitHub authentication out of repository files, generated artifacts, and CI/CD configuration.
 
 #### Scenario: Local keychain credentials are used
 
@@ -95,7 +95,7 @@ MacStorageAtlas SHALL keep signing certificates, notarization credentials, and G
 
 ### Requirement: GitHub release upload remains local or manual
 
-MacStorageAtlas SHALL document GitHub Release upload as a local operator action after artifacts have been signed, notarized, stapled, verified, and checksummed.
+Atlas Storage Analyzer SHALL document GitHub Release upload as a local operator action after artifacts have been signed, notarized, stapled, verified, and checksummed.
 
 #### Scenario: Release operator uploads artifacts
 
@@ -104,7 +104,7 @@ MacStorageAtlas SHALL document GitHub Release upload as a local operator action 
 
 ### Requirement: User-facing release documentation reflects trusted artifacts
 
-MacStorageAtlas SHALL update user-facing packaging and download documentation to distinguish unsigned development builds from signed and notarized release artifacts.
+Atlas Storage Analyzer SHALL update user-facing packaging and download documentation to distinguish unsigned development builds from signed and notarized release artifacts.
 
 #### Scenario: Documentation describes release artifacts
 

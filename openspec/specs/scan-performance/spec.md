@@ -1,13 +1,13 @@
 ## Purpose
 
 Define repeatable scan benchmark behavior, large-scan resource expectations,
-and benchmark-driven optimization constraints for MacStorageAtlas.
+and benchmark-driven optimization constraints for Atlas Storage Analyzer.
 
 ## Requirements
 
 ### Requirement: Benchmarks Record Reproducible Scan Metrics
 
-MacStorageAtlas SHALL provide a developer benchmark workflow that records scan
+Atlas Storage Analyzer SHALL provide a developer benchmark workflow that records scan
 performance metrics together with enough scan, fixture, runtime, platform, and
 environment metadata to reproduce and compare results.
 
@@ -42,7 +42,7 @@ environment metadata to reproduce and compare results.
 
 ### Requirement: Fixture Generation Covers Representative Scan Shapes
 
-MacStorageAtlas SHALL provide repeatable benchmark fixtures that exercise
+Atlas Storage Analyzer SHALL provide repeatable benchmark fixtures that exercise
 ordinary files, sparse files, hardlinks, symbolic links, application packages,
 and large-entry scan shapes without depending on a user's real files.
 
@@ -75,7 +75,7 @@ and large-entry scan shapes without depending on a user's real files.
 
 ### Requirement: Large Scans Use Bounded Progress And Work Queues
 
-MacStorageAtlas SHALL keep large scans streaming and bounded so one-million
+Atlas Storage Analyzer SHALL keep large scans streaming and bounded so one-million
 entry scan scenarios do not require unbounded pending work, duplicate full scan
 trees, or excessive UI progress dispatches.
 
@@ -148,7 +148,7 @@ semantics.
 
 ### Requirement: Benchmark Results Are Documented With Caveats
 
-MacStorageAtlas SHALL document benchmark commands, representative results,
+Atlas Storage Analyzer SHALL document benchmark commands, representative results,
 measurement caveats, environment details, and the verification date so future
 developers can rerun and interpret scan-performance results.
 
@@ -164,7 +164,7 @@ developers can rerun and interpret scan-performance results.
 
 #### Scenario: Developer compares with system tools
 
-- **GIVEN** benchmark documentation compares MacStorageAtlas results with
+- **GIVEN** benchmark documentation compares Atlas Storage Analyzer results with
   Finder, `du`, or `stat`
 - **WHEN** a developer reads that comparison
 - **THEN** the documentation identifies which measurement modes are comparable

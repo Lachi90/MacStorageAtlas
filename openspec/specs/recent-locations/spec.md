@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Define how MacStorageAtlas persists and lets users manage recent scan locations.
+Define how Atlas Storage Analyzer persists and lets users manage recent scan locations.
 
 ## Requirements
 
 ### Requirement: User can remove one recent location
 
-MacStorageAtlas SHALL let the user remove an individual recent scan location without starting a scan. Removing one recent location MUST update the displayed recent-location list immediately and MUST persist the updated list across application restarts.
+Atlas Storage Analyzer SHALL let the user remove an individual recent scan location without starting a scan. Removing one recent location MUST update the displayed recent-location list immediately and MUST persist the updated list across application restarts.
 
 #### Scenario: Removing one listed location
 
@@ -20,7 +20,7 @@ MacStorageAtlas SHALL let the user remove an individual recent scan location wit
 #### Scenario: Removed location stays removed after restart
 
 - **GIVEN** multiple recent scan locations are stored in settings
-- **WHEN** the user removes one recent location and restarts MacStorageAtlas
+- **WHEN** the user removes one recent location and restarts Atlas Storage Analyzer
 - **THEN** the removed location is not displayed
 - **AND** the remaining recent locations are displayed in their persisted order
 
@@ -32,7 +32,7 @@ MacStorageAtlas SHALL let the user remove an individual recent scan location wit
 
 ### Requirement: User can clear all recent locations
 
-MacStorageAtlas SHALL let the user clear every recent scan location without deleting scan history, changing scan results, or modifying files on disk. Clearing recent locations MUST update the displayed recent-location list immediately and MUST persist the empty list across application restarts.
+Atlas Storage Analyzer SHALL let the user clear every recent scan location without deleting scan history, changing scan results, or modifying files on disk. Clearing recent locations MUST update the displayed recent-location list immediately and MUST persist the empty list across application restarts.
 
 #### Scenario: Clearing a populated list
 
@@ -43,7 +43,7 @@ MacStorageAtlas SHALL let the user clear every recent scan location without dele
 #### Scenario: Cleared locations stay cleared after restart
 
 - **GIVEN** one or more recent scan locations are stored in settings
-- **WHEN** the user clears recent locations and restarts MacStorageAtlas
+- **WHEN** the user clears recent locations and restarts Atlas Storage Analyzer
 - **THEN** no recent scan locations are displayed
 
 #### Scenario: Clearing an empty list is harmless
@@ -55,7 +55,7 @@ MacStorageAtlas SHALL let the user clear every recent scan location without dele
 
 ### Requirement: Recent-location cleanup preserves unrelated app state
 
-MacStorageAtlas MUST preserve scanner preferences, measurement mode, saved filter presets, window size, scan history settings, stored scan history, and the current scan result when the user removes or clears recent scan locations.
+Atlas Storage Analyzer MUST preserve scanner preferences, measurement mode, saved filter presets, window size, scan history settings, stored scan history, and the current scan result when the user removes or clears recent scan locations.
 
 #### Scenario: Removing one location preserves unrelated settings
 
@@ -80,25 +80,25 @@ MacStorageAtlas MUST preserve scanner preferences, measurement mode, saved filte
 
 ### Requirement: Recent-location cleanup avoids unsolicited filesystem probing
 
-MacStorageAtlas MUST NOT check whether every saved recent location exists merely because the app loads settings, displays the recent-location list, removes one recent location, or clears the recent-location list. MacStorageAtlas SHALL continue to handle a missing recent location gracefully when the user attempts to scan that location.
+Atlas Storage Analyzer MUST NOT check whether every saved recent location exists merely because the app loads settings, displays the recent-location list, removes one recent location, or clears the recent-location list. Atlas Storage Analyzer SHALL continue to handle a missing recent location gracefully when the user attempts to scan that location.
 
 #### Scenario: Startup displays stored recent locations without existence checks
 
 - **GIVEN** settings contain recent scan locations
-- **WHEN** MacStorageAtlas starts
+- **WHEN** Atlas Storage Analyzer starts
 - **THEN** the recent scan locations are displayed from settings
-- **AND** MacStorageAtlas does not remove locations solely because they are unavailable at startup
+- **AND** Atlas Storage Analyzer does not remove locations solely because they are unavailable at startup
 
 #### Scenario: Removing one location does not validate remaining locations
 
 - **GIVEN** recent scan locations are displayed
 - **WHEN** the user removes one recent location
-- **THEN** MacStorageAtlas removes only the chosen stored location
-- **AND** MacStorageAtlas does not validate the remaining locations before displaying them
+- **THEN** Atlas Storage Analyzer removes only the chosen stored location
+- **AND** Atlas Storage Analyzer does not validate the remaining locations before displaying them
 
 #### Scenario: Missing selected location is still removed
 
 - **GIVEN** a recent scan location no longer exists
 - **WHEN** the user attempts to scan that recent location
-- **THEN** MacStorageAtlas removes that location from recent locations
-- **AND** MacStorageAtlas reports that the location no longer exists
+- **THEN** Atlas Storage Analyzer removes that location from recent locations
+- **AND** Atlas Storage Analyzer reports that the location no longer exists

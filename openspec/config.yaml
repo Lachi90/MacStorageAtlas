@@ -2,7 +2,7 @@ schema: spec-driven
 
 context: |
   Artifact language: English.
-  Product: MacStorageAtlas, a privacy-focused, open-source disk usage analyzer
+  Product: Atlas Storage Analyzer, a privacy-focused, open-source disk usage analyzer
   for macOS.
   Tech stack: .NET 10, C#, Avalonia UI, CommunityToolkit.Mvvm, NUnit.
   Supported targets: macOS on Apple Silicon and Intel.
