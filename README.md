@@ -17,8 +17,9 @@ results as a sortable folder tree, a proportional treemap, file-type statistics,
 and a list of the largest files — so you can find the space hogs and reclaim
 gigabytes in seconds.
 
-Atlas Storage Analyzer stays free on GitHub and is planned as a free Mac App Store
-download for users who prefer Store installation and updates. The public
+Atlas Storage Analyzer is free on GitHub and free on the
+[Mac App Store](https://apps.apple.com/app/id6803195382), for users who
+prefer Store installation and updates. The public
 [Support](https://lachi90.github.io/MacStorageAtlas/support.html) page explains
 how to report issues, and the
 [Privacy Policy](https://lachi90.github.io/MacStorageAtlas/privacy.html)
@@ -184,7 +185,7 @@ cleanup — without a subscription or a price tag.
 | Capability | Atlas Storage Analyzer | [DaisyDisk][daisydisk] | [GrandPerspective][grandperspective] | [WinDirStat][windirstat] |
 | --- | --- | --- | --- | --- |
 | Platform | macOS (Apple Silicon + Intel) | [macOS (Apple Silicon + Intel)][daisydisk-pricing] | [macOS (Apple Silicon + Intel)][grandperspective] | [Windows][windirstat] |
-| Distribution | [Free, MIT-licensed open source](LICENSE) | [$9.99 one-time commercial license][daisydisk-pricing] | [Free GPL build; $2.99 App Store build][grandperspective] | [Free, GPLv2 open source][windirstat] |
+| Distribution | [Free, MIT-licensed open source](LICENSE); free on GitHub and the [Mac App Store](https://apps.apple.com/app/id6803195382) | [$9.99 one-time commercial license][daisydisk-pricing] | [Free GPL build; $2.99 App Store build][grandperspective] | [Free, GPLv2 open source][windirstat] |
 | Main analysis views | [Folder tree, rectangular treemap, file-type statistics](#highlights) | [Sunburst disk map and sidebar list][daisydisk-map] | [Rectangular treemap][grandperspective] | [Directory/file lists, treemap, and extension statistics][windirstat] |
 | File-size measurement | [Logical length, allocated blocks per path, or shared-aware allocated blocks](src/MacStorageAtlas.Platform.Mac/MacFileMetadataReader.cs); hardlinks and verified full-clone data count once where capability coverage permits | [Physical size; hardlinks and full APFS clones are counted once][daisydisk-hardlinks] | [Logical, physical, or file-count sizing][grandperspective-sizes]; [hardlinks counted once per view][grandperspective-hardlinks] | [Logical or physical sizing with hardlink deduplication][windirstat-source] |
 
@@ -196,7 +197,7 @@ and does not claim unique physical or reclaimable storage. The optional
 per-path mode counts every visited path. DaisyDisk documents full APFS-clone
 detection on macOS 14 Sonoma and later.
 
-Comparison last verified against the linked first-party sources: **2026-08-19**.
+Comparison last verified against the linked first-party sources: **2026-08-27**.
 Prices and capabilities can change; follow the links for current product
 details.
 
@@ -240,8 +241,9 @@ dotnet run --project src/MacStorageAtlas.App
 
 - **GitHub release:** signed and notarized DMGs remain available for free from
   GitHub Releases.
-- **Mac App Store edition:** planned as a free App Store download for users who
-  prefer Store installation and updates.
+- **Mac App Store edition:** a
+  [free App Store download](https://apps.apple.com/app/id6803195382) for users
+  who prefer Store installation and updates.
 
 ## Package
 
