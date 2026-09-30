@@ -80,7 +80,7 @@ insights, and optional direct cloud-storage scans.
 | ID | Work package | Priority | Estimate | Depends on | Target milestone |
 | --- | --- | --- | ---: | --- | --- |
 | WP-00 | Correct product and competitor documentation | P0 | <1 day | None | M0 |
-| WP-01 | Signing, notarization, and update check | P0 | 3-6 days | Apple Developer account | M0 |
+| WP-01 | Signing, notarization, and in-app updates | P0 | 6-10 days | Apple Developer account | M0 |
 | WP-02 | Hardlink/APFS correctness and scan benchmarks | P0 | 10-18 days | None | M0-M1 |
 | WP-03 | Quick Look and file metadata | P1 | 3-5 days | None | M1 |
 | WP-04 | Advanced filters and saved filter presets | P1 | 4-7 days | WP-03 | M1 |
@@ -204,13 +204,14 @@ Less than 1 day.
 
 ---
 
-## WP-01 - Local signing, notarization, and update check
+## WP-01 - Local signing, notarization, and in-app updates
 
 ### Outcome
 
 Users can install a trusted Developer ID build without bypassing Gatekeeper. The
-local signing and notarization path is implemented; CI/CD release automation and
-update checks remain separate follow-up work.
+local signing and notarization path is implemented. `add-in-app-updates` adds
+Sparkle 2.9.6 standard updates and complete Store exclusion in the same change.
+Hosted release automation remains separate work.
 
 ### Completed local release scope
 
@@ -224,11 +225,22 @@ update checks remain separate follow-up work.
    machine.
 7. Upload verified artifacts manually or with a locally authenticated GitHub CLI.
 
-### Remaining follow-up scope
+### In-app update scope
 
-1. Add a non-intrusive update check against a signed release feed or GitHub
-   Releases.
-2. Do not implement silent background installation in the first iteration.
+1. Add manual checking and opt-in scheduled checks against signed per-architecture
+   feeds, with user-approved installation and ordinary-quit completion.
+2. Protect active scans, analysis, exports, file operations, history, and settings
+   persistence from updater-triggered restart; require explicit retry after busy
+   deferral.
+3. Package and sign Sparkle only in Direct releases. Keep the existing universal
+   Store command sufficient, with no updater assets, inputs, or new entitlements.
+4. Generate authenticated local appcasts after final DMG verification; publish
+   immutable assets before feeds and perform one-time manual adoption.
+5. Finish production release acceptance before announcing availability.
+   Local ARM and Rosetta acceptance is recorded in the archived implementation;
+   keep remaining operator prerequisites and unavailable physical Intel hardware
+   visible as release gates.
+   Do not add silent downloads/installations or hosted signing.
 
 ### Architecture
 
@@ -252,7 +264,8 @@ update checks remain separate follow-up work.
 
 ### Tests and verification
 
-- Unit-test version comparison and release-feed parsing.
+- Unit-test App commands, operation gates, persistence failures, and distribution
+  selection. Keep version comparison and runtime feed parsing with Sparkle.
 - Test no-update, update-available, malformed-feed, timeout, and offline cases.
 - Perform a manual clean-machine Gatekeeper test for both arm64 and x64 builds.
 
@@ -261,12 +274,13 @@ update checks remain separate follow-up work.
 - Requires a paid Apple Developer account and secure certificate handling.
 - Avalonia/.NET self-contained packaging may contain nested components that
   require an explicit signing order.
-- CI/CD and update checks should not reuse local keychain assumptions when they
-  are designed later.
+- Hosted release automation must not inherit or export local signing credentials.
 
 ### Estimate
 
-3-6 days, excluding account setup and Apple processing time.
+6-10 days for the expanded WP-01 scope, excluding account setup, unavailable
+hardware, and Apple processing time. Native arm64 and Rosetta update evidence
+reduces integration uncertainty; production release acceptance remains pending.
 
 ---
 
@@ -1100,7 +1114,7 @@ folder-matching domain namespaces.
 | ID | Status | Owner/branch | Notes |
 | --- | --- | --- | --- |
 | WP-00 | Complete | `codex/storage-feature-roadmap` | Comparison corrected and verified 2026-07-24; OpenSpec change: `correct-market-comparison` |
-| WP-01 | Partial | `codex/storage-feature-roadmap` | Local Developer ID signing, notarization, and stapling (`sign-and-notarize-releases`) plus Mac App Store packaging complete; sandbox-compatible Trash, Finder reveal, and sandbox-aware access guidance for the App Store build (`fix-sandboxed-mac-integrations`) complete. App Review rejection of 1.0.2 resolved on 2026-08-25 by renaming the product to Atlas Storage Analyzer and removing the temporary LaunchServices entitlement exception (`resolve-app-store-rejection`). Version 1.0.3 was approved and released on the Mac App Store on 2026-08-27, and the public surfaces were updated to present the Store as an available channel (`announce-app-store-availability`). In-app update checking remains outstanding |
+| WP-01 | Partial | `codex/storage-feature-roadmap` | Local Developer ID signing, notarization, and stapling (`sign-and-notarize-releases`) plus Mac App Store packaging complete; sandbox-compatible Trash, Finder reveal, and sandbox-aware access guidance for the App Store build (`fix-sandboxed-mac-integrations`) complete. App Review rejection of 1.0.2 resolved on 2026-08-25 by renaming the product to Atlas Storage Analyzer and removing the temporary LaunchServices entitlement exception (`resolve-app-store-rejection`). Version 1.0.3 was approved and released on the Mac App Store on 2026-08-27, and the public surfaces were updated to present the Store as an available channel (`announce-app-store-availability`). In-app update implementation was archived on `codex/add-in-app-updates` on 2026-09-30 with 28/29 tasks complete and an open production release gate: Sparkle 2.9.6, standard UI, arm64/Rosetta replacement and relaunch, active-work deferral, signed-feed policies, architecture checks, and compile-time Store exclusion are implemented. Signed universal Store packaging with unchanged inputs and local sandbox GUI/menu exclusion on ARM and Rosetta are verified. Immutable-directory failure preserves the old signed app and settings/history; next-start recovery guidance and successful ARM retry passed. Physical Intel, additional x64 recovery/retry UI interrupted by a locked Mac, and final production-feed/release acceptance remain open; updater support has not been announced as live |
 | WP-02 | Complete | `codex/storage-feature-roadmap` | Measurement definitions (`define-storage-measurement`), hardlink accounting (`deduplicate-hardlinks`), capability-gated verified full-clone accounting (`investigate-apfs-clone-accounting`), and scan benchmark tooling with local baseline verification on 2026-07-29 (`benchmark-and-optimize-scans`) complete |
 | WP-03 | Complete | `codex/storage-feature-roadmap` | Metadata details (`add-file-metadata`) plus Quick Look preview, Space handling, and Command-I details shortcut (`add-quick-look`) complete |
 | WP-04 | Complete | `codex/storage-feature-roadmap` | Preparatory lazy/off-thread result tree (`virtualize-result-tree`) plus advanced filters and presets (`add-advanced-filters`). Scope changes: file-versus-folder, hidden-status, and package-membership dimensions dropped; "large downloads" preset replaced by "Large disk images and installers" because filters evaluate within the current scan root |

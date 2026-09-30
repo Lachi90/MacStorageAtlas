@@ -16,7 +16,8 @@
         Width="1060" Height="720"
         MinWidth="1060" MinHeight="680"
         Background="{DynamicResource AppBackgroundBrush}"
-        Title="{Binding ApplicationName}">
+        Title="{Binding ApplicationName}"
+        IsEnabled="{Binding IsApplicationInteractive}">
 
     <Design.DataContext>
         <vm:MainWindowViewModel/>
@@ -72,6 +73,13 @@
     </Window.Resources>
 
     <DockPanel>
+
+        <TextBlock DockPanel.Dock="Bottom"
+                   Classes="caption"
+                   Margin="16,8"
+                   TextWrapping="Wrap"
+                   IsVisible="{Binding HasUpdateStatusMessage}"
+                   Text="{Binding UpdateStatusMessage}"/>
 
         <Border DockPanel.Dock="Top"
                 Background="{DynamicResource ChromeBackgroundBrush}"

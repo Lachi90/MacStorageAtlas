@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\MacStorageAtlas.Core\MacStorageAtlas.Core.csproj" />
@@ -10,4 +10,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup Condition="'$(DistributionChannel)' != 'Direct'">
+    <Compile Remove="Updates/**/*.cs" />
+  </ItemGroup>
 </Project>

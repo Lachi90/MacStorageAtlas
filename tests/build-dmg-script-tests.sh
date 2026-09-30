@@ -37,17 +37,20 @@ assert_contains "$help_output" "./build-dmg.sh appstore [--dry-run] <arm64|x64|b
 
 unsigned_output="$("$SCRIPT" --dry-run both)"
 assert_contains "$unsigned_output" "mode=unsigned"
+assert_contains "$unsigned_output" "distribution=Development"
 assert_contains "$unsigned_output" "runtime=osx-arm64 artifact=AtlasStorageAnalyzer-osx-arm64.dmg"
 assert_contains "$unsigned_output" "runtime=osx-x64 artifact=AtlasStorageAnalyzer-osx-x64.dmg"
 
 release_output="$("$SCRIPT" release --dry-run both 1.2.3 "Developer ID Application: Example (TEAMID)" "Example-notary")"
 assert_contains "$release_output" "mode=release"
+assert_contains "$release_output" "distribution=Direct"
 assert_contains "$release_output" "version=1.2.3"
 assert_contains "$release_output" "runtime=osx-arm64 artifact=AtlasStorageAnalyzer-1.2.3-osx-arm64.dmg"
 assert_contains "$release_output" "runtime=osx-x64 artifact=AtlasStorageAnalyzer-1.2.3-osx-x64.dmg"
 
 appstore_output="$("$SCRIPT" appstore --dry-run both 1.2.3 "Apple Distribution: Example (TEAMID)" "3rd Party Mac Developer Installer: Example (TEAMID)" "/tmp/example.provisionprofile")"
 assert_contains "$appstore_output" "mode=appstore"
+assert_contains "$appstore_output" "distribution=AppStore"
 assert_contains "$appstore_output" "version=1.2.3"
 assert_contains "$appstore_output" "runtime=universal artifact=AtlasStorageAnalyzer-1.2.3-universal-appstore.pkg"
 
@@ -138,7 +141,7 @@ if grep -q "execv" "$NATIVE_HOST_SOURCE"; then
   exit 1
 fi
 
-if ! grep -q -- "-verify_arch arm64 x86_64" "$SCRIPT"; then
+if ! grep -q -- 'verify_architectures.*arm64 x86_64' "$SCRIPT"; then
   printf 'Expected App Store packaging to verify universal app architecture\n' >&2
   exit 1
 fi
@@ -203,3 +206,28 @@ if command -v clang >/dev/null 2>&1 && command -v otool >/dev/null 2>&1; then
 fi
 
 printf 'build-dmg.sh script tests passed\n'
+
+updater_fixture="$(mktemp -d "${TMPDIR:-/tmp}/macstorageatlas-updater-tests.XXXXXX")"
+trap 'rm -rf "${host_build_dir:-}" "$updater_fixture"' EXIT
+fixture_bundle="$updater_fixture/Store.app"
+mkdir -p "$fixture_bundle/Contents/MacOS" "$fixture_bundle/Contents/Helpers/Slice.app/Contents/MacOS"
+printf '<plist version="1.0"><dict><key>CFBundleVersion</key><string>1.0.0</string></dict></plist>\n' > "$fixture_bundle/Contents/Info.plist"
+cp "$fixture_bundle/Contents/Info.plist" "$fixture_bundle/Contents/Helpers/Slice.app/Contents/Info.plist"
+printf 'Store managed payload\n' > "$fixture_bundle/Contents/MacOS/MacStorageAtlas.App.dll"
+"$ROOT_DIR/packaging/verify-no-updater.sh" "$fixture_bundle"
+printf 'DirectAppUpdateService\n' > "$fixture_bundle/Contents/Helpers/Slice.app/Contents/MacOS/MacStorageAtlas.App.dll"
+leaked_managed_output="$(assert_fails "$ROOT_DIR/packaging/verify-no-updater.sh" "$fixture_bundle")"
+assert_contains "$leaked_managed_output" "Unexpected managed updater integration"
+rm "$fixture_bundle/Contents/Helpers/Slice.app/Contents/MacOS/MacStorageAtlas.App.dll"
+mkdir -p "$fixture_bundle/Contents/Frameworks/Sparkle.framework"
+leaked_framework_output="$(assert_fails "$ROOT_DIR/packaging/verify-no-updater.sh" "$fixture_bundle")"
+assert_contains "$leaked_framework_output" "Unexpected updater content"
+rmdir "$fixture_bundle/Contents/Frameworks/Sparkle.framework"
+/usr/libexec/PlistBuddy -c 'Add :SUPublicEDKey string test-key' "$fixture_bundle/Contents/Helpers/Slice.app/Contents/Info.plist"
+leaked_metadata_output="$(assert_fails "$ROOT_DIR/packaging/verify-no-updater.sh" "$fixture_bundle")"
+assert_contains "$leaked_metadata_output" "Unexpected updater metadata"
+mkdir "$updater_fixture/cache"
+printf 'invalid archive\n' > "$updater_fixture/cache/Sparkle-2.9.6.tar.xz"
+invalid_archive_output="$(assert_fails "$ROOT_DIR/packaging/prepare-sparkle.sh" "$updater_fixture/cache")"
+assert_contains "$invalid_archive_output" "Sparkle archive checksum mismatch"
+printf 'Updater packaging regression tests passed\n'

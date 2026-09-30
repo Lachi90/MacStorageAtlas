@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <DistributionChannel Condition="'$(DistributionChannel)' == ''">Development</DistributionChannel>
+    <DefineConstants Condition="'$(DistributionChannel)' == 'Direct'">$(DefineConstants);DIRECT_UPDATES</DefineConstants>
+  </PropertyGroup>
+  <Target Name="ValidateDistributionChannel" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(DistributionChannel)' != 'Development' and '$(DistributionChannel)' != 'Direct' and '$(DistributionChannel)' != 'AppStore'"
+           Text="DistributionChannel must be Development, Direct, or AppStore." />
+  </Target>
+</Project>

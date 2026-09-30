@@ -247,6 +247,17 @@ dotnet run --project src/MacStorageAtlas.App
 
 ## Package
 
+The upcoming Developer ID release adds Sparkle updates through **Check for
+Updates…** in the application menu, with optional automatic checks. Existing
+public downloads need one manual installation of the first updater-enabled
+release. This rollout is not live until that release and its signed feeds are
+published. Store updates continue through the Mac App Store.
+
+Update installation can close in-memory scan results; export them first.
+Updater-triggered restart waits for running scans, analysis, exports, and file
+operations, then requires an explicit retry. See [update troubleshooting](docs/TROUBLESHOOTING.md#software-updates)
+and [release setup](docs/PACKAGING.md#direct-update-release-setup).
+
 Run the packaging script from the repository root. It publishes a self-contained
 Release build, wraps it in a `AtlasStorageAnalyzer.app` bundle (with the `.icns` app
 icon), and creates a DMG with a drag-to-`Applications` shortcut.
@@ -339,6 +350,7 @@ tools/
 - Scan benchmark commands and representative results: [`docs/SCAN_BENCHMARKS.md`](docs/SCAN_BENCHMARKS.md)
 - OpenSpec feature workflow: [`docs/OPENSPEC_WORKFLOW.md`](docs/OPENSPEC_WORKFLOW.md)
 - macOS packaging and distribution: [`docs/PACKAGING.md`](docs/PACKAGING.md)
+- Manual update acceptance and isolated test fixtures: [`docs/UPDATE_TESTING.md`](docs/UPDATE_TESTING.md)
 
 ## License
 

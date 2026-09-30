@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -28,5 +28,8 @@
     <ProjectReference Include="..\MacStorageAtlas.Core\MacStorageAtlas.Core.csproj" />
     <ProjectReference Include="..\MacStorageAtlas.Rendering\MacStorageAtlas.Rendering.csproj" />
     <ProjectReference Include="..\MacStorageAtlas.Platform.Mac\MacStorageAtlas.Platform.Mac.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(DistributionChannel)' != 'Direct'">
+    <Compile Remove="Services/DirectAppUpdateService.cs" />
   </ItemGroup>
 </Project>

@@ -443,3 +443,116 @@ gh release upload v1.2.3 \
   AtlasStorageAnalyzer-1.2.3-osx-x64.dmg \
   AtlasStorageAnalyzer-1.2.3-osx-x64.dmg.sha256
 ```
+
+## Direct update release setup
+
+Direct releases now require Sparkle 2.9.6. It retains the app's macOS 11.0
+minimum and supports arm64 and x86_64. The pinned upstream archive SHA-256 is
+`52bf9e88cdd972fc0c81501377a880e90d47031bd8ca5462488f843e2609e192`.
+`packaging/prepare-sparkle.sh` downloads it from the official Sparkle release,
+checks that digest, verifies its signatures and architectures, and extracts it
+into ignored `packaging/.cache/sparkle/2.9.6`. The app includes the upstream
+license in Resources. Developer ID release preparation additionally requires
+Python 3 for metadata validation.
+
+Set up the separate Ed25519 signing key once on the release machine:
+
+```shell
+packaging/prepare-sparkle.sh
+packaging/.cache/sparkle/2.9.6/bin/generate_keys --account de.ltsoftware.macstorageatlas
+packaging/.cache/sparkle/2.9.6/bin/generate_keys --account de.ltsoftware.macstorageatlas -p
+```
+
+The private key remains in the operator's login keychain. Record the public key
+and store an encrypted private-key backup outside the repository. To export a
+backup to a private location, use `generate_keys --account de.ltsoftware.macstorageatlas
+-x <private-backup-path>`; restrict its permissions and transfer it only to
+operator-controlled secure storage. Recover with the corresponding `-f
+<private-backup-path>` option. Do not print private keys or add backups to source
+control. If the old signing key cannot be recovered, existing signed-feed
+clients need manual adoption of a new trusted release. Planned key rotation
+requires retaining the old key and serving a bridge release and separate new
+feed; follow [Sparkle's publishing guidance](https://sparkle-project.org/documentation/publishing/).
+
+The existing `release` arguments are unchanged. The default keychain account is
+`de.ltsoftware.macstorageatlas`; override it with `SPARKLE_KEY_ACCOUNT` when
+using a different operator-managed account. The public key is read from that
+account. An optional `SPARKLE_PUBLIC_KEY` must match it. Missing keys or a key
+mismatch fail release preparation. No key is generated implicitly.
+
+Default feeds are:
+
+- `https://lachi90.github.io/MacStorageAtlas/updates/arm64/appcast.xml`
+- `https://lachi90.github.io/MacStorageAtlas/updates/x64/appcast.xml`
+
+`SPARKLE_FEED_BASE_URL` can select another HTTPS base. Download URLs default to
+`https://github.com/Lachi90/MacStorageAtlas/releases/download/v<version>/`;
+`SPARKLE_DOWNLOAD_BASE_URL` can override that versioned prefix. Releases require
+three-part numeric stable versions. The bridge also checks that a chosen
+archive's name and architecture match the installed variant, including x64
+under Rosetta. Sparkle performs bundle-version and macOS compatibility checks.
+
+Only Direct mode embeds the bridge and framework. The build signs Downloader.xpc,
+Installer.xpc, Updater.app, Autoupdate, then Sparkle.framework before signing the
+outer app. The bridge uses relocatable library paths. Framework symlinks and
+executable permissions are preserved. Both feeds and final update archives are
+signed; `SURequireSignedFeed` and `SUVerifyUpdateBeforeExtraction` are enabled.
+Automatic checks default off, silent downloads/installations are disabled, and
+optional profiling is disabled.
+
+After the final DMG passes signing, notarization, stapling, Gatekeeper, launch,
+and checksum verification, the release command generates a verified local feed
+in ignored `update-output/arm64/appcast.xml` or `update-output/x64/appcast.xml`.
+It retains previous entries from that local feed and refuses an equal or older
+release version. Keep or restore the last published feed locally before preparing
+later releases. No upload or feed publication happens automatically.
+
+Publish in this order:
+
+1. Finish the documented smoke tests on Apple Silicon and x64 under Rosetta.
+   Record that physical Intel hardware is unavailable; Rosetta does not establish
+   acceptance on physical Intel hardware.
+2. Upload each verified DMG and its checksum to the matching `v<version>` GitHub
+   Release and verify those immutable asset URLs.
+3. Publish the generated feeds at the exact HTTPS URLs embedded in the bundles.
+   Preserve signed XML bytes; editing a signed feed invalidates its signature.
+4. Only then announce support. Existing installations need one manual download
+   of the first updater-enabled release.
+
+Withdraw a defective entry by restoring a previously signed feed without that
+entry, or removing it and re-signing with the same account using `sign_update`.
+Publish a higher fixed version; do not serve a different binary under an existing
+version or attempt automatic downgrades. Users can reinstall a known-good signed
+DMG while retaining settings/history outside the bundle.
+
+## Distribution checks
+
+The safe default is `DistributionChannel=Development`; the packaging command
+passes `Direct`, `AppStore`, or `Development` to every managed publish. Publish
+staging is fresh for each payload, so a prior Direct build cannot leak files into
+Store packaging. `packaging/verify-no-updater.sh` inspects both Store payloads,
+metadata, managed integration markers, frameworks, and native dependencies.
+
+The existing `appstore` command, certificates, provisioning profile, and
+entitlements remain sufficient. Neither Store nor unsigned builds need Sparkle,
+Python metadata tooling, update-feed inputs, or an update-signing key. No updater
+code or package cleanup is needed before an App Store submission.
+
+Run repository checks from the root:
+
+```shell
+bash tests/build-dmg-script-tests.sh
+python3 tests/update-metadata-tests.py
+python3 tests/updater-fixtures-tests.py
+bash tests/updater-bridge-tests.sh
+dotnet test MacStorageAtlas.slnx -p:DistributionChannel=Direct
+dotnet test MacStorageAtlas.slnx -p:DistributionChannel=AppStore
+openspec validate --all --strict --no-interactive
+```
+
+Runtime and release evidence, including remaining hardware and publication
+checks, is recorded in
+[`add-in-app-updates/spike-findings.md`](../openspec/changes/archive/2026-09-30-add-in-app-updates/spike-findings.md).
+
+For reproducible native UI checks, isolated signed fixtures, Rosetta coverage,
+and the final release checklist, follow [manual update acceptance](UPDATE_TESTING.md).

@@ -15,3 +15,8 @@ coverage/
 *.pkg
 /*.app/
 dmg-content/
+
+/packaging/.cache/
+/update-output/
+
+__pycache__/

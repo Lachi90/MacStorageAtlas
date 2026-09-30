@@ -29,6 +29,7 @@ SIGNING_IDENTITY=""
 INSTALLER_SIGNING_IDENTITY=""
 NOTARY_PROFILE=""
 PROVISIONING_PROFILE=""
+DISTRIBUTION_CHANNEL="Development"
 
 usage() {
   printf '%s\n' "Usage:"
@@ -157,6 +158,7 @@ print_plan() {
 
   printf 'mode=%s\n' "$MODE"
   printf 'version=%s\n' "$VERSION"
+  printf 'distribution=%s\n' "$DISTRIBUTION_CHANNEL"
 
   for runtime in "${RUNTIMES[@]}"; do
     if [ "$MODE" = "appstore" ]; then
@@ -327,6 +329,14 @@ architecture_for_runtime() {
   esac
 }
 
+verify_architectures() {
+  local binary="$1"
+  shift
+  for architecture in "$@"; do
+    lipo "$binary" -verify_arch "$architecture"
+  done
+}
+
 install_native_host() {
   local bundle_macos_dir="$1"
   local architecture="$2"
@@ -403,10 +413,11 @@ create_appstore_signing_entitlements() {
 create_app_bundle() {
   local runtime="$1"
   local app_bundle="$2"
-  local publish_dir="$PROJECT/bin/Release/$TARGET_FRAMEWORK/$runtime/publish"
+  local publish_dir="$(mktemp -d "${TMPDIR:-/tmp}/macstorageatlas-publish.XXXXXX")"
 
   printf 'Publishing app...\n'
-  dotnet publish "$PROJECT" -c Release -r "$runtime" --self-contained true
+  dotnet publish "$PROJECT" -c Release -r "$runtime" --self-contained true \
+    -p:DistributionChannel="$DISTRIBUTION_CHANNEL" -o "$publish_dir"
 
   printf 'Creating .app bundle...\n'
   mkdir -p "$app_bundle/Contents/MacOS"
@@ -423,6 +434,13 @@ create_app_bundle() {
   fi
 
   create_info_plist "$app_bundle"
+  if [ "$MODE" = "release" ]; then
+    packaging/embed-sparkle.sh "$app_bundle" "$(architecture_for_runtime "$runtime")"
+    python3 packaging/update-metadata.py bundle "$app_bundle/Contents/Info.plist" "$runtime"
+  else
+    packaging/verify-no-updater.sh "$app_bundle"
+  fi
+  rm -rf "$publish_dir"
   if [ "$MODE" = "appstore" ]; then
     cp "$PROVISIONING_PROFILE" "$app_bundle/Contents/embedded.provisionprofile"
   fi
@@ -432,17 +450,19 @@ create_app_bundle() {
 
 create_universal_app_bundle() {
   local app_bundle="$1"
-  local arm64_publish_dir="$PROJECT/bin/Release/$TARGET_FRAMEWORK/osx-arm64/publish"
-  local x64_publish_dir="$PROJECT/bin/Release/$TARGET_FRAMEWORK/osx-x64/publish"
+  local arm64_publish_dir="$(mktemp -d "${TMPDIR:-/tmp}/macstorageatlas-publish-arm64.XXXXXX")"
+  local x64_publish_dir="$(mktemp -d "${TMPDIR:-/tmp}/macstorageatlas-publish-x64.XXXXXX")"
   local slice_bundle="$app_bundle/Contents/Helpers/$X86_64_SLICE_BUNDLE_NAME"
   local arm64_host_binary
   local x86_64_host_binary
 
   printf 'Publishing arm64 app...\n'
-  dotnet publish "$PROJECT" -c Release -r osx-arm64 --self-contained true
+  dotnet publish "$PROJECT" -c Release -r osx-arm64 --self-contained true \
+    -p:DistributionChannel="$DISTRIBUTION_CHANNEL" -o "$arm64_publish_dir"
 
   printf 'Publishing x64 app...\n'
-  dotnet publish "$PROJECT" -c Release -r osx-x64 --self-contained true
+  dotnet publish "$PROJECT" -c Release -r osx-x64 --self-contained true \
+    -p:DistributionChannel="$DISTRIBUTION_CHANNEL" -o "$x64_publish_dir"
 
   printf 'Creating universal .app bundle...\n'
   mkdir -p "$app_bundle/Contents/MacOS"
@@ -451,6 +471,7 @@ create_universal_app_bundle() {
   mkdir -p "$slice_bundle/Contents/Resources"
   copy_publish_output "$arm64_publish_dir" "$app_bundle/Contents/MacOS"
   copy_publish_output "$x64_publish_dir" "$slice_bundle/Contents/MacOS"
+  rm -rf "$arm64_publish_dir" "$x64_publish_dir"
 
   printf 'Building native hosts...\n'
   rm -f "$app_bundle/Contents/MacOS/$PUBLISHED_APP_HOST_NAME"
@@ -478,8 +499,8 @@ create_universal_app_bundle() {
   cp "$PROVISIONING_PROFILE" "$app_bundle/Contents/embedded.provisionprofile"
   clear_app_bundle_extended_attributes "$app_bundle"
   normalize_app_bundle_permissions "$app_bundle"
-  lipo "$app_bundle/Contents/MacOS/$EXECUTABLE_NAME" -verify_arch arm64 x86_64
-  lipo "$slice_bundle/Contents/MacOS/$EXECUTABLE_NAME" -verify_arch x86_64
+  verify_architectures "$app_bundle/Contents/MacOS/$EXECUTABLE_NAME" arm64 x86_64
+  verify_architectures "$slice_bundle/Contents/MacOS/$EXECUTABLE_NAME" x86_64
 }
 
 sign_slice_bundle() {
@@ -509,6 +530,10 @@ sign_app_bundle() {
 
   if [ -d "$slice_bundle" ]; then
     sign_slice_bundle "$slice_bundle"
+  fi
+
+  if [ "$MODE" = "release" ]; then
+    packaging/sign-sparkle.sh "$app_bundle" "$SIGNING_IDENTITY"
   fi
 
   printf 'Signing nested app content...\n'
@@ -650,9 +675,10 @@ verify_appstore_artifact() {
   codesign --verify --deep --strict --verbose=2 "$app_bundle"
   codesign --display --entitlements :- "$app_bundle" >/dev/null
   if [ "$APPSTORE_UNIVERSAL" = "true" ]; then
-    lipo "$app_bundle/Contents/MacOS/$EXECUTABLE_NAME" -verify_arch arm64 x86_64
-    lipo "$app_bundle/Contents/Helpers/$X86_64_SLICE_BUNDLE_NAME/Contents/MacOS/$EXECUTABLE_NAME" -verify_arch x86_64
+    verify_architectures "$app_bundle/Contents/MacOS/$EXECUTABLE_NAME" arm64 x86_64
+    verify_architectures "$app_bundle/Contents/Helpers/$X86_64_SLICE_BUNDLE_NAME/Contents/MacOS/$EXECUTABLE_NAME" x86_64
   fi
+  packaging/verify-no-updater.sh "$app_bundle"
   pkgutil --check-signature "$pkg_name"
 }
 
@@ -703,6 +729,7 @@ build_one() {
     notarize_dmg "$dmg_name"
     verify_release_artifact "$app_bundle" "$dmg_name"
     write_checksum "$dmg_name"
+    packaging/generate-update-feed.sh "$dmg_name" "$runtime" "$VERSION"
     printf 'Release artifact ready: %s\n' "$dmg_name"
     printf 'Checksum ready: %s.sha256\n' "$dmg_name"
   else
@@ -711,6 +738,12 @@ build_one() {
 }
 
 parse_args "$@"
+
+case "$MODE" in
+  release) DISTRIBUTION_CHANNEL="Direct" ;;
+  appstore) DISTRIBUTION_CHANNEL="AppStore" ;;
+  unsigned) DISTRIBUTION_CHANNEL="Development" ;;
+esac
 
 if [ "$DRY_RUN" = "true" ]; then
   print_plan
@@ -726,6 +759,17 @@ require_command clang
 
 if [ "$MODE" = "release" ]; then
   check_release_prerequisites
+  require_command python3
+  require_command otool
+  packaging/prepare-sparkle.sh
+  export SPARKLE_KEY_ACCOUNT="${SPARKLE_KEY_ACCOUNT:-de.ltsoftware.macstorageatlas}"
+  SPARKLE_KEY_PUBLIC="$(packaging/.cache/sparkle/2.9.6/bin/generate_keys --account "$SPARKLE_KEY_ACCOUNT" -p)" || fail "No Sparkle signing key exists. See docs/PACKAGING.md."
+  export SPARKLE_PUBLIC_KEY="${SPARKLE_PUBLIC_KEY:-$SPARKLE_KEY_PUBLIC}"
+  [ "$SPARKLE_PUBLIC_KEY" = "$SPARKLE_KEY_PUBLIC" ] || fail "The configured public key does not match the local signing key."
+  export SPARKLE_FEED_BASE_URL="${SPARKLE_FEED_BASE_URL:-https://lachi90.github.io/MacStorageAtlas/updates}"
+  export SPARKLE_DOWNLOAD_BASE_URL="${SPARKLE_DOWNLOAD_BASE_URL:-https://github.com/Lachi90/MacStorageAtlas/releases/download/v$VERSION}"
+  export UPDATE_VERSION="$VERSION"
+  python3 packaging/update-metadata.py config
 elif [ "$MODE" = "appstore" ]; then
   check_appstore_prerequisites
 fi

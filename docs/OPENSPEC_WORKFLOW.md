@@ -129,7 +129,7 @@ in the proposal.
 | Roadmap item | Suggested OpenSpec changes, in order |
 | --- | --- |
 | WP-00 | `correct-market-comparison` |
-| WP-01 | `sign-and-notarize-releases`, `add-release-update-check` |
+| WP-01 | `sign-and-notarize-releases`, `add-in-app-updates` |
 | WP-02 | `define-storage-measurement`, `deduplicate-hardlinks`, `investigate-apfs-clone-accounting`, `benchmark-and-optimize-scans` |
 | WP-03 | `add-file-metadata`, `add-quick-look` |
 | WP-04 | `add-advanced-filters`, `add-filter-presets` |

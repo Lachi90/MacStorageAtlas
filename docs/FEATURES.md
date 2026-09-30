@@ -1503,3 +1503,13 @@ the analyzer after a completed scan, runs it off the UI thread, exposes progress
 and cancellation, clears duplicate results when the scan changes, and presents
 duplicate groups in a dedicated review tab that feeds the existing selected-item
 and cleanup-basket commands.
+
+## Direct-distribution updates
+
+The implementation under `add-in-app-updates` uses Sparkle 2.9.6 for manual and
+opt-in scheduled checks, authenticated stable releases, standard user-approved
+installation, and App operation/persistence coordination. The existing Store
+packaging path excludes the updater from both architectures and keeps updates
+managed by the Mac App Store. Deployment status and remaining acceptance are
+tracked in WP-01 of `IMPLEMENTATION_ROADMAP.md`; public support starts only after
+the first updater-enabled release and signed feeds are published.

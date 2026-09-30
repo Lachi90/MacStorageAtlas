@@ -115,23 +115,61 @@ public sealed class JsonSettingsService : ISettingsService
     }
 
     public void Save(AppSettings settings)
+        => TrySave(settings);
+
+    public bool TrySave(AppSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
+        string? temporaryPath = null;
+        var ownsTemporaryFile = false;
 
         try
         {
-            var directory = Path.GetDirectoryName(_settingsFilePath);
-            if (!string.IsNullOrEmpty(directory))
+            var destination = Path.GetFullPath(_settingsFilePath);
+            var directory = Path.GetDirectoryName(destination)!;
+            Directory.CreateDirectory(directory);
+            temporaryPath = Path.Combine(directory,
+                $".{Path.GetFileName(destination)}.{Guid.NewGuid():N}.tmp");
+            var options = new FileStreamOptions
             {
-                Directory.CreateDirectory(directory);
+                Mode = FileMode.CreateNew,
+                Access = FileAccess.Write,
+                Share = FileShare.None
+            };
+            if (!OperatingSystem.IsWindows())
+            {
+                options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
             }
 
-            var json = JsonSerializer.Serialize(settings, SerializerOptions);
-            File.WriteAllText(_settingsFilePath, json);
+            using (var stream = new FileStream(temporaryPath, options))
+            {
+                ownsTemporaryFile = true;
+                JsonSerializer.Serialize(stream, settings, SerializerOptions);
+                stream.Flush(flushToDisk: true);
+            }
+
+            File.Move(temporaryPath, destination, overwrite: true);
+            ownsTemporaryFile = false;
+            return true;
         }
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException)
         {
+            return false;
+        }
+        finally
+        {
+            if (ownsTemporaryFile && temporaryPath is not null)
+            {
+                try
+                {
+                    File.Delete(temporaryPath);
+                }
+                catch (Exception exception) when (
+                    exception is IOException or UnauthorizedAccessException)
+                {
+                }
+            }
         }
     }
 

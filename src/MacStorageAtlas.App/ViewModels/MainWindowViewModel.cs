@@ -73,6 +73,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private double? _windowHeight;
     private bool _isApplyingSettings;
     private bool _isSyncingSearchText;
+    private int _pendingScanFinalizations;
 
     public MainWindowViewModel()
         : this(
@@ -591,7 +592,7 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     private bool CanScanFolder() =>
-        !IsScanning && !string.IsNullOrWhiteSpace(SelectedFolderPath);
+        !IsUpdateRestartPending && !IsScanning && !string.IsNullOrWhiteSpace(SelectedFolderPath);
 
     private bool CanStopScan() => IsScanning;
 
@@ -669,7 +670,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public void SaveWindowSize(double width, double height)
     {
-        if (!IsUsableWindowSize(width, height))
+        if (IsUpdateRestartPending || !IsUsableWindowSize(width, height))
         {
             return;
         }
@@ -683,7 +684,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private bool CanQuickLook() => SelectedItem is not null;
 
-    private bool CanMoveToTrash() => SelectedItem is not null && !IsMovingToTrash;
+    private bool CanMoveToTrash() => SelectedItem is not null && !IsMovingToTrash && !IsUpdateRestartPending;
 
     private bool CanAddSelectedItemToCleanupBasket() =>
         SelectedItem is not null && _cleanupBasketPlanner is not null;
@@ -695,14 +696,14 @@ public partial class MainWindowViewModel : ViewModelBase
     private bool CanClearCleanupBasket() => HasCleanupBasketItems;
 
     private bool CanRunCleanupBasketOperation() =>
-        HasCleanupBasketItems && !IsRunningCleanupBasketOperation;
+        HasCleanupBasketItems && !IsRunningCleanupBasketOperation && !IsUpdateRestartPending;
 
     private bool CanCancelCleanupBasketMove() => IsRunningCleanupBasketOperation;
 
     private bool CanCopyErrorPath() => SelectedScanError is not null;
 
     private bool CanStartDuplicateAnalysis() =>
-        _scanRoot is not null && !IsScanning && !IsAnalyzingDuplicates;
+        _scanRoot is not null && !IsScanning && !IsAnalyzingDuplicates && !IsUpdateRestartPending;
 
     private bool CanCancelDuplicateAnalysis() => IsAnalyzingDuplicates;
 
@@ -718,7 +719,7 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(CanStartDuplicateAnalysis))]
     private async Task StartDuplicateAnalysisAsync()
     {
-        if (_scanRoot is not { } root || IsAnalyzingDuplicates)
+        if (_scanRoot is not { } root || IsAnalyzingDuplicates || IsUpdateRestartPending)
         {
             return;
         }
@@ -895,7 +896,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task MoveToTrashAsync()
     {
         var item = SelectedItem;
-        if (item is null || IsMovingToTrash)
+        if (item is null || IsMovingToTrash || IsUpdateRestartPending)
         {
             return;
         }
@@ -909,7 +910,8 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        if (!await _trashConfirmationService.ConfirmMoveToTrashAsync(item))
+        if (!await _trashConfirmationService.ConfirmMoveToTrashAsync(item)
+            || IsUpdateRestartPending)
         {
             return;
         }
@@ -988,7 +990,7 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(CanRunCleanupBasketOperation))]
     private async Task MoveCleanupBasketToTrashAsync()
     {
-        if (_scanRoot is null || !HasCleanupBasketItems)
+        if (_scanRoot is null || !HasCleanupBasketItems || IsUpdateRestartPending)
         {
             return;
         }
@@ -1036,13 +1038,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task RunCleanupBasketRelocationAsync(CleanupOperationKind operation)
     {
-        if (_scanRoot is null || !HasCleanupBasketItems)
+        if (_scanRoot is null || !HasCleanupBasketItems || IsUpdateRestartPending)
         {
             return;
         }
 
         var selectedPath = await _folderPickerService.SelectFolderAsync();
-        if (string.IsNullOrWhiteSpace(selectedPath))
+        if (string.IsNullOrWhiteSpace(selectedPath) || IsUpdateRestartPending)
         {
             CleanupBasketStatusMessage = "Destination selection cancelled.";
             return;
@@ -1391,6 +1393,11 @@ public partial class MainWindowViewModel : ViewModelBase
         ScanOptions options,
         bool addRecentLocation)
     {
+        if (IsUpdateRestartPending)
+        {
+            return;
+        }
+
         CancelDuplicateAnalysis();
         CancelScanHistoryCapture();
 
@@ -1464,6 +1471,10 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         finally
         {
+            if (completedProgress is not null)
+            {
+                Interlocked.Increment(ref _pendingScanFinalizations);
+            }
             _scanCancellation = null;
             cancellation.Dispose();
             await _uiDispatcher.InvokeAsync(() => IsScanning = false);
@@ -1471,7 +1482,14 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (completedProgress is { } completed)
         {
-            await StartScanHistoryCaptureAsync(completed, options).ConfigureAwait(false);
+            try
+            {
+                await StartScanHistoryCaptureAsync(completed, options).ConfigureAwait(false);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _pendingScanFinalizations);
+            }
         }
     }
 
@@ -2222,7 +2240,8 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     private bool CanExport() =>
-        !IsScanning
+        !IsUpdateRestartPending
+        && !IsScanning
         && !IsExporting
         && _scanRoot is not null
         && _resultScanOptions is not null
@@ -2241,7 +2260,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task ExportAsync(ScanExportFormat format)
     {
-        if (_scanRoot is not { } root
+        if (IsUpdateRestartPending
+            || _scanRoot is not { } root
             || _resultScanOptions is not { } options
             || ScanCompletedAt is not { } completedAt)
         {
@@ -2252,7 +2272,7 @@ public partial class MainWindowViewModel : ViewModelBase
             format,
             SuggestedExportFileName(root, format, completedAt));
 
-        if (destination is null)
+        if (destination is null || IsUpdateRestartPending)
         {
             return;
         }
@@ -2450,12 +2470,16 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void SaveSettings()
     {
-        if (_isApplyingSettings)
+        if (_isApplyingSettings || IsUpdateRestartPending)
         {
             return;
         }
 
-        _settingsService.Save(new AppSettings
+        _settingsService.Save(CaptureSettings());
+    }
+
+    private AppSettings CaptureSettings() =>
+        new AppSettings
         {
             IncludeHiddenFiles = IncludeHiddenFiles,
             FollowSymbolicLinks = FollowSymbolicLinks,
@@ -2470,8 +2494,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 .ToList(),
             WindowWidth = _windowWidth,
             WindowHeight = _windowHeight
-        });
-    }
+        };
 
     private static bool IsUsableWindowSize(double width, double height) =>
         double.IsFinite(width)

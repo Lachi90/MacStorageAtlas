@@ -107,7 +107,12 @@ read.
 
 5. EXTERNAL SERVICES USED TO DELIVER CORE FUNCTIONALITY
 
-None. Atlas Storage Analyzer performs no network requests of any kind.
+None. The Mac App Store edition performs no network requests of any kind.
+
+The direct-distribution Sparkle updater is excluded at build time from both
+architecture payloads of this Store package. Its framework, native bridge,
+configuration, menu actions, and automatic-check preference are absent. No
+updater entitlement or Store-specific adaptation is required.
 
 There are no data providers, no authentication services, no payment processors,
 and no AI services. There is no analytics, telemetry, crash reporting,

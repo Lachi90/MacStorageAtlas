@@ -7,4 +7,10 @@ public interface ISettingsService
     AppSettings Load();
 
     void Save(AppSettings settings);
+
+    bool TrySave(AppSettings settings)
+    {
+        Save(settings);
+        return true;
+    }
 }
