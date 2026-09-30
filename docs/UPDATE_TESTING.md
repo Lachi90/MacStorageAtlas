@@ -217,6 +217,10 @@ Die lokalen Testpakete sind keine notarisierten Produktions-Releases. Vor Veröf
 
 Das fehlende Intel-Gerät wird als Hardware-Lücke dokumentiert; die verfügbare x64-Abnahme erfolgt mit Rosetta. Aktuelle Ergebnisse und verbleibende Release-Voraussetzungen stehen im [OpenSpec-Nachweis](../openspec/changes/archive/2026-09-30-add-in-app-updates/spike-findings.md).
 
+## Lokaler Prüfstand vom 30. September 2026
+
+Die lokale Abnahme von Installationsverweigerung, Wiederanlauf-Hinweis, erfolgreicher Wiederholung, Signaturen und Erhalt der Test-Einstellungen/-Verläufe ist auf ARM und unter Rosetta abgeschlossen. Beide Store-Payloads wurden in der lokalen Sandbox-Variante mit Hauptfenster und Anwendungsmenü geprüft; Update-Aktionen fehlen. Die echte Release-Abnahme aus dem vorigen Abschnitt bleibt offen, ebenso Store-Vertriebstests über TestFlight/App Store. Das fehlende Intel-Gerät bleibt dokumentiert.
+
 ## Protokoll und Aufräumen
 
 Je Fall Architektur, alte/neue Version, beobachteten Dialog, Ergebnis der Versions-/Signaturprüfung und Erhalt von Einstellungen/Verlauf notieren. Die Serverausgabe enthält Pfad, Query und User-Agent der Fixture-Anfragen. Es dürfen keine Scanpfade, Ergebnisse oder Profiling-Parameter übertragen werden.
