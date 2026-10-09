@@ -247,11 +247,10 @@ dotnet run --project src/MacStorageAtlas.App
 
 ## Package
 
-The upcoming Developer ID release adds Sparkle updates through **Check for
-Updates…** in the application menu, with optional automatic checks. Existing
-public downloads need one manual installation of the first updater-enabled
-release. This rollout is not live until that release and its signed feeds are
-published. Store updates continue through the Mac App Store.
+Since 1.1.0, the Developer ID release includes Sparkle updates through **Check
+for Updates…** in the application menu, with optional automatic checks.
+Downloads older than 1.1.0 need one manual installation of 1.1.0. Store updates
+continue through the Mac App Store.
 
 Update installation can close in-memory scan results; export them first.
 Updater-triggered restart waits for running scans, analysis, exports, and file

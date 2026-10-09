@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>AtlasStorageAnalyzer</title>
+        <item>
+            <title>1.1.0</title>
+            <pubDate>Fri, 09 Oct 2026 11:12:20 +0200</pubDate>
+            <sparkle:version>1.1.0</sparkle:version>
+            <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/Lachi90/MacStorageAtlas/releases/download/v1.1.0/AtlasStorageAnalyzer-1.1.0-osx-x64.dmg" length="58334942" type="application/octet-stream" sparkle:edSignature="arfjQ4yC7NUAImHW3tf65S4HVw0AYl0pdqPzrU1RLugVTe+o8JqjJZLOek7mu48Xv1gGEMGr5J02Dqi9Qq4rBg=="/>
+        </item>
+    </channel>
+</rss><!-- sparkle-signatures:
+edSignature: haBr6Wjhvno6wAKZcu7GwApBYAvxhAqWqXh0bSqBiYdMsOTfQhq55VTzG9OcdRW9LB6zuMqB3iNKXWG1gL1nAQ==
+length: 838
+-->
