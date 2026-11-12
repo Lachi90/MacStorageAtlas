@@ -41,7 +41,7 @@ Atlas Storage Analyzer is developed by a small independent developer with one Ma
 submitted binary is a universal build for Apple Silicon (arm64) and Intel
 (x86_64).
 
-- MacBook Pro (Mac16,6), Apple M4 Max, 64 GB RAM, macOS 26.6.2 (build 25G83).
+- MacBook Pro (Mac16,6), Apple M4 Max, 64 GB RAM, macOS 27.2.1 (build 26B131).
   Full testing of the Apple Silicon slice: scanning, duplicate analysis, Quick
   Look, Reveal in Finder, and moving items to the Trash. The macOS Trash,
   Finder, and file access integrations were additionally verified while running
