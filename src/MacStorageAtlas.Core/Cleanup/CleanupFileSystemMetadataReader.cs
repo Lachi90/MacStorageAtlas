@@ -1,6 +1,10 @@
+using MacStorageAtlas.Core.Scanning;
+
 namespace MacStorageAtlas.Core.Cleanup;
 
-public sealed class CleanupFileSystemMetadataReader : ICleanupFileSystemMetadataReader
+public sealed class CleanupFileSystemMetadataReader(
+    IAllocatedFileMetadataReader? allocatedMetadataReader = null)
+    : ICleanupFileSystemMetadataReader
 {
     public bool TryReadSnapshot(string path, out CleanupFileSystemSnapshot snapshot)
     {
@@ -10,12 +14,12 @@ public sealed class CleanupFileSystemMetadataReader : ICleanupFileSystemMetadata
         {
             if (File.Exists(path))
             {
-                var fileInfo = new FileInfo(path);
+                var length = new FileInfo(path).Length;
                 snapshot = new CleanupFileSystemSnapshot(
                     path,
                     IsDirectory: false,
-                    fileInfo.Length,
-                    fileInfo.Length);
+                    length,
+                    TryReadAllocatedSize(path) ?? length);
                 return true;
             }
 
@@ -35,5 +39,22 @@ public sealed class CleanupFileSystemMetadataReader : ICleanupFileSystemMetadata
 
         snapshot = null!;
         return false;
+    }
+
+    private long? TryReadAllocatedSize(string path)
+    {
+        if (allocatedMetadataReader is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return allocatedMetadataReader.Read(path).AllocatedSizeBytes;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 }

@@ -133,6 +133,75 @@ public class CleanupPreflightValidatorTests
         });
     }
 
+    [TestCase(StorageMeasurementMode.Allocated)]
+    [TestCase(StorageMeasurementMode.SharedAwareAllocated)]
+    public void ValidateReturnsReadyForUnchangedFileMeasuredInAllocatedMode(
+        StorageMeasurementMode mode)
+    {
+        var root = Directory("scan", "/scan");
+        var file = File("file.bin", "/scan/file.bin", 4096, 4096);
+        root.AddChild(file);
+        var reader = new MetadataReader(
+            new CleanupFileSystemSnapshot(file.Path, false, 10, 4096));
+        var validator = Validator(root, reader, mode);
+
+        var result = validator.Validate(BasketItem(file));
+
+        Assert.That(result.Status.Kind, Is.EqualTo(CleanupPreflightStatusKind.Ready));
+    }
+
+    [Test]
+    public void ValidateReturnsReadyForRepeatedHardlinkWithZeroCountedSize()
+    {
+        var root = Directory("scan", "/scan");
+        var link = File("link.bin", "/scan/link.bin", 0, 4096);
+        root.AddChild(link);
+        var reader = new MetadataReader(
+            new CleanupFileSystemSnapshot(link.Path, false, 10, 4096));
+        var validator = Validator(root, reader, StorageMeasurementMode.SharedAwareAllocated);
+
+        var result = validator.Validate(BasketItem(link));
+
+        Assert.That(result.Status.Kind, Is.EqualTo(CleanupPreflightStatusKind.Ready));
+    }
+
+    [TestCase(StorageMeasurementMode.Allocated)]
+    [TestCase(StorageMeasurementMode.SharedAwareAllocated)]
+    public void ValidateBlocksFileWhoseAllocationChanged(StorageMeasurementMode mode)
+    {
+        var root = Directory("scan", "/scan");
+        var file = File("file.bin", "/scan/file.bin", 4096, 4096);
+        root.AddChild(file);
+        var reader = new MetadataReader(
+            new CleanupFileSystemSnapshot(file.Path, false, 4096, 8192));
+        var validator = Validator(root, reader, mode);
+
+        var result = validator.Validate(BasketItem(file));
+
+        Assert.That(result.Status.Kind, Is.EqualTo(CleanupPreflightStatusKind.SizeChanged));
+    }
+
+    [Test]
+    public void ValidateComparesLogicalLengthInLogicalMode()
+    {
+        var root = Directory("scan", "/scan");
+        var file = File("file.bin", "/scan/file.bin", 10, 10);
+        root.AddChild(file);
+        var reader = new MetadataReader(
+            new CleanupFileSystemSnapshot(file.Path, false, 10, 4096));
+        var validator = Validator(root, reader, StorageMeasurementMode.Logical);
+
+        var result = validator.Validate(BasketItem(file));
+
+        Assert.That(result.Status.Kind, Is.EqualTo(CleanupPreflightStatusKind.Ready));
+    }
+
+    private static CleanupPreflightValidator Validator(
+        DiskItem root,
+        ICleanupFileSystemMetadataReader reader,
+        StorageMeasurementMode mode) =>
+        new(new CleanupProtectedPathPolicy(root), reader, mode);
+
     private static CleanupPreflightValidator Validator(
         DiskItem root,
         ICleanupFileSystemMetadataReader reader) =>

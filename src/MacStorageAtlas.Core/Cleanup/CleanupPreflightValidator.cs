@@ -1,8 +1,11 @@
+using MacStorageAtlas.Core.Scanning;
+
 namespace MacStorageAtlas.Core.Cleanup;
 
 public sealed class CleanupPreflightValidator(
     CleanupProtectedPathPolicy protectedPathPolicy,
-    ICleanupFileSystemMetadataReader metadataReader)
+    ICleanupFileSystemMetadataReader metadataReader,
+    StorageMeasurementMode measurementMode = StorageMeasurementMode.Logical)
 {
     public IReadOnlyList<CleanupPreflightResult> Validate(
         IEnumerable<CleanupBasketItem> items)
@@ -50,7 +53,7 @@ public sealed class CleanupPreflightValidator(
 
         if (item.Snapshot.IsDirectory != currentSnapshot.IsDirectory
             || (!item.Snapshot.IsDirectory
-                && item.Snapshot.SizeBytes != currentSnapshot.SizeBytes))
+                && !SizeMatches(item.Snapshot, currentSnapshot)))
         {
             return new CleanupPreflightResult(
                 item,
@@ -61,4 +64,11 @@ public sealed class CleanupPreflightValidator(
 
         return new CleanupPreflightResult(item, CleanupPreflightStatus.Ready);
     }
+
+    private bool SizeMatches(
+        CleanupItemSnapshot scanSnapshot,
+        CleanupFileSystemSnapshot currentSnapshot) =>
+        measurementMode == StorageMeasurementMode.Logical
+            ? scanSnapshot.SizeBytes == currentSnapshot.SizeBytes
+            : scanSnapshot.MeasuredSizeBytes == currentSnapshot.MeasuredSizeBytes;
 }

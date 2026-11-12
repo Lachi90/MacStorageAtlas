@@ -146,7 +146,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _cleanupBasketReviewService =
             cleanupBasketReviewService ?? new NullCleanupBasketReviewService();
         _cleanupFileSystemMetadataReader =
-            cleanupFileSystemMetadataReader ?? new CleanupFileSystemMetadataReader();
+            cleanupFileSystemMetadataReader
+            ?? new CleanupFileSystemMetadataReader(new MacFileMetadataReader());
         _itemRelocationService = itemRelocationService ?? new MacItemRelocationService();
         _relocationDestinationProbe =
             relocationDestinationProbe ?? new FileSystemRelocationDestinationProbe();
@@ -1146,7 +1147,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private CleanupPreflightValidator CreateSourceValidator() =>
         new(
             _cleanupProtectedPathPolicy ?? new CleanupProtectedPathPolicy(_scanRoot!),
-            _cleanupFileSystemMetadataReader);
+            _cleanupFileSystemMetadataReader,
+            ResultMeasurementMode);
 
     private void BeginCleanupBasketOperation()
     {

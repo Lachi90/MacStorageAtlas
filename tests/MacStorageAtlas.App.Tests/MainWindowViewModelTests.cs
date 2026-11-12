@@ -1493,6 +1493,40 @@ public class MainWindowViewModelTests
     }
 
     [Test]
+    public async Task CleanupBasketTrashAcceptsAllocatedScanFilesWhoseLogicalLengthDiffers()
+    {
+        var root = BasketRoot();
+        var expectedPaths = root.Children.Select(item => item.Path).ToArray();
+        var trashService = new RecordingTrashService();
+        var currentSnapshots = root.Children
+            .Select(item => new CleanupFileSystemSnapshot(
+                item.Path,
+                IsDirectory: false,
+                SizeBytes: 10,
+                MeasuredSizeBytes: item.MeasuredSizeBytes))
+            .ToArray();
+        var viewModel = CreateReviewViewModel(
+            root,
+            trashService,
+            new FakeCleanupBasketReviewService(confirm: true),
+            new FakeCleanupMetadataReader(currentSnapshots));
+        await ScanPathAsync(viewModel, root.Path);
+        viewModel.SelectedTreeItem = viewModel.TreeItems.Single().Children[0];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+        viewModel.SelectedLargeFile = root.Children[1];
+        viewModel.AddSelectedItemToCleanupBasketCommand.Execute(null);
+
+        await viewModel.MoveCleanupBasketToTrashCommand.ExecuteAsync(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.ResultMeasurementMode, Is.EqualTo(StorageMeasurementMode.Allocated));
+            Assert.That(trashService.MovedPaths, Is.EqualTo(expectedPaths));
+            Assert.That(viewModel.CleanupBasketSucceededCount, Is.EqualTo(2));
+        });
+    }
+
+    [Test]
     public async Task CleanupBasketTrashExecutionReportsSingleFailureAndKeepsFailedItem()
     {
         var root = BasketRoot();
