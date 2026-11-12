@@ -4,12 +4,12 @@
         <title>AtlasStorageAnalyzer</title>
         <item>
             <title>1.1.1</title>
-            <pubDate>Thu, 12 Nov 2026 10:03:12 +0100</pubDate>
+            <pubDate>Thu, 12 Nov 2026 11:30:43 +0100</pubDate>
             <sparkle:version>1.1.1</sparkle:version>
             <sparkle:shortVersionString>1.1.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/Lachi90/MacStorageAtlas/releases/download/v1.1.1/AtlasStorageAnalyzer-1.1.1-osx-arm64.dmg" length="52212342" type="application/octet-stream" sparkle:edSignature="oTzo0V0w+WnhwnZij+AWL7rRe4T4oVKTsGgoexHCx5cU16D7jJwnpgvMLXFy02Uy3Z2y/utPPgN6DJUNFkKdAw=="/>
+            <enclosure url="https://github.com/Lachi90/MacStorageAtlas/releases/download/v1.1.1/AtlasStorageAnalyzer-1.1.1-osx-arm64.dmg" length="52219394" type="application/octet-stream" sparkle:edSignature="5nKm9a3MlaBxS6SZgzwYYTJOusDzG36BJE65M8DVc67/xrm92U6z4SAOGdmv6lmRq4AZU2VPyoKnkZ5yFEnSCA=="/>
         </item>
         <item>
             <title>1.1.0</title>
@@ -23,6 +23,6 @@
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: PZWjZoTgnfX/qWvv5S0i5eDaBE/WRi9YiLbNfyqQXeC84HqXkh+OGmToKiLMTcMGVSOZjUDG4ju2czvfRsekCw==
+edSignature: 1oRvIoEnG/6/cRzIrAPhQ0xHvWInFc142EY1yzfdwU+9MJkxJL8fc0Vs4Doabun3W/G6Bde5DWgio+T+kFG5Cg==
 length: 1633
 -->
