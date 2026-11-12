@@ -332,6 +332,14 @@ targets.
   reclaimable-storage claim.
 - Keep APFS interpretation in Platform.Mac and portable accounting policy in
   Core.
+- `attribute-firmlinked-storage` attributes content that a scan of `/`
+  reaches through both a firmlinked path and `/System/Volumes/Data` to the
+  firmlinked path, using the system firmlink definition verified by directory
+  identity, and discloses each omitted alternate.
+- `harden-scan-traversal` measures entries with whitespace-only or invisible
+  names, records unexpected per-entry failures as scan errors instead of
+  aborting the scan, and reports whole-scan failures without terminating the
+  app.
 
 ### Phase D: performance
 

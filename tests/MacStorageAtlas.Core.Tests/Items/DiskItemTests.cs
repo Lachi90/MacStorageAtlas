@@ -116,4 +116,29 @@ public class DiskItemTests
                 Is.EqualTo(item.SizeBytes + item.SharedSizeBytes));
         });
     }
+
+    [TestCase(" ")]
+    [TestCase("\u00A0")]
+    [TestCase("\u200B")]
+    [TestCase("\t")]
+    public void BlankAndInvisibleNamesAreAccepted(string name)
+    {
+        var item = new DiskItem(name, "/parent/" + name, isDirectory: true);
+
+        Assert.That(item.Name, Is.EqualTo(name));
+    }
+
+    [Test]
+    public void NullAndEmptyNamesAreRejected()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                () => new DiskItem(null!, "/parent/item", isDirectory: false),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => new DiskItem(string.Empty, "/parent/item", isDirectory: false),
+                Throws.ArgumentException);
+        });
+    }
 }

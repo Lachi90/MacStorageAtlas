@@ -815,6 +815,13 @@
                     <TextBlock Classes="caption"
                                Text="{Binding CloneAccountingCoverageLabel}"
                                IsVisible="{Binding ResultMeasurementMode, Converter={x:Static conv:SharedAwareMeasurementModeConverter.Instance}}"/>
+                    <TextBlock Classes="caption"
+                               Text="{Binding ScanFailureMessage}"
+                               IsVisible="{Binding ScanFailureMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock Classes="caption"
+                               Text="{Binding OmittedEquivalentPathsSummary}"
+                               ToolTip.Tip="{Binding OmittedEquivalentPathsDetails}"
+                               IsVisible="{Binding HasOmittedEquivalentPaths}"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -957,7 +964,7 @@
                                                   ItemsSource="{Binding Children}">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                                         <TextBlock Grid.Column="0"
-                                                   Text="{Binding Name}"
+                                                   Text="{Binding Name, Converter={x:Static conv:DisplayNameConverter.Instance}}"
                                                    TextTrimming="CharacterEllipsis"/>
                                         <TextBlock Grid.Column="1"
                                                    Classes="subtle"
@@ -1012,7 +1019,7 @@
                                               ColumnSpacing="16" RowSpacing="8"
                                               IsVisible="{Binding HasSelectedItem}">
                                             <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Name"/>
-                                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedItem.Name}" TextWrapping="Wrap"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedItem.Name, Converter={x:Static conv:DisplayNameConverter.Instance}}" TextWrapping="Wrap"/>
                                             <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Path"/>
                                             <TextBlock Grid.Row="1" Grid.Column="1" Classes="subtle" Text="{Binding SelectedItem.Path}" TextWrapping="Wrap"/>
                                             <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Kind"/>
@@ -1076,7 +1083,7 @@
                                             <DataTemplate x:DataType="coreItems:DiskItem">
                                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                                                     <StackPanel Grid.Column="0" Spacing="2">
-                                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding Name, Converter={x:Static conv:DisplayNameConverter.Instance}}" TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Classes="caption" Text="{Binding Path}" TextTrimming="CharacterEllipsis"/>
                                                     </StackPanel>
                                                     <TextBlock Grid.Column="1"
@@ -1147,7 +1154,7 @@
                                                                 <DataTemplate x:DataType="coreInsights:DuplicateGroupEntry">
                                                                     <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10" Margin="0,2">
                                                                         <StackPanel Grid.Column="0" Spacing="2">
-                                                                            <TextBlock Text="{Binding Item.Name}" TextTrimming="CharacterEllipsis"/>
+                                                                            <TextBlock Text="{Binding Item.Name, Converter={x:Static conv:DisplayNameConverter.Instance}}" TextTrimming="CharacterEllipsis"/>
                                                                             <TextBlock Classes="caption" Text="{Binding Item.Path}" TextTrimming="CharacterEllipsis"/>
                                                                         </StackPanel>
                                                                         <TextBlock Grid.Column="1"
@@ -1179,7 +1186,7 @@
                                                 <DataTemplate x:DataType="coreInsights:DuplicateSkippedCandidate">
                                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="0,2">
                                                         <StackPanel Grid.Column="0" Spacing="2">
-                                                            <TextBlock Text="{Binding Item.Name}" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Text="{Binding Item.Name, Converter={x:Static conv:DisplayNameConverter.Instance}}" TextTrimming="CharacterEllipsis"/>
                                                             <TextBlock Classes="caption" Text="{Binding Item.Path}" TextTrimming="CharacterEllipsis"/>
                                                         </StackPanel>
                                                         <TextBlock Grid.Column="1"

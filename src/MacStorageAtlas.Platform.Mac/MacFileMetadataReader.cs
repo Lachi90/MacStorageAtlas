@@ -164,6 +164,8 @@ internal readonly record struct MacExtendedFileMetadata(
 internal sealed class MacFileMetadataNative : IMacFileMetadataNative
 {
     private const long BlockSizeBytes = 512;
+    private const ushort FileTypeMask = 0xF000;
+    private const ushort DirectoryFileType = 0x4000;
     private const ushort AttributeBitmapCount = 5;
     private const uint CommonDeviceId = 0x00000002;
     private const uint CommonFileId = 0x02000000;
@@ -288,6 +290,26 @@ internal sealed class MacFileMetadataNative : IMacFileMetadataNative
             unchecked((uint)buffer.DeviceId),
             buffer.FileId,
             buffer.LinkCount);
+    }
+
+    public FileIdentity? TryReadDirectoryIdentity(string path)
+    {
+        var directory = new DirectoryInfo(path);
+        if (!directory.Exists || directory.LinkTarget is not null)
+        {
+            return null;
+        }
+
+        var result = RuntimeInformation.ProcessArchitecture == Architecture.X64
+            ? stat_x64(path, out var buffer)
+            : stat_arm64(path, out buffer);
+
+        if (result != 0 || (buffer.Mode & FileTypeMask) != DirectoryFileType)
+        {
+            return null;
+        }
+
+        return new FileIdentity(unchecked((uint)buffer.DeviceId), buffer.FileId);
     }
 
     internal static bool TryParseExtendedBuffer(

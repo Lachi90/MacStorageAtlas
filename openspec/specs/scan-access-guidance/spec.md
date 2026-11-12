@@ -3,7 +3,9 @@
 Define how Atlas Storage Analyzer presents incomplete-scan guidance for macOS access
 limitations, directs users to grant Full Disk Access manually, and preserves raw
 scan errors, privacy, scan semantics, and cleanup safety boundaries.
+
 ## Requirements
+
 ### Requirement: Incomplete scans surface access guidance
 
 Atlas Storage Analyzer SHALL surface user-facing access guidance when the current scan result contains permission-related inaccessible paths or when the application cannot determine whether macOS access is sufficient for the selected scan scope. The guidance MUST identify that the scan may be incomplete, MUST state the number of inaccessible paths known from the scan, and MUST NOT describe inaccessible space as purgeable, free, available, or safe to delete.
@@ -51,9 +53,7 @@ Atlas Storage Analyzer SHALL keep the normal scan error list visible and usable 
 
 ### Requirement: Full Disk Access guidance directs the user to macOS settings
 
-Atlas Storage Analyzer SHALL provide an action from the access guidance surface that opens the relevant macOS Privacy & Security settings for granting Full Disk Access when the platform can do so. If the settings action fails or macOS does not support the direct destination, Atlas Storage Analyzer MUST present manual fallback instructions. The guidance MUST state that the user grants access manually in macOS and may need to restart Atlas Storage Analyzer before rescanning.
-
-When Atlas Storage Analyzer runs inside the macOS App Sandbox, Full Disk Access does not widen the app's file access. In that case the guidance MUST explain that only locations the user selects can be scanned, MUST direct the user to select the missing location, MUST NOT offer the Full Disk Access settings action, and MUST NOT present the manual Full Disk Access navigation path.
+Atlas Storage Analyzer SHALL provide an action from the access guidance surface that opens the relevant macOS Privacy & Security settings for granting Full Disk Access when the platform can do so.
 
 #### Scenario: Settings action opens successfully
 
@@ -190,3 +190,38 @@ Atlas Storage Analyzer SHALL keep access guidance local to the user's Mac and MU
 - **THEN** Atlas Storage Analyzer uses the existing recoverable Trash workflow
 - **AND** existing confirmation behavior remains required
 
+### Requirement: Manual Full Disk Access instructions are offered when settings cannot be opened directly
+
+If the settings action fails or macOS does not support the direct destination, Atlas Storage Analyzer MUST present manual fallback instructions.
+
+#### Scenario: Only the general privacy settings open
+
+- **GIVEN** access guidance is visible on macOS
+- **AND** Atlas Storage Analyzer does not run inside the App Sandbox
+- **AND** macOS opens Privacy & Security but not the direct Full Disk Access destination
+- **WHEN** the user chooses to open Full Disk Access settings
+- **THEN** Atlas Storage Analyzer presents the manual path System Settings > Privacy & Security > Full Disk Access
+
+### Requirement: Full Disk Access guidance states that access is granted manually
+
+The Full Disk Access guidance MUST state that the user grants access manually in macOS and may need to restart Atlas Storage Analyzer before rescanning.
+
+#### Scenario: Guidance after protected locations were blocked
+
+- **GIVEN** Atlas Storage Analyzer does not run inside the App Sandbox
+- **AND** a completed scan indicates that Full Disk Access is likely missing
+- **WHEN** Atlas Storage Analyzer shows access guidance
+- **THEN** the guidance tells the user to grant Full Disk Access in macOS
+- **AND** it tells the user to restart the app if macOS asks before rescanning
+
+### Requirement: Sandboxed builds direct the user to select locations
+
+When Atlas Storage Analyzer runs inside the macOS App Sandbox, Full Disk Access does not widen the app's file access. In that case the guidance MUST explain that only locations the user selects can be scanned, MUST direct the user to select the missing location, MUST NOT offer the Full Disk Access settings action, and MUST NOT present the manual Full Disk Access navigation path.
+
+#### Scenario: Sandboxed guidance omits the manual Full Disk Access path
+
+- **GIVEN** Atlas Storage Analyzer runs inside the macOS App Sandbox
+- **AND** access guidance is visible for a completed scan with permission-related inaccessible paths
+- **WHEN** the user reads the guidance
+- **THEN** it explains that Full Disk Access does not widen what the app can read
+- **AND** no manual navigation path to Full Disk Access settings is presented

@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using MacStorageAtlas.App.Converters;
 using MacStorageAtlas.Core.Items;
 
 namespace MacStorageAtlas.App.Services;
@@ -34,7 +35,7 @@ public sealed class AvaloniaTrashConfirmationService(Window owner) : ITrashConfi
             {
                 new TextBlock
                 {
-                    Text = $"Move “{item.Name}” to Trash?",
+                    Text = $"Move “{DisplayNameConverter.Display(item.Name)}” to Trash?",
                     FontSize = 18,
                     FontWeight = Avalonia.Media.FontWeight.SemiBold,
                     TextWrapping = Avalonia.Media.TextWrapping.Wrap

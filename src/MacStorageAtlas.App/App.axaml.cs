@@ -34,7 +34,9 @@ public partial class App : Application
             var mainWindow = new MainWindow();
             mainWindow.DataContext = new MainWindowViewModel(
                 new AvaloniaFolderPickerService(mainWindow.StorageProvider),
-                new DiskScanner(new MacFileMetadataReader()),
+                new DiskScanner(
+                    new MacFileMetadataReader(),
+                    new MacFirmlinkEquivalentPathProvider()),
                 new AvaloniaUiDispatcher(),
                 new MacFileRevealService(),
                 new MacTrashService(),

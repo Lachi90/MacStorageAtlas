@@ -4,7 +4,9 @@
 
 Define the local macOS packaging flow for unsigned development builds and signed,
 notarized public release artifacts.
+
 ## Requirements
+
 ### Requirement: Local release packaging supports both macOS architectures
 
 Atlas Storage Analyzer SHALL provide a local release packaging workflow that can produce separate distributable DMG artifacts for Apple Silicon and Intel Macs.
@@ -165,15 +167,8 @@ in process. Packaging MUST NOT leave the published app host in the bundle.
 
 ### Requirement: The universal App Store package runs on both architectures
 
-Atlas Storage Analyzer SHALL produce a universal Mac App Store package whose app bundle
-starts on Apple Silicon and on Intel Macs. The bundle MUST carry a complete
-self-contained payload for each supported architecture, because the precompiled
-framework assemblies of a self-contained .NET publish cannot be shared between
-architectures. Both architectures MUST run as the same application, with the
-same bundle identifier, sandbox, and container. Each slice MUST load its payload
-in its own process; packaging MUST NOT replace the process with a nested
-executable, because that discards the LaunchServices registration the process
-received at launch and makes the slice abort inside the App Sandbox.
+Atlas Storage Analyzer SHALL produce a universal Mac App Store package whose app
+bundle starts on Apple Silicon and on Intel Macs.
 
 #### Scenario: The Apple Silicon slice starts
 
@@ -320,3 +315,44 @@ Release documentation SHALL describe local metadata generation and operator-cont
 - **WHEN** the user reads the new update guidance
 - **THEN** it explains the one-time manual installation and subsequent in-app update flow
 - **AND** it distinguishes Store-managed updates from direct-release updates
+
+### Requirement: Each architecture carries a complete self-contained payload
+
+The universal App Store app bundle MUST carry a complete self-contained payload
+for each supported architecture, because the precompiled framework assemblies of
+a self-contained .NET publish cannot be shared between architectures.
+
+#### Scenario: The bundle holds one payload per architecture
+
+- **GIVEN** the universal App Store app bundle
+- **WHEN** the release operator inspects its contents
+- **THEN** it contains a complete self-contained arm64 payload
+- **AND** it contains a separate complete self-contained x86_64 payload
+- **AND** neither slice loads framework assemblies from the other architecture's payload
+
+### Requirement: Both architectures run as the same sandboxed application
+
+Both architectures of the universal App Store package MUST run as the same
+application, with the same bundle identifier, sandbox, and container.
+
+#### Scenario: Both slices share one application identity
+
+- **GIVEN** the universal App Store app bundle
+- **WHEN** it is launched once as the arm64 slice and once as the x86_64 slice under Rosetta 2
+- **THEN** both launches run under the bundle identifier of the outer bundle
+- **AND** both use the App Sandbox and container of the outer bundle
+
+### Requirement: Each architecture slice loads its payload in its own process
+
+Each slice of the universal App Store package MUST load its payload in its own
+process; packaging MUST NOT replace the process with a nested executable,
+because that discards the LaunchServices registration the process received at
+launch and makes the slice abort inside the App Sandbox.
+
+#### Scenario: The x86_64 slice keeps its launch registration
+
+- **GIVEN** the universal App Store app bundle is launched through LaunchServices as the x86_64 slice
+- **WHEN** the slice loads the nested x64 payload
+- **THEN** the payload runs in the process that LaunchServices launched
+- **AND** the system log records no denied lookup for `com.apple.coreservices.launchservicesd`
+- **AND** the app reaches its main window

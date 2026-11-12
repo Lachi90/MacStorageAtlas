@@ -78,7 +78,9 @@ public partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel()
         : this(
             new NullFolderPickerService(),
-            new DiskScanner(new MacFileMetadataReader()),
+            new DiskScanner(
+                new MacFileMetadataReader(),
+                new MacFirmlinkEquivalentPathProvider()),
             new AvaloniaUiDispatcher(),
             new MacFileRevealService(),
             new MacTrashService(),
@@ -90,7 +92,9 @@ public partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(IFolderPickerService folderPickerService)
         : this(
             folderPickerService,
-            new DiskScanner(new MacFileMetadataReader()),
+            new DiskScanner(
+                new MacFileMetadataReader(),
+                new MacFirmlinkEquivalentPathProvider()),
             new AvaloniaUiDispatcher())
     {
     }
@@ -253,6 +257,35 @@ public partial class MainWindowViewModel : ViewModelBase
                 ResultCloneAccountingCoverage,
                 null)
         };
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasOmittedEquivalentPaths))]
+    [NotifyPropertyChangedFor(nameof(OmittedEquivalentPathsSummary))]
+    [NotifyPropertyChangedFor(nameof(OmittedEquivalentPathsDetails))]
+    private IReadOnlyList<EquivalentPath> _omittedEquivalentPaths = [];
+
+    public bool HasOmittedEquivalentPaths => OmittedEquivalentPaths.Count > 0;
+
+    public string? OmittedEquivalentPathsSummary =>
+        OmittedEquivalentPaths switch
+        {
+            [] => null,
+            [var single] => DescribeOmission(single),
+            _ => $"{OmittedEquivalentPaths.Count} Data-volume paths are shown at their firmlinked locations"
+        };
+
+    public string? OmittedEquivalentPathsDetails =>
+        OmittedEquivalentPaths.Count == 0
+            ? null
+            : string.Join(
+                Environment.NewLine,
+                OmittedEquivalentPaths.Select(DescribeOmission));
+
+    private static string DescribeOmission(EquivalentPath equivalentPath) =>
+        $"{equivalentPath.AlternatePath} is shown at {equivalentPath.VisiblePath}";
+
+    [ObservableProperty]
+    private string? _scanFailureMessage;
 
     [ObservableProperty]
     private string? _currentPath;
@@ -941,7 +974,7 @@ public partial class MainWindowViewModel : ViewModelBase
         catch (System.Exception exception)
         {
             TrashStatusMessage =
-                $"Could not move “{item.Name}” to Trash. {exception.Message}";
+                $"Could not move “{DisplayNameConverter.Display(item.Name)}” to Trash. {exception.Message}";
         }
         finally
         {
@@ -1418,6 +1451,8 @@ public partial class MainWindowViewModel : ViewModelBase
             BytesScanned = 0;
             ResultMeasurementMode = options.MeasurementMode;
             ResultCloneAccountingCoverage = CloneAccountingCoverage.Unavailable;
+            OmittedEquivalentPaths = [];
+            ScanFailureMessage = null;
             ScanErrors = [];
             ScanCompletedAt = null;
             SelectedScanError = null;
@@ -1468,6 +1503,13 @@ public partial class MainWindowViewModel : ViewModelBase
         catch (OperationCanceledException)
         {
             completedProgress = null;
+        }
+        catch (Exception exception)
+        {
+            completedProgress = null;
+            await _uiDispatcher.InvokeAsync(() =>
+                    ScanFailureMessage = $"The scan stopped unexpectedly. {exception.Message}")
+                .ConfigureAwait(false);
         }
         finally
         {
@@ -1670,6 +1712,7 @@ public partial class MainWindowViewModel : ViewModelBase
         BytesScanned = progress.BytesScanned;
         ResultMeasurementMode = progress.MeasurementMode;
         ResultCloneAccountingCoverage = progress.CloneAccountingCoverage;
+        OmittedEquivalentPaths = progress.OmittedEquivalentPaths;
         ScanErrors = progress.Errors;
 
         if (progress.IsCompleted)

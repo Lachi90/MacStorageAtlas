@@ -12,6 +12,7 @@ public sealed class DiskScanner : IDiskScanner
     private readonly Func<string, AllocatedFileMetadata> _allocatedMetadataReader;
     private readonly Func<string, FileAttributes, DiskItemKind, DiskItemMetadata>
         _itemMetadataReader;
+    private readonly Func<IReadOnlyList<EquivalentPath>> _equivalentPathReader;
 
     public DiskScanner()
         : this(Directory.EnumerateFileSystemEntries)
@@ -27,16 +28,33 @@ public sealed class DiskScanner : IDiskScanner
     {
     }
 
+    public DiskScanner(
+        IAllocatedFileMetadataReader allocatedMetadataReader,
+        IEquivalentPathProvider equivalentPathProvider)
+        : this(
+            Directory.EnumerateFileSystemEntries,
+            allocatedMetadataReader:
+                (allocatedMetadataReader
+                    ?? throw new ArgumentNullException(nameof(allocatedMetadataReader))).Read,
+            equivalentPathReader:
+                (equivalentPathProvider
+                    ?? throw new ArgumentNullException(nameof(equivalentPathProvider)))
+                .GetEquivalentPaths)
+    {
+    }
+
     internal DiskScanner(
         Func<string, IEnumerable<string>> enumerateFileSystemEntries,
         Func<string, long>? logicalSizeReader = null,
         Func<string, AllocatedFileMetadata>? allocatedMetadataReader = null,
-        Func<string, FileAttributes, DiskItemKind, DiskItemMetadata>? itemMetadataReader = null)
+        Func<string, FileAttributes, DiskItemKind, DiskItemMetadata>? itemMetadataReader = null,
+        Func<IReadOnlyList<EquivalentPath>>? equivalentPathReader = null)
     {
         _enumerateFileSystemEntries = enumerateFileSystemEntries;
         _logicalSizeReader = logicalSizeReader ?? (path => new FileInfo(path).Length);
         _allocatedMetadataReader = allocatedMetadataReader ?? MissingAllocatedMetadata;
         _itemMetadataReader = itemMetadataReader ?? ReadItemMetadata;
+        _equivalentPathReader = equivalentPathReader ?? NoEquivalentPaths;
     }
 
     public async IAsyncEnumerable<ScanProgress> ScanAsync(
@@ -66,7 +84,8 @@ public sealed class DiskScanner : IDiskScanner
 
         var state = new ScanState(
             root,
-            measurementMode);
+            measurementMode,
+            SelectOmittedAlternates(fullRootPath));
         SetRootMetadata(root);
         var visitedDirectories = options.FollowSymbolicLinks
             ? new HashSet<string>(PathComparer)
@@ -158,71 +177,29 @@ public sealed class DiskScanner : IDiskScanner
                     break;
                 }
                 var currentEntryPath = entryPath!;
-
-                FileAttributes attributes = default;
-                Exception? recoverableError = null;
-                try
+                if (state.TryOmitEquivalentAlternate(currentEntryPath))
                 {
-                    attributes = File.GetAttributes(currentEntryPath);
-                }
-                catch (Exception exception) when (IsRecoverable(exception))
-                {
-                    recoverableError = exception;
+                    continue;
                 }
 
-                if (recoverableError is not null)
+                var outcome = PrepareEntry(currentEntryPath, options, state);
+                if (outcome.Kind == EntryOutcomeKind.Skipped)
                 {
-                    state.AddError(currentEntryPath, recoverableError);
+                    continue;
+                }
+
+                if (outcome.Kind == EntryOutcomeKind.Failed)
+                {
                     yield return state.Progress(currentEntryPath);
                     continue;
                 }
 
-                if (!options.IncludeHiddenFiles && IsHidden(currentEntryPath, attributes))
+                var item = outcome.Item!;
+                if (outcome.Kind == EntryOutcomeKind.Directory)
                 {
-                    continue;
-                }
-
-                var isDirectory = (attributes & FileAttributes.Directory) != 0;
-                var isSymbolicLink = (attributes & FileAttributes.ReparsePoint) != 0;
-                if (isSymbolicLink && !options.FollowSymbolicLinks)
-                {
-                    continue;
-                }
-
-                var kind = ItemKind(currentEntryPath, attributes, isDirectory);
-                DiskItemMetadata itemMetadata = default;
-                recoverableError = null;
-                try
-                {
-                    itemMetadata = _itemMetadataReader(
-                        currentEntryPath,
-                        attributes,
-                        kind);
-                }
-                catch (Exception exception) when (IsRecoverable(exception))
-                {
-                    recoverableError = exception;
-                }
-
-                if (recoverableError is not null)
-                {
-                    state.AddError(currentEntryPath, recoverableError);
-                    yield return state.Progress(currentEntryPath);
-                    continue;
-                }
-
-                if (isDirectory)
-                {
-                    var child = new DiskItem(
-                        Path.GetFileName(currentEntryPath),
-                        currentEntryPath,
-                        isDirectory: true)
-                    {
-                        Metadata = itemMetadata
-                    };
                     if (includeChildren)
                     {
-                        directory.AddChild(child);
+                        directory.AddChild(item);
                     }
 
                     state.DirectoriesScanned++;
@@ -232,80 +209,33 @@ public sealed class DiskScanner : IDiskScanner
                         yield return directoryProgress;
                     }
 
-                    var expandPackage = options.TreatPackagesAsDirectories || !IsPackage(currentEntryPath);
                     await foreach (var progress in ScanDirectoryAsync(
-                                       child,
+                                       item,
                                        options,
                                        state,
                                        visitedDirectories,
-                                       includeChildren && expandPackage,
+                                       includeChildren && outcome.ExpandPackage,
                                        cancellationToken))
                     {
                         yield return progress;
                     }
 
-                    directory.MeasuredSizeBytes += child.MeasuredSizeBytes;
-                    directory.SizeBytes += child.SizeBytes;
-                    directory.SharedSizeBytes += child.SharedSizeBytes;
+                    directory.MeasuredSizeBytes += item.MeasuredSizeBytes;
+                    directory.SizeBytes += item.SizeBytes;
+                    directory.SharedSizeBytes += item.SharedSizeBytes;
                     continue;
                 }
 
-                long measuredSize = 0;
-                long countedSize = 0;
-                long sharedSize = 0;
-                recoverableError = null;
-                try
-                {
-                    if (options.MeasurementMode == StorageMeasurementMode.Logical)
-                    {
-                        measuredSize = _logicalSizeReader(currentEntryPath);
-                        countedSize = measuredSize;
-                    }
-                    else
-                    {
-                        var metadata = _allocatedMetadataReader(currentEntryPath);
-                        measuredSize = metadata.AllocatedSizeBytes;
-                        if (options.MeasurementMode == StorageMeasurementMode.SharedAwareAllocated)
-                        {
-                            var accounting = state.Account(metadata);
-                            countedSize = accounting.CountedSizeBytes;
-                            sharedSize = accounting.SharedSizeBytes;
-                        }
-                        else
-                        {
-                            countedSize = measuredSize;
-                        }
-                    }
-                }
-                catch (Exception exception) when (IsRecoverable(exception))
-                {
-                    recoverableError = exception;
-                }
-
-                if (recoverableError is not null)
-                {
-                    state.AddError(currentEntryPath, recoverableError);
-                    yield return state.Progress(currentEntryPath);
-                    continue;
-                }
-
-                var file = new DiskItem(Path.GetFileName(currentEntryPath), currentEntryPath, isDirectory: false)
-                {
-                    SizeBytes = countedSize,
-                    MeasuredSizeBytes = measuredSize,
-                    SharedSizeBytes = sharedSize,
-                    Metadata = itemMetadata
-                };
                 if (includeChildren)
                 {
-                    directory.AddChild(file);
+                    directory.AddChild(item);
                 }
 
-                directory.MeasuredSizeBytes += measuredSize;
-                directory.SizeBytes += countedSize;
-                directory.SharedSizeBytes += sharedSize;
+                directory.MeasuredSizeBytes += item.MeasuredSizeBytes;
+                directory.SizeBytes += item.SizeBytes;
+                directory.SharedSizeBytes += item.SharedSizeBytes;
                 state.FilesScanned++;
-                state.BytesScanned += countedSize;
+                state.BytesScanned += item.SizeBytes;
                 var fileProgress = state.TryProgress(currentEntryPath);
                 if (fileProgress is not null)
                 {
@@ -313,6 +243,101 @@ public sealed class DiskScanner : IDiskScanner
                 }
             }
         }
+    }
+
+    private EntryOutcome PrepareEntry(
+        string entryPath,
+        ScanOptions options,
+        ScanState state)
+    {
+        try
+        {
+            var attributes = File.GetAttributes(entryPath);
+            if (!options.IncludeHiddenFiles && IsHidden(entryPath, attributes))
+            {
+                return EntryOutcome.Skipped;
+            }
+
+            var isDirectory = (attributes & FileAttributes.Directory) != 0;
+            var isSymbolicLink = (attributes & FileAttributes.ReparsePoint) != 0;
+            if (isSymbolicLink && !options.FollowSymbolicLinks)
+            {
+                return EntryOutcome.Skipped;
+            }
+
+            var kind = ItemKind(entryPath, attributes, isDirectory);
+            var item = new DiskItem(ItemName(entryPath), entryPath, isDirectory)
+            {
+                Metadata = _itemMetadataReader(entryPath, attributes, kind)
+            };
+
+            if (isDirectory)
+            {
+                return new EntryOutcome(
+                    EntryOutcomeKind.Directory,
+                    item,
+                    options.TreatPackagesAsDirectories || !IsPackage(entryPath));
+            }
+
+            MeasureFile(item, options.MeasurementMode, state);
+            return new EntryOutcome(EntryOutcomeKind.File, item);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            state.AddError(entryPath, exception);
+            return EntryOutcome.Failed;
+        }
+    }
+
+    private void MeasureFile(
+        DiskItem file,
+        StorageMeasurementMode measurementMode,
+        ScanState state)
+    {
+        if (measurementMode == StorageMeasurementMode.Logical)
+        {
+            var logicalSize = _logicalSizeReader(file.Path);
+            file.MeasuredSizeBytes = logicalSize;
+            file.SizeBytes = logicalSize;
+            return;
+        }
+
+        var metadata = _allocatedMetadataReader(file.Path);
+        if (measurementMode == StorageMeasurementMode.SharedAwareAllocated)
+        {
+            var accounting = state.Account(metadata);
+            file.MeasuredSizeBytes = metadata.AllocatedSizeBytes;
+            file.SizeBytes = accounting.CountedSizeBytes;
+            file.SharedSizeBytes = accounting.SharedSizeBytes;
+            return;
+        }
+
+        file.MeasuredSizeBytes = metadata.AllocatedSizeBytes;
+        file.SizeBytes = metadata.AllocatedSizeBytes;
+    }
+
+    private static string ItemName(string path)
+    {
+        var name = Path.GetFileName(path);
+        return string.IsNullOrEmpty(name) ? path : name;
+    }
+
+    private enum EntryOutcomeKind
+    {
+        Skipped,
+        Failed,
+        Directory,
+        File
+    }
+
+    private readonly record struct EntryOutcome(
+        EntryOutcomeKind Kind,
+        DiskItem? Item = null,
+        bool ExpandPackage = false)
+    {
+        public static EntryOutcome Skipped { get; } = new(EntryOutcomeKind.Skipped);
+
+        public static EntryOutcome Failed { get; } = new(EntryOutcomeKind.Failed);
     }
 
     private IEnumerator<string>? CreateEntryEnumerator(
@@ -359,6 +384,67 @@ public sealed class DiskScanner : IDiskScanner
             return false;
         }
     }
+
+    private Dictionary<string, EquivalentPath> SelectOmittedAlternates(string rootPath)
+    {
+        var omittedAlternates = new Dictionary<string, EquivalentPath>(PathComparer);
+        IReadOnlyList<EquivalentPath> equivalentPaths;
+        try
+        {
+            equivalentPaths = _equivalentPathReader();
+        }
+        catch (Exception exception) when (IsRecoverable(exception))
+        {
+            return omittedAlternates;
+        }
+
+        var normalizedRoot = NormalizePath(rootPath);
+        foreach (var equivalentPath in equivalentPaths)
+        {
+            if (string.IsNullOrWhiteSpace(equivalentPath.VisiblePath)
+                || string.IsNullOrWhiteSpace(equivalentPath.AlternatePath)
+                || !Path.IsPathFullyQualified(equivalentPath.VisiblePath)
+                || !Path.IsPathFullyQualified(equivalentPath.AlternatePath))
+            {
+                continue;
+            }
+
+            var visiblePath = NormalizePath(equivalentPath.VisiblePath);
+            var alternatePath = NormalizePath(equivalentPath.AlternatePath);
+            if (PathComparer.Equals(alternatePath, normalizedRoot)
+                || !IsWithin(alternatePath, normalizedRoot)
+                || !IsWithin(visiblePath, normalizedRoot)
+                || IsWithin(visiblePath, alternatePath)
+                || IsWithin(alternatePath, visiblePath))
+            {
+                continue;
+            }
+
+            omittedAlternates.TryAdd(
+                alternatePath,
+                new EquivalentPath(visiblePath, alternatePath));
+        }
+
+        return omittedAlternates;
+    }
+
+    private static string NormalizePath(string path) =>
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+
+    private static bool IsWithin(string path, string ancestorPath)
+    {
+        if (PathComparer.Equals(path, ancestorPath))
+        {
+            return true;
+        }
+
+        var prefix = Path.EndsInDirectorySeparator(ancestorPath)
+            ? ancestorPath
+            : ancestorPath + Path.DirectorySeparatorChar;
+        return path.StartsWith(prefix, PathComparison);
+    }
+
+    private static IReadOnlyList<EquivalentPath> NoEquivalentPaths() => [];
 
     private static string GetDirectoryIdentity(string path)
     {
@@ -446,6 +532,11 @@ public sealed class DiskScanner : IDiskScanner
         throw new IOException(
             $"Allocated metadata is unavailable for '{path}' on this scanner.");
 
+    private static StringComparison PathComparison =>
+        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
     private static StringComparer PathComparer =>
         OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
             ? StringComparer.OrdinalIgnoreCase
@@ -453,7 +544,8 @@ public sealed class DiskScanner : IDiskScanner
 
     private sealed class ScanState(
         DiskItem root,
-        StorageMeasurementMode measurementMode)
+        StorageMeasurementMode measurementMode,
+        IReadOnlyDictionary<string, EquivalentPath> omittedAlternates)
     {
         private static readonly TimeSpan MinimumProgressInterval = TimeSpan.FromMilliseconds(150);
         private const long MaximumEntriesBetweenProgress = 4_096;
@@ -469,6 +561,8 @@ public sealed class DiskScanner : IDiskScanner
                     ? []
                     : null;
         private IReadOnlyList<ScanError> _errorSnapshot = [];
+        private readonly List<EquivalentPath> _omittedEquivalentPaths = [];
+        private IReadOnlyList<EquivalentPath> _omittedEquivalentPathSnapshot = [];
         private long _entriesSinceLastProgress;
         private long _lastProgressTimestamp = Stopwatch.GetTimestamp();
         private bool _errorsChanged;
@@ -564,6 +658,25 @@ public sealed class DiskScanner : IDiskScanner
                 dataAllocatedSize.Value);
         }
 
+        public bool TryOmitEquivalentAlternate(string path)
+        {
+            if (omittedAlternates.Count == 0
+                || !omittedAlternates.TryGetValue(
+                    Path.TrimEndingDirectorySeparator(path),
+                    out var equivalentPath))
+            {
+                return false;
+            }
+
+            if (!_omittedEquivalentPaths.Contains(equivalentPath))
+            {
+                _omittedEquivalentPaths.Add(equivalentPath);
+                _omittedEquivalentPathSnapshot = _omittedEquivalentPaths.ToArray();
+            }
+
+            return true;
+        }
+
         public void AddError(string path, Exception exception)
         {
             _errors.Add(new ScanError(path, exception.Message, exception.GetType().Name));
@@ -611,7 +724,10 @@ public sealed class DiskScanner : IDiskScanner
                 _errorSnapshot,
                 isCompleted,
                 measurementMode,
-                _cloneAccountingCoverage);
+                _cloneAccountingCoverage)
+            {
+                OmittedEquivalentPaths = _omittedEquivalentPathSnapshot
+            };
         }
 
         private void AccumulateCoverage(CloneAccountingCoverage coverage)

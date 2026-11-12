@@ -8,7 +8,7 @@ public sealed class DiskItem
 
     public DiskItem(string name, string path, bool isDirectory)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         Name = name;

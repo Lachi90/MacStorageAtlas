@@ -1228,6 +1228,9 @@ not counted at full size.
 - Scanner respects `ScanOptions.MeasurementMode`.
 - User can select all three behaviors in scan options.
 - Divergent APFS clone extents remain counted separately.
+- A scan that includes both a firmlinked path, such as `/Users`, and its
+  verified `/System/Volumes/Data` alternate counts that content once at the
+  firmlinked path and discloses the omitted alternate.
 
 ## Affected Projects
 

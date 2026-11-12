@@ -86,7 +86,7 @@ The updater SHALL select only stable releases newer than the installed bundle ve
 
 ### Requirement: Installation follows the standard user-approved update flow
 
-The updater SHALL use the standard flow for in-app download and installation. Initial postponement MUST leave the installed bundle unchanged. Choosing installation SHALL authorize preparing the update, which can complete on ordinary user-requested quit. Prepared-installation actions MUST distinguish immediate restart from installation on quit. Automatic checks alone MUST NOT authorize downloading, replacing the bundle, or restarting. Before an updater-triggered restart the app SHALL explain that current in-memory scan results will close.
+The updater SHALL use the standard flow for in-app download and installation. Initial postponement MUST leave the installed bundle unchanged. Choosing installation SHALL authorize preparing the update, which can complete on ordinary user-requested quit. Prepared-installation actions MUST distinguish immediate restart from installation on quit.
 
 #### Scenario: The user approves installation while idle
 
@@ -222,3 +222,32 @@ Update requests and updater logs MUST NOT include scanned names, paths, contents
 - **WHEN** the user reads the privacy policy
 - **THEN** it identifies the update host and ordinary connection metadata exposure
 - **AND** it states that scan data remains local
+
+### Requirement: Automatic update checks do not authorize installation
+
+Automatic checks alone MUST NOT authorize downloading, replacing the bundle, or restarting.
+
+#### Scenario: A scheduled check finds a compatible update
+
+- **GIVEN** a direct installation with automatic checking enabled
+- **AND** a newer compatible stable release is available
+- **WHEN** a scheduled check finds that release
+- **THEN** no download, bundle replacement, or restart occurs before the user approves installation
+- **AND** the installed bundle remains unchanged
+
+### Requirement: An update restart is announced as closing the current scan
+
+Before an updater-triggered restart the app SHALL explain that current in-memory scan results will close.
+
+#### Scenario: An update is presented while a scan result is open
+
+- **GIVEN** a completed scan result is displayed
+- **WHEN** the updater presents an available update
+- **THEN** the app explains that installing the update closes the current scan
+- **AND** it states that settings and saved scan history remain available
+
+#### Scenario: A deferred restart repeats the explanation
+
+- **GIVEN** an updater-triggered restart was deferred because an operation was active
+- **WHEN** the app tells the user how to finish installing the update
+- **THEN** it explains that restarting closes in-memory scan results

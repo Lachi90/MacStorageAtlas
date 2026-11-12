@@ -45,14 +45,10 @@ contents.
 
 ### Requirement: Export scope follows the active filter
 
-Atlas Storage Analyzer SHALL export the full scan result when no filter is active, and
-only the matched files when a filter is active. A full export MUST contain one
-row for every scanned file and directory, and each directory row MUST carry that
-directory's subtree totals. A filtered export MUST contain one row for each
-matched file and MUST NOT contain directory rows, because a directory's subtree
-total is not the total of the matched rows beneath it and reporting both under
-one field would state totals that its own rows contradict. Every export MUST
-record which of the two scopes produced it.
+Atlas Storage Analyzer SHALL export the full scan result when no filter is
+active, and only the matched files when a filter is active. A full export MUST
+contain one row for every scanned file and directory, and each directory row
+MUST carry that directory's subtree totals.
 
 #### Scenario: Exporting with no filter active
 
@@ -81,13 +77,12 @@ record which of the two scopes produced it.
 
 ### Requirement: Every exported row identifies and describes one scanned item
 
-Atlas Storage Analyzer SHALL write, for each exported item, its full path, its name,
-its item kind, its depth below the scan root, its size fields, its shared-storage
-indicator, its file extension, its file category, and its creation,
-modification, and last-access timestamps. A timestamp that the scan could not
-determine MUST be written as an empty value and MUST NOT be written as a
-substitute instant. Item kind and file category MUST be written as stable tokens
-that do not vary with the display language.
+Atlas Storage Analyzer SHALL write, for each exported item, its full path, its
+name, its item kind, its depth below the scan root, its size fields, its
+shared-storage indicator, its file extension, its file category, and its
+creation, modification, and last-access timestamps. A timestamp that the scan
+could not determine MUST be written as an empty value and MUST NOT be written as
+a substitute instant.
 
 #### Scenario: A file row carries its metadata
 
@@ -116,13 +111,12 @@ that do not vary with the display language.
 
 ### Requirement: Exported byte counts state the scan's measurement basis
 
-Atlas Storage Analyzer SHALL export three byte fields per item: the size the scan's
-measurement mode measured, the size counted against that item, and the size
-attributed to another path in the same scan. Every row MUST also state the
+Atlas Storage Analyzer SHALL export three byte fields per item: the size the
+scan's measurement mode measured, the size counted against that item, and the
+size attributed to another path in the same scan. Every row MUST also state the
 measurement mode that produced its byte fields, so that a row remains
 self-describing after it is sorted, filtered, or combined with rows from another
-export. Atlas Storage Analyzer MUST NOT export a byte value measured under any mode
-other than the one that produced the scan.
+export.
 
 #### Scenario: Byte fields follow the completed scan's mode
 
@@ -150,15 +144,11 @@ other than the one that produced the scan.
 
 ### Requirement: An export carries versioned scan metadata
 
-Atlas Storage Analyzer SHALL record, with every export, a schema version, the scan root
-path, the time the scan completed, the scan options that produced the result,
-the measurement mode, the clone-accounting coverage, the total number of
+Atlas Storage Analyzer SHALL record, with every export, a schema version, the
+scan root path, the time the scan completed, the scan options that produced the
+result, the measurement mode, the clone-accounting coverage, the total number of
 exported items, the total exported bytes, and the export scope. The item total
-MUST count every exported row. The byte total MUST sum the counted size of the
-exported file rows only, because a directory row reports the total of its own
-subtree and adding it to its descendants would count each file once per
-ancestor. The schema version MUST change whenever a field is added, removed, or
-redefined, so that a consumer can tell which shape it is reading.
+MUST count every exported row.
 
 #### Scenario: Metadata identifies the scan after the fact
 
@@ -231,13 +221,11 @@ Items that compare equal MUST be ordered by their path.
 
 ### Requirement: A comma-separated-values export is readable by spreadsheet applications
 
-Atlas Storage Analyzer SHALL write a comma-separated-values export with a single header
-row naming each field, and MUST quote and escape any field containing a comma, a
-quotation mark, or a line break so that the document parses correctly.
+Atlas Storage Analyzer SHALL write a comma-separated-values export with a single
+header row naming each field, and MUST quote and escape any field containing a
+comma, a quotation mark, or a line break so that the document parses correctly.
 Non-ASCII text MUST be encoded so that spreadsheet applications display it
-correctly. A text field whose value begins with a character that a spreadsheet
-application would interpret as the start of a formula MUST be written so that
-the application treats it as text.
+correctly.
 
 #### Scenario: A path containing separator characters is escaped
 
@@ -349,3 +337,117 @@ NOT read or include the contents of any scanned file.
 - **WHEN** the result is exported
 - **THEN** the export contains only paths, sizes, and filesystem metadata
 - **AND** no scanned file's contents were read
+
+### Requirement: A filtered export contains only matched file rows
+
+A filtered export MUST contain one row for each matched file and MUST NOT
+contain directory rows, because a directory's subtree total is not the total of
+the matched rows beneath it and reporting both under one field would state
+totals that its own rows contradict.
+
+#### Scenario: A matched file's directory is not exported
+
+- **GIVEN** a completed scan result is displayed with an active filter
+- **AND** a matched file lies inside a directory below the scan root
+- **WHEN** the user exports the result
+- **THEN** the export contains a row for the matched file
+- **AND** it contains no row for that directory or for any other directory
+
+### Requirement: An export records the scope that produced it
+
+Every export MUST record which of the two scopes, the full result or the
+filtered result, produced it.
+
+#### Scenario: A JSON export states its scope
+
+- **GIVEN** one JSON export written with no active filter
+- **AND** another JSON export written with an active filter
+- **WHEN** a consumer reads both exports back
+- **THEN** the first states that its scope is the full result and records no
+  filter
+- **AND** the second states that its scope is the filtered result
+
+### Requirement: Exported kind and category tokens do not depend on the display language
+
+Item kind and file category MUST be written as stable tokens that do not vary
+with the display language.
+
+#### Scenario: Kind and category are written as tokens rather than labels
+
+- **GIVEN** a scanned application bundle and a scanned video file
+- **WHEN** the result is exported
+- **THEN** the bundle's kind field holds the stable token for application
+  bundles rather than a label shown in the user interface
+- **AND** the video file's category field holds the stable token for videos
+
+### Requirement: Exported byte values come only from the scan's measurement mode
+
+Atlas Storage Analyzer MUST NOT export a byte value measured under any mode
+other than the one that produced the scan.
+
+#### Scenario: Changing the measurement mode after a scan does not change its export
+
+- **GIVEN** a scan completed in logical mode
+- **AND** the user then selects another measurement mode without rescanning
+- **WHEN** the result is exported
+- **THEN** every row's byte fields are the values the logical scan measured
+- **AND** every row states that its measurement mode is logical
+
+### Requirement: The exported byte total counts each file once
+
+The total exported bytes MUST sum the counted size of the exported file rows
+only, because a directory row reports the total of its own subtree and adding it
+to its descendants would count each file once per ancestor.
+
+#### Scenario: A filtered export totals its matched files
+
+- **GIVEN** a completed scan result is displayed with an active filter
+- **WHEN** the user exports the result
+- **THEN** the total exported bytes equals the sum of the counted size of the
+  matched file rows
+
+#### Scenario: A filter that matches nothing totals zero bytes
+
+- **GIVEN** a completed scan result is displayed with an active filter that
+  matches no files
+- **WHEN** the user exports the result
+- **THEN** the total exported bytes and the item total are both zero
+
+### Requirement: The export schema version identifies the exported shape
+
+The schema version MUST change whenever an exported field is added, removed, or
+redefined, so that a consumer can tell which shape it is reading.
+
+#### Scenario: A JSON export states its schema version
+
+- **GIVEN** a JSON export written by the application
+- **WHEN** a consumer reads its metadata
+- **THEN** the export states the schema version of the shape it was written in
+
+#### Scenario: A changed field set changes the schema version
+
+- **GIVEN** a release adds, removes, or redefines an exported field
+- **WHEN** that release writes an export
+- **THEN** the export states a schema version different from the one written
+  before that change
+
+### Requirement: Comma-separated-values fields that resemble formulas are written as text
+
+A comma-separated-values text field whose value begins with a character that a
+spreadsheet application would interpret as the start of a formula MUST be
+written so that the application treats it as text.
+
+#### Scenario: A name starting with another formula character is inert
+
+- **GIVEN** a scanned file whose name begins with a plus sign, a minus sign, an
+  at sign, or a tab
+- **WHEN** the result is exported as comma-separated values
+- **THEN** the name field is written so that a spreadsheet application treats it
+  as text
+
+#### Scenario: An extension starting with a formula character is inert
+
+- **GIVEN** a scanned file whose extension begins with a minus sign
+- **WHEN** the result is exported as comma-separated values
+- **THEN** the extension field is written so that a spreadsheet application
+  treats it as text

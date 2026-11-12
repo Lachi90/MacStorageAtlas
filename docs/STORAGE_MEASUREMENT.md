@@ -82,8 +82,50 @@ progress update and the completed result:
   only its presentation is collapsed.
 - A required allocation or identity failure is listed as a scan error and
   contributes no invented or logical fallback value.
+- Any other unexpected failure while processing one entry is also listed as a
+  scan error for that path; the entry contributes nothing and scanning
+  continues with its siblings.
+- Entries whose names consist only of whitespace or invisible characters are
+  measured like any other entry. The result shows them with a placeholder
+  such as `⟨blank name: U+0020⟩`, while exports and searches use the real
+  name.
 - A cancelled scan is incomplete and contains only entries measured before
   cancellation.
+
+## Firmlinked system paths
+
+Since macOS 10.15, user data lives on a separate Data volume mounted at
+`/System/Volumes/Data`. Firmlinks make parts of it appear at familiar paths
+such as `/Users`, `/Applications`, `/Library`, and `/usr/local`, so a scan of
+`/` could reach the same directories twice.
+
+When one scan includes both a firmlinked path and its Data-volume alternate,
+the scan attributes that content to the firmlinked path and does not traverse
+the alternate:
+
+- The pairs come from the running system's `/usr/share/firmlinks` definition.
+  A pair is used only when both paths are real directories, not symbolic
+  links, and currently report the same device and inode.
+- Selection depends only on the scan root. A scan of `/` or `/System` omits
+  alternates whose firmlinked path is also inside the root. Scans of `/Users`,
+  a home folder, or `/System/Volumes/Data` omit nothing.
+- Data-volume content without a firmlinked equivalent, such as
+  `/System/Volumes/Data/home`, remains scanned at its Data-volume path.
+- Omission happens before measurement, so it applies to every measurement
+  mode. Logical and per-path allocated scans of `/` no longer count firmlinked
+  data twice. Shared-aware allocated scans of `/` keep the same counted total
+  but attribute it to the firmlinked paths regardless of traversal order.
+- If the definition is missing, unreadable, or malformed, or an identity check
+  fails, the scan visits both paths without reporting a scan error.
+  Shared-aware accounting then still counts each identity once, at whichever
+  path it reaches first.
+- The status bar names each omitted alternate and the path where its content
+  is shown. Cancelled scans list only the alternates skipped before
+  cancellation.
+
+Scan-history snapshots of `/` taken before this behavior existed include the
+Data-volume alternates, so comparing them with newer snapshots can show large
+apparent decreases under `/System/Volumes/Data`.
 
 Every included path remains browsable. Item details distinguish its measured
 allocation, counted contribution, and shared bytes. Treemaps, file-type totals,

@@ -10,7 +10,7 @@ screen, and run the sandbox checks in docs/PACKAGING.md.
 
 ---
 
-Atlas Storage Analyzer 1.0.3 - App Review Information
+Atlas Storage Analyzer 1.1.1 - App Review Information
 
 1. SCREEN RECORDING
 

@@ -104,20 +104,9 @@ developer, and user-facing documentation:
 
 - logical size is the file length visible to an application;
 - allocated file size is the local filesystem allocation attributed to one
-  visited file path;
-- shared-aware allocated size counts allocated storage once for each
-  filesystem file identity in a stated scan scope and additionally counts
-  verified fully shared data allocation once where supported, while non-data
-  allocation and divergent clone extents remain counted per identity;
+  visited file path; and
 - unique allocated size is the allocation attributed once across all file
-  identities and shared physical extents in a stated scope;
-- volume used space is derived from volume-capacity metadata and is not a sum of
-  a Atlas Storage Analyzer scan;
-- volume free space is capacity currently reported as unallocated;
-- volume available space is capacity currently available for allocation and can
-  differ from free space because of reservations or reclaimable storage; and
-- volume purgeable space is used capacity that macOS reports as reclaimable
-  without deleting user-designated files.
+  identities and shared physical extents in a stated scope.
 
 #### Scenario: Reader compares file and volume numbers
 
@@ -484,3 +473,175 @@ physical usage.
 - **THEN** it is ignored with a clear platform or capability reason
 - **AND** portable fallback behavior remains covered by deterministic injected
   tests
+
+### Requirement: Shared-aware allocated size has a canonical meaning
+
+Atlas Storage Analyzer SHALL use shared-aware allocated size consistently in
+product, developer, and user-facing documentation to mean allocated storage
+counted once for each filesystem file identity in a stated scan scope,
+additionally counting verified fully shared data allocation once where
+supported, while non-data allocation and divergent clone extents remain counted
+per identity.
+
+#### Scenario: Reader encounters shared-aware allocated size
+
+- **GIVEN** documentation presents shared-aware allocated size
+- **WHEN** a reader consults its definition
+- **THEN** each filesystem file identity in the stated scan scope is described
+  as counted once
+- **AND** only verified fully shared data allocation is described as
+  additionally counted once
+- **AND** allocation outside the verified data stream is described as counted
+  for each identity
+
+### Requirement: Volume used space has a canonical meaning
+
+Atlas Storage Analyzer SHALL use volume used space consistently in product,
+developer, and user-facing documentation to mean space derived from
+volume-capacity metadata, which is not a sum of an Atlas Storage Analyzer scan.
+
+#### Scenario: A scan total is not presented as volume used space
+
+- **GIVEN** a completed folder or volume scan reports its total
+- **WHEN** the product or its documentation presents that total
+- **THEN** the total is not labeled as volume used space
+
+### Requirement: Volume free, available, and purgeable space have canonical meanings
+
+Atlas Storage Analyzer SHALL use the following volume-capacity meanings
+consistently in product, developer, and user-facing documentation:
+
+- volume free space is capacity currently reported as unallocated;
+- volume available space is capacity currently available for allocation and can
+  differ from free space because of reservations or reclaimable storage; and
+- volume purgeable space is used capacity that macOS reports as reclaimable
+  without deleting user-designated files.
+
+#### Scenario: Reader distinguishes available space from free space
+
+- **GIVEN** documentation presents volume free space and volume available space
+- **WHEN** a reader consults their definitions
+- **THEN** available space is described as capacity currently available for
+  allocation
+- **AND** it is described as able to differ from free space because of
+  reservations or reclaimable storage
+
+#### Scenario: Reader encounters purgeable space
+
+- **GIVEN** documentation presents volume purgeable space
+- **WHEN** a reader consults its definition
+- **THEN** purgeable space is described as used capacity that macOS reports as
+  reclaimable
+- **AND** it is not described as free space
+
+### Requirement: Firmlink-equivalent paths contribute once per scan
+
+When a scan scope includes both a user-facing firmlinked path and the
+Data-volume path that the running system defines as its equivalent, the scan
+SHALL attribute that content to the user-facing path and SHALL NOT traverse
+the Data-volume alternate. This SHALL hold in every measurement mode and
+independently of traversal order.
+
+#### Scenario: Whole-disk shared-aware scan includes a home folder
+
+- **GIVEN** the system defines `/Users` as equivalent to
+  `/System/Volumes/Data/Users`
+- **AND** both paths resolve to the same directory identity
+- **WHEN** the user scans `/` in shared-aware allocated mode
+- **THEN** each home folder under `/Users` shows its storage as counted rather
+  than as shared through another path
+- **AND** `/System/Volumes/Data/Users` is not traversed
+- **AND** the counted root total equals the total the same scan reported
+  before omission
+
+#### Scenario: Whole-disk logical scan includes firmlinked data
+
+- **GIVEN** the system defines firmlink equivalents for paths inside `/`
+- **WHEN** the user scans `/` in logical or per-path allocated mode
+- **THEN** content reachable through a firmlinked path contributes once
+- **AND** the Data-volume alternate of that content contributes nothing
+
+#### Scenario: Data-volume alternate is enumerated first
+
+- **GIVEN** a scan of `/` would reach `/System/Volumes/Data/Users` before
+  `/Users`
+- **WHEN** the scan completes
+- **THEN** the storage is attributed under `/Users`
+
+### Requirement: Content without a firmlinked equivalent remains scanned
+
+Omitting a Data-volume alternate MUST NOT omit Data-volume content that the
+system does not define as reachable through a firmlinked path in the same scan
+scope. Such content SHALL remain measured, aggregated, and browsable at its
+Data-volume path.
+
+#### Scenario: Data volume contains a directory outside the firmlink list
+
+- **GIVEN** `/System/Volumes/Data` contains a directory that no firmlink
+  definition names
+- **WHEN** the user scans `/`
+- **THEN** that directory is traversed under `/System/Volumes/Data`
+- **AND** its bytes contribute to the totals of its ancestors
+
+#### Scenario: Scan scope contains only the Data-volume side
+
+- **GIVEN** the user scans `/System/Volumes/Data`
+- **WHEN** the scan runs
+- **THEN** every included directory under that root is traversed
+- **AND** no content is omitted as firmlink-equivalent
+
+#### Scenario: Scan scope contains only the firmlinked side
+
+- **GIVEN** the user scans `/Users` or a home folder
+- **WHEN** the scan runs
+- **THEN** the result is the same as before this change
+
+### Requirement: Equivalence is verified before omission
+
+An alternate path SHALL be omitted only when the running system's firmlink
+definition names it and both paths currently resolve to the same directory
+identity. When the definition is missing, unreadable, or malformed, or the
+identities differ or cannot be read, the scan MUST visit both paths and MUST
+NOT report a scan error for that check.
+
+#### Scenario: Firmlink definition is unavailable
+
+- **GIVEN** the system firmlink definition cannot be read
+- **WHEN** the user scans `/`
+- **THEN** both the firmlinked paths and the Data-volume paths are traversed
+- **AND** shared-aware accounting still counts each file identity once
+
+#### Scenario: Paths resolve to different directories
+
+- **GIVEN** a firmlink definition names an alternate path
+- **AND** the alternate and the user-facing path resolve to different directory
+  identities
+- **WHEN** the scan runs
+- **THEN** the alternate path is traversed
+
+#### Scenario: Scan is cancelled after an omission was decided
+
+- **GIVEN** a scan of `/` has decided to omit a Data-volume alternate
+- **WHEN** the user cancels the scan
+- **THEN** the scan does not report completion
+- **AND** any retained partial result contains no bytes from the omitted
+  alternate
+
+### Requirement: Results disclose omitted equivalent paths
+
+A completed or partial result SHALL identify each Data-volume path it omitted
+as firmlink-equivalent together with the user-facing path where that content
+is shown. The disclosure MUST remain local and MUST NOT read file contents.
+
+#### Scenario: User reviews a whole-disk result
+
+- **GIVEN** a scan of `/` omitted `/System/Volumes/Data/Users` as equivalent to
+  `/Users`
+- **WHEN** the user reviews the scan result
+- **THEN** the result explains that the Data-volume path is shown at `/Users`
+
+#### Scenario: Scan omitted nothing
+
+- **GIVEN** a scan omitted no equivalent paths
+- **WHEN** the user reviews the scan result
+- **THEN** no omission disclosure is shown

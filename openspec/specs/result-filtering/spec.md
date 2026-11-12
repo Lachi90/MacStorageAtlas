@@ -147,7 +147,7 @@ Atlas Storage Analyzer SHALL resolve every date criterion to an absolute instant
 
 ### Requirement: Date criteria can be expressed relative to evaluation time
 
-Atlas Storage Analyzer SHALL allow each creation, modification, and last-access bound to be expressed either as an absolute instant or as an offset from the time the filter is evaluated. An offset MUST consist of a positive count and a unit of days, weeks, months, or years, and MUST be interpreted as that span before the reference time. Each bound MUST carry its own choice of absolute or relative form, independently of the other bounds. A relative bound MUST be stored as the offset itself and MUST NOT be stored as the instant it resolved to.
+Atlas Storage Analyzer SHALL allow each creation, modification, and last-access bound to be expressed either as an absolute instant or as an offset from the time the filter is evaluated. An offset MUST consist of a positive count and a unit of days, weeks, months, or years, and MUST be interpreted as that span before the reference time.
 
 #### Scenario: A relative bound resolves against the reference time
 
@@ -344,7 +344,7 @@ Atlas Storage Analyzer SHALL evaluate filters without blocking the user interfac
 
 ### Requirement: Filter presets can be applied and persisted
 
-Atlas Storage Analyzer SHALL provide built-in filter presets and SHALL allow users to save, apply, rename, and delete their own presets through the filter panel. User-created presets MUST persist across application restarts, including any relative date bounds they contain. A built-in preset that constrains age MUST express that constraint as a relative bound so that it does not drift. A stored preset that records a schema version the running application does not support, or that cannot be read, MUST be skipped without preventing the remaining settings from loading. A stored preset whose date bounds were saved as absolute instants MUST continue to be read as absolute instants and MUST NOT be reinterpreted as relative bounds.
+Atlas Storage Analyzer SHALL provide built-in filter presets and SHALL allow users to save, apply, rename, and delete their own presets through the filter panel. User-created presets MUST persist across application restarts, including any relative date bounds they contain.
 
 #### Scenario: A built-in preset populates the filter
 
@@ -522,3 +522,79 @@ Atlas Storage Analyzer SHALL keep filter criteria, presets, and filtered results
 - **WHEN** a filter is evaluated against it
 - **THEN** Atlas Storage Analyzer uses only the metadata retained from the scan
 - **AND** it does not request that a cloud provider download the item
+
+### Requirement: Each date bound chooses its form independently
+
+Each date bound MUST carry its own choice of absolute or relative form, independently of the other bounds.
+
+#### Scenario: Different date dimensions use different forms
+
+- **GIVEN** a filter specifies an absolute earliest creation instant
+- **AND** the same filter specifies a latest modification bound of 30 days before the reference time
+- **WHEN** the filter is evaluated
+- **THEN** the creation bound is that absolute instant
+- **AND** the modification bound is the instant 30 days before the reference time
+
+#### Scenario: Switching one bound to relative leaves the other bounds unchanged
+
+- **GIVEN** a filter specifies an absolute creation bound and an absolute modification bound
+- **WHEN** the user switches the creation bound to a relative offset
+- **THEN** the creation bound is that offset
+- **AND** the modification bound keeps its absolute instant
+
+### Requirement: A relative date bound is stored as its offset
+
+A relative bound MUST be stored as the offset itself and MUST NOT be stored as the instant it resolved to.
+
+#### Scenario: Saved relative bounds read back as offsets
+
+- **GIVEN** the user saves filter criteria whose modification bound is 18 months and whose last-access bound is 3 weeks before the reference time
+- **WHEN** the saved criteria are read back
+- **THEN** each bound is the offset that was saved
+- **AND** neither bound is an instant resolved at the time of saving
+
+### Requirement: Built-in age presets use relative bounds
+
+A built-in preset that constrains age MUST express that constraint as a relative bound so that it does not drift.
+
+#### Scenario: The built-in age preset follows the reference time
+
+- **GIVEN** the built-in preset that constrains how long ago files were modified
+- **WHEN** it is evaluated at one reference time and again three years later
+- **THEN** each evaluation uses a modification bound one year before its own reference time
+- **AND** the list of built-in presets is the same at both times
+
+#### Scenario: Applying the built-in age preset shows a relative bound
+
+- **GIVEN** the user applies the built-in preset that constrains how long ago files were modified
+- **WHEN** the filter panel shows the applied criteria
+- **THEN** the modification bound is shown as a relative offset of one year
+- **AND** no absolute instant is set for that bound
+
+### Requirement: Unreadable stored presets are skipped
+
+A stored preset that records a schema version the running application does not support, or that cannot be read, MUST be skipped without preventing the remaining settings from loading.
+
+#### Scenario: A malformed preset list does not block other settings
+
+- **GIVEN** stored settings contain other preferences and a preset list that cannot be read
+- **WHEN** settings are loaded
+- **THEN** no stored preset is restored
+- **AND** the other preferences load successfully
+
+#### Scenario: A readable preset beside a newer-version preset still loads
+
+- **GIVEN** stored settings contain a readable preset and a preset recording a newer unsupported schema version
+- **WHEN** settings are loaded
+- **THEN** the readable preset is available
+- **AND** the newer-version preset is not available
+
+### Requirement: Stored absolute preset bounds stay absolute
+
+A stored preset whose date bounds were saved as absolute instants MUST continue to be read as absolute instants and MUST NOT be reinterpreted as relative bounds.
+
+#### Scenario: An absolute preset bound resolves to the same instant at any time
+
+- **GIVEN** stored settings contain a preset whose modification bound is the absolute instant 1 January 2026
+- **WHEN** the preset is loaded and evaluated at two different reference times
+- **THEN** both evaluations use 1 January 2026 as the modification bound

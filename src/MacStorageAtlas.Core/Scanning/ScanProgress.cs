@@ -12,4 +12,7 @@ public sealed record ScanProgress(
     bool IsCompleted = false,
     StorageMeasurementMode MeasurementMode = StorageMeasurementMode.Logical,
     CloneAccountingCoverage CloneAccountingCoverage =
-        CloneAccountingCoverage.Unavailable);
+        CloneAccountingCoverage.Unavailable)
+{
+    public IReadOnlyList<EquivalentPath> OmittedEquivalentPaths { get; init; } = [];
+}

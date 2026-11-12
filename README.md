@@ -99,7 +99,10 @@ items), include hidden files, and follow symbolic links. By default sizes use
 shared-aware allocated measurement: repeated hardlink identities count once,
 and verified full-clone data counts once on capable volumes. Independently
 allocated non-data storage and divergent clone extents remain per identity.
-You can instead choose allocated size per path or logical file length. See
+You can instead choose allocated size per path or logical file length. When a
+scan of `/` reaches the same data through a firmlinked path such as `/Users`
+and through `/System/Volumes/Data`, it is counted once and shown at the
+firmlinked path. See
 [Storage measurement semantics](docs/STORAGE_MEASUREMENT.md) for capability
 coverage and scope. Preferences and manageable recent scan locations are
 remembered between runs.
