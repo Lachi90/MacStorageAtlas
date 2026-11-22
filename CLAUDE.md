@@ -82,7 +82,10 @@ synchronized.
 
 - Preserve the distinction between logical length and locally allocated bytes.
   Every byte count and label produced by one scan must use the same measurement
-  mode.
+  mode. The only exception is the cloud-only size, the combined logical length
+  of cloud-only files: it may be shown as a separately labeled quantity whose
+  label contains "logical" and "not on this Mac", and it is never added to or
+  mixed with measured byte counts. See `docs/STORAGE_MEASUREMENT.md`.
 - Allocated-size mode is per visited path and does not currently deduplicate
   hardlinks or APFS clone storage. Update `docs/STORAGE_MEASUREMENT.md`, tests,
   and OpenSpec artifacts when these semantics change.

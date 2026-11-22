@@ -80,9 +80,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel()
         : this(
             new NullFolderPickerService(),
-            new DiskScanner(
-                new MacFileMetadataReader(),
-                new MacFirmlinkEquivalentPathProvider()),
+            MacDiskScannerFactory.Create(),
             new AvaloniaUiDispatcher(),
             new MacFileRevealService(),
             new MacTrashService(),
@@ -94,9 +92,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(IFolderPickerService folderPickerService)
         : this(
             folderPickerService,
-            new DiskScanner(
-                new MacFileMetadataReader(),
-                new MacFirmlinkEquivalentPathProvider()),
+            MacDiskScannerFactory.Create(),
             new AvaloniaUiDispatcher())
     {
     }
@@ -242,6 +238,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(MeasurementBasisLabel))]
+    [NotifyPropertyChangedFor(nameof(CloudAvailabilitySummary))]
+    [NotifyPropertyChangedFor(nameof(CloudAvailabilitySummaryDetails))]
     private StorageMeasurementMode _resultMeasurementMode =
         StorageMeasurementMode.SharedAwareAllocated;
 
@@ -1491,6 +1489,7 @@ public partial class MainWindowViewModel : ViewModelBase
             ResultMeasurementMode = options.MeasurementMode;
             ResultCloneAccountingCoverage = CloneAccountingCoverage.Unavailable;
             OmittedEquivalentPaths = [];
+            UnlistedCloudFolders = [];
             ScanFailureMessage = null;
             ScanErrors = [];
             ScanCompletedAt = null;
@@ -1498,6 +1497,7 @@ public partial class MainWindowViewModel : ViewModelBase
             FolderRescanStatusMessage = null;
             SelectedScanError = null;
             _scanRoot = null;
+            RefreshResultCloudTotals();
             ClearInsightScope();
             _cleanupProtectedPathPolicy = null;
             _resultScanOptions = null;
@@ -1605,7 +1605,8 @@ public partial class MainWindowViewModel : ViewModelBase
         var completedAt = provenance.ScanCompletedAt;
         var completeness = ScanCompletenessClassifier.Classify(
             AccessGuidance,
-            progress.Errors);
+            progress.Errors,
+            progress.UnlistedCloudFolders);
         var limits = CurrentScanHistoryLimits;
 
         try
@@ -1767,11 +1768,13 @@ public partial class MainWindowViewModel : ViewModelBase
         ResultMeasurementMode = progress.MeasurementMode;
         ResultCloneAccountingCoverage = progress.CloneAccountingCoverage;
         OmittedEquivalentPaths = progress.OmittedEquivalentPaths;
+        UnlistedCloudFolders = progress.UnlistedCloudFolders;
         ScanErrors = progress.Errors;
 
         if (progress.IsCompleted)
         {
             _scanRoot = progress.Root;
+            RefreshResultCloudTotals();
             InsightScope = progress.Root;
             _resultScanOptions = options;
             _cleanupProtectedPathPolicy = new CleanupProtectedPathPolicy(progress.Root);
@@ -1953,6 +1956,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(SelectedItemCreatedTime));
         OnPropertyChanged(nameof(SelectedItemModifiedTime));
         OnPropertyChanged(nameof(SelectedItemLastAccessTime));
+        OnPropertyChanged(nameof(SelectedItemAvailability));
         OnPropertyChanged(nameof(HasSelectedItem));
         OnPropertyChanged(nameof(SelectedItemIsCountedElsewhere));
         OnPropertyChanged(nameof(IsSelectedItemDirectory));
@@ -2315,6 +2319,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (ReferenceEquals(_scanRoot, item))
         {
             _scanRoot = null;
+            RefreshResultCloudTotals();
             ClearInsightScope();
             _cleanupProtectedPathPolicy = null;
             _resultScanOptions = null;
@@ -2330,6 +2335,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             var parent = FindParent(_scanRoot, item);
             _scanRoot.RemoveDescendant(item);
+            RefreshResultCloudTotals();
             _cleanupProtectedPathPolicy = new CleanupProtectedPathPolicy(_scanRoot);
             _treemapLayoutCache.Clear();
             TreemapRectangles = LayoutChildren(parent ?? _scanRoot);

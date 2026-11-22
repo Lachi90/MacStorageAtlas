@@ -112,6 +112,7 @@ public static class ScanResultJsonWriter
         writer.WriteEndArray();
 
         writer.WriteBoolean("sharedStorageOnly", filter.SharedStorageOnly);
+        writer.WriteString("cloudAvailability", filter.CloudAvailability.ToString());
         writer.WriteEndObject();
     }
 

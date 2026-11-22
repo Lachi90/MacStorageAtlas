@@ -43,6 +43,27 @@ public partial class ResultFilterViewModel : ViewModelBase
 
     public IReadOnlyList<FileCategoryOption> CategoryOptions { get; }
 
+    public IReadOnlyList<CloudAvailabilityOption> CloudAvailabilityOptions { get; } =
+    [
+        new(CloudAvailabilityCriterion.Any),
+        new(CloudAvailabilityCriterion.LocalOnly),
+        new(CloudAvailabilityCriterion.CloudOnly)
+    ];
+
+    public CloudAvailabilityOption SelectedCloudAvailabilityOption
+    {
+        get => CloudAvailabilityOptions.FirstOrDefault(
+                   option => option.Criterion == CloudAvailability)
+               ?? CloudAvailabilityOptions[0];
+        set
+        {
+            if (value is not null)
+            {
+                CloudAvailability = value.Criterion;
+            }
+        }
+    }
+
     public DateBoundViewModel CreatedAfter { get; }
 
     public DateBoundViewModel CreatedBefore { get; }
@@ -97,6 +118,10 @@ public partial class ResultFilterViewModel : ViewModelBase
     private bool _sharedStorageOnly;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedCloudAvailabilityOption))]
+    private CloudAvailabilityCriterion _cloudAvailability;
+
+    [ObservableProperty]
     private IReadOnlyList<FilterPreset> _presets = [];
 
     [ObservableProperty]
@@ -143,7 +168,8 @@ public partial class ResultFilterViewModel : ViewModelBase
         LastAccessedBefore = LastAccessedBefore.Criterion,
         Extensions = ParseExtensions(ExtensionsText),
         Categories = [.. SelectedCategories],
-        SharedStorageOnly = SharedStorageOnly
+        SharedStorageOnly = SharedStorageOnly,
+        CloudAvailability = CloudAvailability
     };
 
     public DiskItemFilterValidation Validation =>
@@ -447,6 +473,7 @@ public partial class ResultFilterViewModel : ViewModelBase
             }
 
             SharedStorageOnly = filter.SharedStorageOnly;
+            CloudAvailability = filter.CloudAvailability;
         }
         finally
         {
@@ -489,6 +516,9 @@ public partial class ResultFilterViewModel : ViewModelBase
     partial void OnExtensionsTextChanged(string value) => RaiseCriteriaChanged();
 
     partial void OnSharedStorageOnlyChanged(bool value) => RaiseCriteriaChanged();
+
+    partial void OnCloudAvailabilityChanged(CloudAvailabilityCriterion value) =>
+        RaiseCriteriaChanged();
 
     private void RaiseCriteriaChanged()
     {

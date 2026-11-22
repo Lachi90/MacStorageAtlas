@@ -14,7 +14,7 @@ public sealed record ScanExportMetadata(
     long ItemCount,
     long TotalCountedSizeBytes)
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     public IReadOnlyList<RefreshedFolder> RefreshedFolders { get; init; } = [];
 

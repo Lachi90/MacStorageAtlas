@@ -74,7 +74,8 @@ public class ScanSnapshotModelTests
     {
         Assert.Multiple(() =>
         {
-            Assert.That(ScanSnapshotSchema.CurrentVersion, Is.EqualTo(2));
+            Assert.That(ScanSnapshotSchema.CurrentVersion, Is.EqualTo(3));
+            Assert.That(ScanSnapshotSchema.IsSupported(2), Is.True);
             Assert.That(ScanSnapshotSchema.IsSupported(1), Is.True);
             Assert.That(
                 ScanSnapshotSchema.IsSupported(ScanSnapshotSchema.CurrentVersion),

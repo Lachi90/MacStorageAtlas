@@ -5,6 +5,7 @@ public sealed class DiskItem
     private readonly List<DiskItem> _children = [];
     private long _measuredSizeBytes;
     private bool _hasMeasuredSize;
+    private CloudTotalsHolder? _cloudTotals;
 
     public DiskItem(string name, string path, bool isDirectory)
     {
@@ -42,9 +43,46 @@ public sealed class DiskItem
 
     public bool IsSizeCountedElsewhere => SharedSizeBytes > 0;
 
+    public CloudAvailability CloudAvailability =>
+        IsDirectory ? CloudTotals.FolderAvailability : Metadata.CloudAvailability;
+
+    public CloudAvailabilityTotals CloudTotals =>
+        _cloudTotals?.Value
+        ?? (IsDirectory
+            ? CloudAvailabilityTotals.Empty
+            : CloudAvailabilityTotals.ForFile(Metadata.CloudAvailability));
+
+    public bool IsUnlistedCloudFolder =>
+        IsDirectory && Metadata.CloudAvailability == CloudAvailability.CloudOnly;
+
     public IReadOnlyList<DiskItem> Children => _children;
 
     internal void AddChild(DiskItem child) => _children.Add(child);
+
+    internal void SetCloudTotals(CloudAvailabilityTotals totals)
+    {
+        if (_cloudTotals is null)
+        {
+            if (totals == CloudAvailabilityTotals.Empty && IsDirectory)
+            {
+                return;
+            }
+
+            _cloudTotals = new CloudTotalsHolder();
+        }
+
+        _cloudTotals.Value = totals;
+    }
+
+    internal void AddCloudTotals(CloudAvailabilityTotals totals)
+    {
+        if (totals == CloudAvailabilityTotals.Empty)
+        {
+            return;
+        }
+
+        SetCloudTotals(CloudTotals + totals);
+    }
 
     public bool RemoveDescendant(DiskItem descendant)
     {
@@ -61,6 +99,7 @@ public sealed class DiskItem
             SharedSizeBytes = Math.Max(
                 0,
                 SharedSizeBytes - descendant.SharedSizeBytes);
+            SetCloudTotals(CloudTotals - descendant.CloudTotals);
             return true;
         }
 
@@ -75,6 +114,7 @@ public sealed class DiskItem
                 SharedSizeBytes = Math.Max(
                     0,
                     SharedSizeBytes - descendant.SharedSizeBytes);
+                SetCloudTotals(CloudTotals - descendant.CloudTotals);
                 return true;
             }
         }
@@ -131,6 +171,10 @@ public sealed class DiskItem
             SharedSizeBytes
             - previous.SharedSizeBytes
             + (replacement?.SharedSizeBytes ?? 0));
+        SetCloudTotals(
+            CloudTotals
+            - previous.CloudTotals
+            + (replacement?.CloudTotals ?? CloudAvailabilityTotals.Empty));
 
         var ordered = _children
             .OrderByDescending(child => child.SizeBytes)
@@ -145,5 +189,10 @@ public sealed class DiskItem
             ? ancestorPath
             : ancestorPath + System.IO.Path.DirectorySeparatorChar;
         return path.StartsWith(prefix, StringComparison.Ordinal);
+    }
+
+    private sealed class CloudTotalsHolder
+    {
+        public CloudAvailabilityTotals Value { get; set; }
     }
 }

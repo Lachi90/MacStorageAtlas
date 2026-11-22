@@ -204,7 +204,7 @@ public class FilterPresetPersistenceTests
     }
 
     [Test]
-    public void APresetWithARelativeBoundRecordsTheCurrentSchemaVersion()
+    public void APresetWithARelativeBoundRecordsTheRelativeDateSchemaVersion()
     {
         var settings = FilterPresetSettings.FromPreset(
             new FilterPreset(
@@ -216,9 +216,89 @@ public class FilterPresetPersistenceTests
                         RelativeDateUnit.Months)
                 }));
 
+        Assert.That(settings.SchemaVersion, Is.EqualTo(2));
+    }
+
+    [TestCase(CloudAvailabilityCriterion.LocalOnly)]
+    [TestCase(CloudAvailabilityCriterion.CloudOnly)]
+    public void ACloudAvailabilityCriterionRoundTripsThroughSettings(
+        CloudAvailabilityCriterion criterion)
+    {
+        var service = new JsonSettingsService(_settingsPath);
+        var filter = new DiskItemFilter
+        {
+            MinimumSizeBytes = 100,
+            CloudAvailability = criterion
+        };
+
+        service.Save(new AppSettings
+        {
+            FilterPresets = [FilterPresetSettings.FromPreset(new FilterPreset("Cloud", filter))]
+        });
+        using (var document = JsonDocument.Parse(File.ReadAllText(_settingsPath)))
+        {
+            var stored = document.RootElement.GetProperty("FilterPresets")[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    stored.GetProperty("CloudAvailability").GetString(),
+                    Is.EqualTo(criterion.ToString()));
+                Assert.That(
+                    stored.GetProperty("SchemaVersion").GetInt32(),
+                    Is.EqualTo(FilterPresetSettings.CurrentSchemaVersion));
+            });
+        }
+
+        var restored = service.Load().FilterPresets.Single().TryCreatePreset();
+
+        Assert.That(restored!.Filter, Is.EqualTo(filter));
+    }
+
+    [Test]
+    public void APresetSavedWithoutTheCloudAvailabilityCriterionAppliesNoAvailabilityRestriction()
+    {
+        File.WriteAllText(
+            _settingsPath,
+            """
+            {
+              "FilterPresets": [
+                { "SchemaVersion": 2, "Name": "Older", "MinimumSizeBytes": 1024 }
+              ]
+            }
+            """);
+
+        var restored = new JsonSettingsService(_settingsPath)
+            .Load()
+            .FilterPresets[0]
+            .TryCreatePreset();
+
         Assert.That(
-            settings.SchemaVersion,
-            Is.EqualTo(FilterPresetSettings.CurrentSchemaVersion));
+            restored!.Filter.CloudAvailability,
+            Is.EqualTo(CloudAvailabilityCriterion.Any));
+    }
+
+    [Test]
+    public void APresetWithAnUnknownCloudAvailabilityIsSkippedWhileItsNeighboursLoad()
+    {
+        File.WriteAllText(
+            _settingsPath,
+            """
+            {
+              "FilterPresets": [
+                { "SchemaVersion": 1, "Name": "Readable", "MinimumSizeBytes": 1024 },
+                { "SchemaVersion": 3, "Name": "Odd", "CloudAvailability": "Pinned" }
+              ]
+            }
+            """);
+
+        var restored = new JsonSettingsService(_settingsPath)
+            .Load()
+            .FilterPresets
+            .Select(preset => preset.TryCreatePreset())
+            .Where(preset => preset is not null)
+            .ToArray();
+
+        Assert.That(restored.Select(preset => preset!.Name), Is.EqualTo(new[] { "Readable" }));
     }
 
     [Test]
@@ -281,7 +361,7 @@ public class FilterPresetPersistenceTests
             {
               "FilterPresets": [
                 { "SchemaVersion": 1, "Name": "Readable", "MinimumSizeBytes": 1024 },
-                { "SchemaVersion": 3, "Name": "FromTheFuture", "MinimumSizeBytes": 2048 }
+                { "SchemaVersion": 4, "Name": "FromTheFuture", "MinimumSizeBytes": 2048 }
               ]
             }
             """);

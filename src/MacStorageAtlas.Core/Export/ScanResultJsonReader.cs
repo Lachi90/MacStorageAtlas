@@ -73,7 +73,10 @@ public static class ScanResultJsonReader
                 .EnumerateArray()
                 .Select(category => Enum.Parse<FileCategory>(category.GetString()!))
                 .ToArray(),
-            SharedStorageOnly = filter.GetProperty("sharedStorageOnly").GetBoolean()
+            SharedStorageOnly = filter.GetProperty("sharedStorageOnly").GetBoolean(),
+            CloudAvailability = filter.TryGetProperty("cloudAvailability", out var availability)
+                ? Enum.Parse<CloudAvailabilityCriterion>(availability.GetString()!)
+                : CloudAvailabilityCriterion.Any
         };
     }
 

@@ -16,5 +16,7 @@ public sealed record ScanProgress(
 {
     public IReadOnlyList<EquivalentPath> OmittedEquivalentPaths { get; init; } = [];
 
+    public IReadOnlyList<string> UnlistedCloudFolders { get; init; } = [];
+
     public bool IsRootPresent { get; init; } = true;
 }

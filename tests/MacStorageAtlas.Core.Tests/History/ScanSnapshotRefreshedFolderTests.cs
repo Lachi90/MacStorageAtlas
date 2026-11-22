@@ -49,7 +49,7 @@ public class ScanSnapshotRefreshedFolderTests
         var read = result.Payload!.Metadata;
         Assert.Multiple(() =>
         {
-            Assert.That(read.SchemaVersion, Is.EqualTo(2));
+            Assert.That(read.SchemaVersion, Is.EqualTo(3));
             Assert.That(read.ScanCompletedAt, Is.EqualTo(Completed));
             Assert.That(read.CapturedAt, Is.EqualTo(Captured));
             Assert.That(read.HasRefreshedFolders, Is.True);
@@ -128,7 +128,7 @@ public class ScanSnapshotRefreshedFolderTests
     {
         var stream = Compress(
             """
-            {"schemaVersion":3,"scan":{"snapshotId":"a"},"errors":[],"items":[]}
+            {"schemaVersion":4,"scan":{"snapshotId":"a"},"errors":[],"items":[]}
             """);
 
         var result = ScanSnapshotJsonReader.Read(stream);
@@ -138,8 +138,8 @@ public class ScanSnapshotRefreshedFolderTests
             Assert.That(
                 result.Status,
                 Is.EqualTo(ScanSnapshotReadStatus.UnsupportedSchemaVersion));
-            Assert.That(result.SchemaVersion, Is.EqualTo(3));
-            Assert.That(result.Message, Does.Contain("versions 1 to 2"));
+            Assert.That(result.SchemaVersion, Is.EqualTo(4));
+            Assert.That(result.Message, Does.Contain("versions 1 to 3"));
         });
     }
 

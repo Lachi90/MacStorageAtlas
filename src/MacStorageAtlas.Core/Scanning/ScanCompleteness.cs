@@ -5,5 +5,6 @@ public enum ScanCompleteness
     Undetermined = 0,
     Complete = 1,
     IncompleteRecoverableErrors = 2,
-    IncompleteAccessRestricted = 3
+    IncompleteAccessRestricted = 3,
+    IncompleteCloudFoldersNotListed = 4
 }

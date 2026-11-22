@@ -761,6 +761,19 @@
                                               Content="Only results whose storage is shared"
                                               ToolTip.Tip="Shows only files whose storage is counted against another path in this scan, such as hardlinks."/>
 
+                                    <TextBlock Classes="label" Text="Availability"/>
+                                    <ComboBox HorizontalAlignment="Stretch"
+                                              ItemsSource="{Binding CloudAvailabilityOptions}"
+                                              SelectedItem="{Binding SelectedCloudAvailabilityOption, Mode=TwoWay}"
+                                              AutomationProperties.Name="Cloud availability"
+                                              ToolTip.Tip="Shows only files whose content is stored on this Mac, or only files whose content is stored only with their cloud provider. Files whose availability is unknown match neither.">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:CloudAvailabilityOption">
+                                                <TextBlock Text="{Binding DisplayName}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+
                                     <TextBlock Classes="label" Text="Save current filter as preset"/>
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
                                         <TextBox Grid.Column="0"
@@ -1065,6 +1078,23 @@
                                Text="{Binding OmittedEquivalentPathsSummary}"
                                ToolTip.Tip="{Binding OmittedEquivalentPathsDetails}"
                                IsVisible="{Binding HasOmittedEquivalentPaths}"/>
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="6"
+                                IsVisible="{Binding HasCloudAvailabilitySummary}"
+                                ToolTip.Tip="{Binding CloudAvailabilitySummaryDetails}">
+                        <PathIcon Classes="availability"
+                                  Margin="0"
+                                  Data="{StaticResource IconCloud}"
+                                  AutomationProperties.Name="Cloud availability"/>
+                        <TextBlock Classes="caption"
+                                   VerticalAlignment="Center"
+                                   Text="{Binding CloudAvailabilitySummary}"
+                                   AutomationProperties.HelpText="{Binding CloudAvailabilitySummaryDetails}"/>
+                    </StackPanel>
+                    <TextBlock Classes="caption"
+                               Text="{Binding UnlistedCloudFoldersSummary}"
+                               ToolTip.Tip="{Binding UnlistedCloudFoldersDetails}"
+                               IsVisible="{Binding HasUnlistedCloudFolders}"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -1211,9 +1241,22 @@
                                 <TreeDataTemplate x:DataType="vm:DiskItemTreeNodeViewModel"
                                                   ItemsSource="{Binding Children}">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                                        <TextBlock Grid.Column="0"
-                                                   Text="{Binding Name, Converter={x:Static conv:DisplayNameConverter.Instance}}"
-                                                   TextTrimming="CharacterEllipsis"/>
+                                        <DockPanel Grid.Column="0">
+                                            <PathIcon DockPanel.Dock="Right"
+                                                      Classes="availability"
+                                                      Data="{StaticResource IconCloud}"
+                                                      IsVisible="{Binding Item.CloudAvailability, Converter={x:Static conv:CloudAvailabilityConverter.IsCloudOnly}}"
+                                                      ToolTip.Tip="{Binding AvailabilityDescription}"
+                                                      AutomationProperties.Name="{Binding AvailabilityDescription}"/>
+                                            <PathIcon DockPanel.Dock="Right"
+                                                      Classes="availability"
+                                                      Data="{StaticResource IconCloudPartial}"
+                                                      IsVisible="{Binding Item.CloudAvailability, Converter={x:Static conv:CloudAvailabilityConverter.IsPartlyLocal}}"
+                                                      ToolTip.Tip="{Binding AvailabilityDescription}"
+                                                      AutomationProperties.Name="{Binding AvailabilityDescription}"/>
+                                            <TextBlock Text="{Binding Name, Converter={x:Static conv:DisplayNameConverter.Instance}}"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </DockPanel>
                                         <TextBlock Grid.Column="1"
                                                    Classes="subtle"
                                                    ToolTip.Tip="{Binding FormattedSize}"
@@ -1264,7 +1307,7 @@
                                                    Text="Select an item in the tree, treemap, or largest-files list to see its details."
                                                    IsVisible="{Binding !HasSelectedItem}"/>
                                         <Grid ColumnDefinitions="Auto,*"
-                                              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                                               ColumnSpacing="16" RowSpacing="8"
                                               IsVisible="{Binding HasSelectedItem}">
                                             <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Name"/>
@@ -1285,7 +1328,9 @@
                                             <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding SelectedItemCountedSize}"/>
                                             <TextBlock Grid.Row="8" Grid.Column="0" Classes="label" Text="Shared"/>
                                             <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding SelectedItemSharedSize}"/>
-                                            <TextBlock Grid.Row="9" Grid.ColumnSpan="2"
+                                            <TextBlock Grid.Row="9" Grid.Column="0" Classes="label" Text="Availability"/>
+                                            <TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding SelectedItemAvailability}" TextWrapping="Wrap"/>
+                                            <TextBlock Grid.Row="10" Grid.ColumnSpan="2"
                                                        Classes="caption"
                                                        Text="This path shares storage with another included path. Counted bytes remain attributed to this path; shared bytes are represented elsewhere."
                                                        TextWrapping="Wrap"
@@ -1401,7 +1446,15 @@
                                             <DataTemplate x:DataType="coreItems:DiskItem">
                                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                                                     <StackPanel Grid.Column="0" Spacing="2">
-                                                        <TextBlock Text="{Binding Name, Converter={x:Static conv:DisplayNameConverter.Instance}}" TextTrimming="CharacterEllipsis"/>
+                                                        <DockPanel>
+                                                            <PathIcon DockPanel.Dock="Right"
+                                                                      Classes="availability"
+                                                                      Data="{StaticResource IconCloud}"
+                                                                      IsVisible="{Binding CloudAvailability, Converter={x:Static conv:CloudAvailabilityConverter.IsCloudOnly}}"
+                                                                      ToolTip.Tip="{Binding ., Converter={x:Static conv:DiskItemAvailabilityDescriptionConverter.Instance}}"
+                                                                      AutomationProperties.Name="{Binding ., Converter={x:Static conv:DiskItemAvailabilityDescriptionConverter.Instance}}"/>
+                                                            <TextBlock Text="{Binding Name, Converter={x:Static conv:DisplayNameConverter.Instance}}" TextTrimming="CharacterEllipsis"/>
+                                                        </DockPanel>
                                                         <TextBlock Classes="caption" Text="{Binding Path}" TextTrimming="CharacterEllipsis"/>
                                                     </StackPanel>
                                                     <TextBlock Grid.Column="1"

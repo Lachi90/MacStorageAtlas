@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using MacStorageAtlas.Core.Items;
 using MacStorageAtlas.Platform.Mac;
 using MacStorageAtlas.Core.Scanning;
 
@@ -184,6 +185,152 @@ public sealed class MacFileMetadataReaderTests
         Assert.That(parsed, Is.False);
     }
 
+    [Test]
+    public void ReadCloudAvailabilityReportsCloudOnlyWhenTheDatalessFlagIsSet()
+    {
+        RequireMacOs();
+        var native = new FakeMacFileMetadataNative
+        {
+            Status = new MacFileStatus(0x40000000 | 0x20, 7_340_032)
+        };
+        var reader = new MacFileMetadataReader(native);
+
+        var reading = reader.ReadCloudAvailability("/fixture/placeholder.pdf");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(reading.Availability, Is.EqualTo(CloudAvailability.CloudOnly));
+            Assert.That(reading.LogicalSizeBytes, Is.EqualTo(7_340_032));
+        });
+    }
+
+    [Test]
+    public void ReadCloudAvailabilityReportsLocalWhenTheDatalessFlagIsClear()
+    {
+        RequireMacOs();
+        var native = new FakeMacFileMetadataNative
+        {
+            Status = new MacFileStatus(0x20, 4096)
+        };
+        var reader = new MacFileMetadataReader(native);
+
+        var reading = reader.ReadCloudAvailability("/fixture/local.pdf");
+
+        Assert.That(reading.Availability, Is.EqualTo(CloudAvailability.Local));
+    }
+
+    [Test]
+    public void ReadCloudAvailabilityReportsUnknownWhenStatusCannotBeRead()
+    {
+        RequireMacOs();
+        var reader = new MacFileMetadataReader(new FakeMacFileMetadataNative());
+
+        var reading = reader.ReadCloudAvailability("/fixture/missing.pdf");
+
+        Assert.That(reading, Is.EqualTo(CloudAvailabilityReading.Unknown));
+    }
+
+    [Test]
+    public void ReadCarriesCloudAvailabilityFromExtendedMetadataWithoutAnotherStatusCall()
+    {
+        RequireMacOs();
+        var native = new FakeMacFileMetadataNative
+        {
+            Capability = CloneCapability.Supported,
+            ExtendedMetadata = CompleteExtendedMetadata() with
+            {
+                HasFileFlags = true,
+                FileFlags = 0x40000000,
+                HasTotalSize = true,
+                TotalSizeBytes = 9_000_000
+            }
+        };
+        var reader = new MacFileMetadataReader(native);
+
+        var metadata = reader.Read("/fixture/placeholder.bin");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                metadata.CloudAvailability,
+                Is.EqualTo(new CloudAvailabilityReading(CloudAvailability.CloudOnly, 9_000_000)));
+            Assert.That(native.StatusReadCount, Is.Zero);
+            Assert.That(native.FallbackReadCount, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void ReadLeavesCloudAvailabilityUnsetWhenExtendedMetadataLacksFlags()
+    {
+        RequireMacOs();
+        var native = new FakeMacFileMetadataNative
+        {
+            Capability = CloneCapability.Supported,
+            ExtendedMetadata = CompleteExtendedMetadata()
+        };
+        var reader = new MacFileMetadataReader(native);
+
+        var metadata = reader.Read("/fixture/file.bin");
+
+        Assert.That(metadata.CloudAvailability, Is.Null);
+    }
+
+    [Test]
+    public void ReadCarriesCloudAvailabilityFromTheFallbackStatus()
+    {
+        RequireMacOs();
+        var native = new FakeMacFileMetadataNative
+        {
+            Capability = CloneCapability.Unsupported,
+            FallbackFlags = 0x40000000,
+            FallbackLogicalSizeBytes = 2048
+        };
+        var reader = new MacFileMetadataReader(native);
+
+        var metadata = reader.Read("/fixture/placeholder.bin");
+
+        Assert.That(
+            metadata.CloudAvailability,
+            Is.EqualTo(new CloudAvailabilityReading(CloudAvailability.CloudOnly, 2048)));
+    }
+
+    [Test]
+    public void TryParseExtendedBufferReadsFileFlagsAndTotalSizeInAttributeOrder()
+    {
+        var buffer = new byte[88];
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(0, 4), 88);
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(4, 4), 0x82040002);
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(16, 4), 0x407);
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(20, 4), 0x1300);
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(24, 4), 7);
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(28, 4), 0x40000000);
+        BinaryPrimitives.WriteUInt64LittleEndian(buffer.AsSpan(32, 8), 17);
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(40, 4), 1);
+        BinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(44, 8), 123_456);
+        BinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(52, 8), 0);
+        BinaryPrimitives.WriteInt64LittleEndian(buffer.AsSpan(60, 8), 0);
+        BinaryPrimitives.WriteUInt64LittleEndian(buffer.AsSpan(68, 8), 19);
+        BinaryPrimitives.WriteUInt64LittleEndian(buffer.AsSpan(76, 8), 0);
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(84, 4), 1);
+
+        var parsed = MacFileMetadataNative.TryParseExtendedBuffer(
+            buffer,
+            out var metadata);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(parsed, Is.True);
+            Assert.That(metadata.HasRequiredMetadata, Is.True);
+            Assert.That(metadata.HasFileFlags, Is.True);
+            Assert.That(metadata.FileFlags, Is.EqualTo(0x40000000));
+            Assert.That(metadata.FileId, Is.EqualTo(17));
+            Assert.That(metadata.HasTotalSize, Is.True);
+            Assert.That(metadata.TotalSizeBytes, Is.EqualTo(123_456));
+            Assert.That(metadata.AllocatedSizeBytes, Is.Zero);
+            Assert.That(metadata.CloneId, Is.EqualTo(19));
+        });
+    }
+
     private static MacExtendedFileMetadata CompleteExtendedMetadata() =>
         new(
             HasRequiredMetadata: true,
@@ -236,6 +383,14 @@ public sealed class MacFileMetadataReaderTests
 
         public IOException? FallbackException { get; init; }
 
+        public MacFileStatus? Status { get; init; }
+
+        public uint FallbackFlags { get; init; }
+
+        public long FallbackLogicalSizeBytes { get; init; }
+
+        public int StatusReadCount { get; private set; }
+
         public int CapabilityProbeCount { get; private set; }
 
         public int FallbackReadCount { get; private set; }
@@ -264,7 +419,15 @@ public sealed class MacFileMetadataReaderTests
                 AllocatedSizeBytes: 8192,
                 DeviceId: 7,
                 FileId: 23,
-                LinkCount: 1);
+                LinkCount: 1,
+                FallbackFlags,
+                FallbackLogicalSizeBytes);
+        }
+
+        public MacFileStatus? TryReadStatus(string path)
+        {
+            StatusReadCount++;
+            return Status;
         }
     }
 }

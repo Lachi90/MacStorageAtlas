@@ -115,6 +115,7 @@ internal static class ScanDocumentJson
         WriteNullableTimestamp(writer, "createdUtc", row.CreatedUtc);
         WriteNullableTimestamp(writer, "modifiedUtc", row.ModifiedUtc);
         WriteNullableTimestamp(writer, "lastAccessedUtc", row.LastAccessedUtc);
+        writer.WriteString("availability", row.Availability.ToString());
         writer.WriteEndObject();
     }
 
@@ -133,7 +134,13 @@ internal static class ScanDocumentJson
             ScanExportValues.ParseCategory(item.GetProperty("category").GetString()),
             ScanExportValues.ParseTimestamp(item.GetProperty("createdUtc").GetString()),
             ScanExportValues.ParseTimestamp(item.GetProperty("modifiedUtc").GetString()),
-            ScanExportValues.ParseTimestamp(item.GetProperty("lastAccessedUtc").GetString()));
+            ScanExportValues.ParseTimestamp(item.GetProperty("lastAccessedUtc").GetString()),
+            ReadAvailability(item));
+
+    private static CloudAvailability ReadAvailability(JsonElement item) =>
+        item.TryGetProperty("availability", out var availability)
+            ? Enum.Parse<CloudAvailability>(availability.GetString()!)
+            : CloudAvailability.Unknown;
 
     public static void WriteNullableTimestamp(
         Utf8JsonWriter writer,

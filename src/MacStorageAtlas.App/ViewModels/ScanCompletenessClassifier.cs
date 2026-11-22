@@ -8,10 +8,17 @@ public static class ScanCompletenessClassifier
 {
     public static ScanCompleteness Classify(
         AccessGuidance guidance,
-        IReadOnlyList<ScanError> errors)
+        IReadOnlyList<ScanError> errors) =>
+        Classify(guidance, errors, []);
+
+    public static ScanCompleteness Classify(
+        AccessGuidance guidance,
+        IReadOnlyList<ScanError> errors,
+        IReadOnlyList<string> unlistedCloudFolders)
     {
         ArgumentNullException.ThrowIfNull(guidance);
         ArgumentNullException.ThrowIfNull(errors);
+        ArgumentNullException.ThrowIfNull(unlistedCloudFolders);
 
         return guidance.Status switch
         {
@@ -21,9 +28,10 @@ public static class ScanCompletenessClassifier
                 ScanCompleteness.IncompleteAccessRestricted,
             AccessGuidanceStatus.IncompleteScan =>
                 ScanCompleteness.IncompleteRecoverableErrors,
-            _ => errors.Count > 0
-                ? ScanCompleteness.IncompleteRecoverableErrors
-                : ScanCompleteness.Complete
+            _ when errors.Count > 0 => ScanCompleteness.IncompleteRecoverableErrors,
+            _ when unlistedCloudFolders.Count > 0 =>
+                ScanCompleteness.IncompleteCloudFoldersNotListed,
+            _ => ScanCompleteness.Complete
         };
     }
 }

@@ -2,13 +2,16 @@ using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using MacStorageAtlas.Core.Items;
 using MacStorageAtlas.Core.Scanning;
 
 namespace MacStorageAtlas.Platform.Mac;
 
-public sealed class MacFileMetadataReader : IAllocatedFileMetadataReader
+public sealed class MacFileMetadataReader
+    : IAllocatedFileMetadataReader, ICloudAvailabilityReader
 {
     private const ulong SharesAllBlocks = 0x00000040;
+    private const uint DatalessFlag = 0x40000000;
     private readonly IMacFileMetadataNative _native;
     private readonly ConcurrentDictionary<MacVolumeIdentity, CloneCapability>
         _cloneCapabilities = new();
@@ -59,6 +62,29 @@ public sealed class MacFileMetadataReader : IAllocatedFileMetadataReader
         };
     }
 
+    public CloudAvailabilityReading ReadCloudAvailability(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        if (!OperatingSystem.IsMacOS())
+        {
+            return CloudAvailabilityReading.Unknown;
+        }
+
+        return _native.TryReadStatus(path) is { } status
+            ? ToCloudAvailability(status.Flags, status.LogicalSizeBytes)
+            : CloudAvailabilityReading.Unknown;
+    }
+
+    internal static CloudAvailabilityReading ToCloudAvailability(
+        uint flags,
+        long logicalSizeBytes) =>
+        new(
+            (flags & DatalessFlag) != 0
+                ? CloudAvailability.CloudOnly
+                : CloudAvailability.Local,
+            Math.Max(0, logicalSizeBytes));
+
     private AllocatedFileMetadata ReadExtendedOrFallback(string path)
     {
         var extended = _native.TryReadExtended(path);
@@ -68,6 +94,10 @@ public sealed class MacFileMetadataReader : IAllocatedFileMetadataReader
         }
 
         var value = extended.Value;
+        CloudAvailabilityReading? cloudAvailability =
+            value.HasFileFlags && value.HasTotalSize
+                ? ToCloudAvailability(value.FileFlags, value.TotalSizeBytes)
+                : null;
         if (!value.HasCloneMetadata)
         {
             return new AllocatedFileMetadata(
@@ -75,7 +105,8 @@ public sealed class MacFileMetadataReader : IAllocatedFileMetadataReader
                 new FileIdentity(value.DeviceId, value.FileId),
                 value.LinkCount,
                 value.HasDataAllocatedSize ? value.DataAllocatedSizeBytes : null,
-                CloneAccountingCoverage: CloneAccountingCoverage.Partial);
+                CloneAccountingCoverage: CloneAccountingCoverage.Partial,
+                CloudAvailability: cloudAvailability);
         }
 
         SharedDataIdentity? sharedDataIdentity =
@@ -91,7 +122,8 @@ public sealed class MacFileMetadataReader : IAllocatedFileMetadataReader
             value.LinkCount,
             value.DataAllocatedSizeBytes,
             sharedDataIdentity,
-            CloneAccountingCoverage.Available);
+            CloneAccountingCoverage.Available,
+            cloudAvailability);
     }
 
     private AllocatedFileMetadata ReadFallback(
@@ -103,7 +135,10 @@ public sealed class MacFileMetadataReader : IAllocatedFileMetadataReader
             fallback.AllocatedSizeBytes,
             new FileIdentity(fallback.DeviceId, fallback.FileId),
             fallback.LinkCount,
-            CloneAccountingCoverage: coverage);
+            CloneAccountingCoverage: coverage,
+            CloudAvailability: ToCloudAvailability(
+                fallback.Flags,
+                fallback.LogicalSizeBytes));
     }
 }
 
@@ -116,6 +151,8 @@ internal interface IMacFileMetadataNative
     MacExtendedFileMetadata? TryReadExtended(string path);
 
     MacFallbackFileMetadata ReadFallback(string path);
+
+    MacFileStatus? TryReadStatus(string path);
 }
 
 internal enum CloneCapability
@@ -137,7 +174,11 @@ internal readonly record struct MacFallbackFileMetadata(
     long AllocatedSizeBytes,
     ulong DeviceId,
     ulong FileId,
-    uint LinkCount);
+    uint LinkCount,
+    uint Flags = 0,
+    long LogicalSizeBytes = 0);
+
+internal readonly record struct MacFileStatus(uint Flags, long LogicalSizeBytes);
 
 internal readonly record struct MacExtendedFileMetadata(
     bool HasRequiredMetadata,
@@ -152,7 +193,11 @@ internal readonly record struct MacExtendedFileMetadata(
     uint LinkCount,
     ulong CloneId,
     ulong ExtendedFlags,
-    uint CloneReferenceCount)
+    uint CloneReferenceCount,
+    bool HasFileFlags = false,
+    uint FileFlags = 0,
+    bool HasTotalSize = false,
+    long TotalSizeBytes = 0)
 {
     public bool HasCloneMetadata =>
         HasDataAllocatedSize
@@ -169,10 +214,12 @@ internal sealed class MacFileMetadataNative : IMacFileMetadataNative
     private const ushort AttributeBitmapCount = 5;
     private const uint CommonDeviceId = 0x00000002;
     private const uint CommonFileId = 0x02000000;
+    private const uint CommonFlags = 0x00040000;
     private const uint CommonReturnedAttributes = 0x80000000;
     private const uint VolumeCapabilities = 0x00020000;
     private const uint VolumeInformation = 0x80000000;
     private const uint FileLinkCount = 0x00000001;
+    private const uint FileTotalSize = 0x00000002;
     private const uint FileAllocationSize = 0x00000004;
     private const uint FileDataAllocationSize = 0x00000400;
     private const uint CloneId = 0x00000100;
@@ -250,9 +297,9 @@ internal sealed class MacFileMetadataNative : IMacFileMetadataNative
         {
             BitmapCount = AttributeBitmapCount,
             CommonAttributes =
-                CommonReturnedAttributes | CommonDeviceId | CommonFileId,
+                CommonReturnedAttributes | CommonDeviceId | CommonFlags | CommonFileId,
             FileAttributes =
-                FileLinkCount | FileAllocationSize | FileDataAllocationSize,
+                FileLinkCount | FileTotalSize | FileAllocationSize | FileDataAllocationSize,
             ForkAttributes = CloneId | ExtendedFlags | CloneReferenceCount
         };
         var buffer = new byte[ExtendedBufferSize];
@@ -289,7 +336,20 @@ internal sealed class MacFileMetadataNative : IMacFileMetadataNative
             buffer.BlockCount * BlockSizeBytes,
             unchecked((uint)buffer.DeviceId),
             buffer.FileId,
-            buffer.LinkCount);
+            buffer.LinkCount,
+            buffer.Flags,
+            buffer.Size);
+    }
+
+    public MacFileStatus? TryReadStatus(string path)
+    {
+        var result = RuntimeInformation.ProcessArchitecture == Architecture.X64
+            ? stat_x64(path, out var buffer)
+            : stat_arm64(path, out buffer);
+
+        return result == 0
+            ? new MacFileStatus(buffer.Flags, buffer.Size)
+            : null;
     }
 
     public FileIdentity? TryReadDirectoryIdentity(string path)
@@ -342,6 +402,12 @@ internal sealed class MacFileMetadataNative : IMacFileMetadataNative
             ref offset,
             (commonAttributes & CommonDeviceId) != 0,
             out var deviceId);
+        var hasFileFlags = TryReadUInt32(
+            buffer,
+            returnedLength,
+            ref offset,
+            (commonAttributes & CommonFlags) != 0,
+            out var fileFlags);
         var hasFileId = TryReadUInt64(
             buffer,
             returnedLength,
@@ -354,6 +420,12 @@ internal sealed class MacFileMetadataNative : IMacFileMetadataNative
             ref offset,
             (fileAttributes & FileLinkCount) != 0,
             out var linkCount);
+        var hasTotalSize = TryReadInt64(
+            buffer,
+            returnedLength,
+            ref offset,
+            (fileAttributes & FileTotalSize) != 0,
+            out var totalSize);
         var hasAllocationSize = TryReadInt64(
             buffer,
             returnedLength,
@@ -403,7 +475,11 @@ internal sealed class MacFileMetadataNative : IMacFileMetadataNative
             linkCount,
             cloneId,
             extendedFlags,
-            cloneReferenceCount);
+            cloneReferenceCount,
+            hasFileFlags,
+            fileFlags,
+            hasTotalSize,
+            totalSize);
         return true;
     }
 

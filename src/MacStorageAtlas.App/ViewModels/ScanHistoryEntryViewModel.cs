@@ -89,6 +89,8 @@ public sealed class ScanHistoryEntryViewModel
                 "Partial scan, some paths could not be read",
             ScanCompleteness.IncompleteAccessRestricted =>
                 "Partial scan, Full Disk Access was missing",
+            ScanCompleteness.IncompleteCloudFoldersNotListed =>
+                "Partial scan, some cloud folders were not listed",
             _ => "Scan completeness undetermined"
         };
 }

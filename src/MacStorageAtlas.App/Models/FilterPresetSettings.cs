@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using MacStorageAtlas.Core.Filtering;
 using MacStorageAtlas.Core.Items;
 
@@ -8,9 +9,11 @@ namespace MacStorageAtlas.App.Models;
 
 public sealed class FilterPresetSettings
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     private const int AbsoluteOnlySchemaVersion = 1;
+
+    private const int RelativeDateSchemaVersion = 2;
 
     public int SchemaVersion { get; set; } = AbsoluteOnlySchemaVersion;
 
@@ -52,6 +55,9 @@ public sealed class FilterPresetSettings
 
     public bool SharedStorageOnly { get; set; }
 
+    [JsonConverter(typeof(JsonStringEnumConverter<CloudAvailabilityCriterion>))]
+    public CloudAvailabilityCriterion CloudAvailability { get; set; }
+
     public static FilterPresetSettings FromPreset(FilterPreset preset)
     {
         ArgumentNullException.ThrowIfNull(preset);
@@ -77,12 +83,15 @@ public sealed class FilterPresetSettings
             LastAccessedBeforeRelative = RelativeOf(filter.LastAccessedBefore),
             Extensions = [.. filter.Extensions],
             Categories = [.. filter.Categories],
-            SharedStorageOnly = filter.SharedStorageOnly
+            SharedStorageOnly = filter.SharedStorageOnly,
+            CloudAvailability = filter.CloudAvailability
         };
 
-        settings.SchemaVersion = settings.HasRelativeCriterion
+        settings.SchemaVersion = settings.CloudAvailability != CloudAvailabilityCriterion.Any
             ? CurrentSchemaVersion
-            : AbsoluteOnlySchemaVersion;
+            : settings.HasRelativeCriterion
+                ? RelativeDateSchemaVersion
+                : AbsoluteOnlySchemaVersion;
 
         return settings;
     }
@@ -138,7 +147,8 @@ public sealed class FilterPresetSettings
                 .Distinct(StringComparer.Ordinal)
                 .ToArray(),
             Categories = categories,
-            SharedStorageOnly = SharedStorageOnly
+            SharedStorageOnly = SharedStorageOnly,
+            CloudAvailability = CloudAvailability
         };
 
         return filter.Validate().IsValid

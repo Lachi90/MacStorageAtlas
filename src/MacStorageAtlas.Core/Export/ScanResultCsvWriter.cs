@@ -26,7 +26,8 @@ public static class ScanResultCsvWriter
         "Category",
         "CreatedUtc",
         "ModifiedUtc",
-        "LastAccessedUtc"
+        "LastAccessedUtc",
+        "Availability"
     ];
 
     public static async Task WriteAsync(
@@ -76,6 +77,8 @@ public static class ScanResultCsvWriter
             await WriteFieldAsync(writer, ScanExportValues.Timestamp(row.ModifiedUtc))
                 .ConfigureAwait(false);
             await WriteFieldAsync(writer, ScanExportValues.Timestamp(row.LastAccessedUtc))
+                .ConfigureAwait(false);
+            await WriteFieldAsync(writer, Quote(row.Availability.ToString()))
                 .ConfigureAwait(false);
             await writer.WriteAsync(LineSeparator).ConfigureAwait(false);
         }

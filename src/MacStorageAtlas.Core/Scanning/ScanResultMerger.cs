@@ -73,6 +73,23 @@ public static class ScanResultMerger
             .ToArray();
     }
 
+    public static IReadOnlyList<string> MergeUnlistedCloudFolders(
+        IReadOnlyList<string> existing,
+        string subtreePath,
+        IReadOnlyList<string> refreshed)
+    {
+        ArgumentNullException.ThrowIfNull(existing);
+        ArgumentException.ThrowIfNullOrWhiteSpace(subtreePath);
+        ArgumentNullException.ThrowIfNull(refreshed);
+
+        var normalizedPath = ScanPath.Normalize(subtreePath);
+        return existing
+            .Where(folder => !IsInside(folder, normalizedPath))
+            .Concat(refreshed)
+            .Distinct(ScanPath.Comparer)
+            .ToArray();
+    }
+
     public static IReadOnlyList<EquivalentPath> MergeOmittedEquivalentPaths(
         IReadOnlyList<EquivalentPath> existing,
         string subtreePath,

@@ -163,6 +163,11 @@ public sealed class DiskItemFilterEvaluator
                 return MatchOutcome.Excluded;
             }
 
+            if (!MatchesCloudAvailability(file.CloudAvailability))
+            {
+                return MatchOutcome.Excluded;
+            }
+
             if (_extensions is not null || _categories is not null)
             {
                 var extension = FileCategoryMap.NormalizeExtension(
@@ -184,6 +189,16 @@ public sealed class DiskItemFilterEvaluator
 
             return EvaluateDates(file.Metadata);
         }
+
+        private bool MatchesCloudAvailability(CloudAvailability availability) =>
+            _filter.CloudAvailability switch
+            {
+                CloudAvailabilityCriterion.LocalOnly =>
+                    availability == CloudAvailability.Local,
+                CloudAvailabilityCriterion.CloudOnly =>
+                    availability == CloudAvailability.CloudOnly,
+                _ => true
+            };
 
         private MatchOutcome EvaluateDates(DiskItemMetadata metadata)
         {

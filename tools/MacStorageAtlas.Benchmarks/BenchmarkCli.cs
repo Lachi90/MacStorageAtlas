@@ -161,7 +161,7 @@ public sealed class BenchmarkCli
             PackageCount: null,
             SyntheticFileCount: null,
             Limitations: []);
-        return new PreparedBenchmark(root, fixture, new DiskScanner(new MacFileMetadataReader()));
+        return new PreparedBenchmark(root, fixture, CreateScanner());
     }
 
     private static async Task<PreparedBenchmark> RepresentativeBenchmarkAsync(
@@ -172,7 +172,13 @@ public sealed class BenchmarkCli
         var fixture = await RepresentativeFixtureGenerator.CreateAsync(
             root,
             cancellationToken);
-        return new PreparedBenchmark(root, fixture, new DiskScanner(new MacFileMetadataReader()));
+        return new PreparedBenchmark(root, fixture, CreateScanner());
+    }
+
+    private static DiskScanner CreateScanner()
+    {
+        var metadataReader = new MacFileMetadataReader();
+        return new DiskScanner(metadataReader, metadataReader);
     }
 
     private static PreparedBenchmark SyntheticBenchmark(long syntheticFiles)

@@ -358,6 +358,7 @@ public partial class MainWindowViewModel
         var sizeDelta = (replacement?.SizeBytes ?? 0) - staleFolder.SizeBytes;
 
         ScanResultMerger.ReplaceSubtree(root, folderPath, replacement);
+        RefreshResultCloudTotals();
 
         var errors = ScanResultMerger.MergeErrors(ScanErrors, folderPath, completed.Errors);
         ScanErrors = errors;
@@ -366,6 +367,10 @@ public partial class MainWindowViewModel
             OmittedEquivalentPaths,
             folderPath,
             completed.OmittedEquivalentPaths);
+        UnlistedCloudFolders = ScanResultMerger.MergeUnlistedCloudFolders(
+            UnlistedCloudFolders,
+            folderPath,
+            completed.UnlistedCloudFolders);
         FilesScanned = Math.Max(0, FilesScanned - staleCounts.Files + refreshedCounts.Files);
         DirectoriesScanned = Math.Max(
             0,
@@ -466,7 +471,8 @@ public partial class MainWindowViewModel
             ResultMeasurementMode,
             ResultCloneAccountingCoverage)
         {
-            OmittedEquivalentPaths = OmittedEquivalentPaths
+            OmittedEquivalentPaths = OmittedEquivalentPaths,
+            UnlistedCloudFolders = UnlistedCloudFolders
         };
 
     private static (long Files, long Directories) CountEntries(DiskItem item)

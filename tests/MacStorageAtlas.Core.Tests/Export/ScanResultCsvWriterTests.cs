@@ -24,8 +24,8 @@ public class ScanResultCsvWriterTests
                 Is.EqualTo(
                     "Path,Name,Kind,Depth,MeasurementMode,MeasuredSizeBytes,"
                     + "CountedSizeBytes,SharedSizeBytes,IsSharedStorage,Extension,"
-                    + "Category,CreatedUtc,ModifiedUtc,LastAccessedUtc\r\n"));
-            Assert.That(ScanResultCsvWriter.Headers, Has.Count.EqualTo(14));
+                    + "Category,CreatedUtc,ModifiedUtc,LastAccessedUtc,Availability\r\n"));
+            Assert.That(ScanResultCsvWriter.Headers, Has.Count.EqualTo(15));
         });
     }
 
@@ -47,7 +47,8 @@ public class ScanResultCsvWriterTests
                 FileCategory.Video,
                 Created,
                 Modified,
-                LastAccessedUtc: null)
+                LastAccessedUtc: null,
+                CloudAvailability.Local)
         ]);
 
         Assert.That(
@@ -55,7 +56,26 @@ public class ScanResultCsvWriterTests
             Is.EqualTo(
                 "/scan/videos/clip.mov,clip.mov,File,2,SharedAwareAllocated,4096,1024,3072,"
                 + "true,.mov,Video,2026-01-02T03:04:05.0000000Z,"
-                + "2026-07-30T12:00:00.0000000Z,\r\n"));
+                + "2026-07-30T12:00:00.0000000Z,,Local\r\n"));
+    }
+
+    [Test]
+    public async Task ACloudOnlyFileRowStatesCloudOnlyInTheAvailabilityColumn()
+    {
+        var csv = await WriteAsync([
+            FileRow("/scan/placeholder.pdf", "placeholder.pdf") with
+            {
+                Availability = CloudAvailability.CloudOnly
+            }
+        ]);
+
+        var fields = ParseCsv(csv);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(fields[0][^1], Is.EqualTo("Availability"));
+            Assert.That(fields[1][^1], Is.EqualTo("CloudOnly"));
+        });
     }
 
     [Test]
@@ -85,7 +105,7 @@ public class ScanResultCsvWriterTests
         {
             Assert.That(fields, Has.Count.EqualTo(3));
             Assert.That(fields[1][0], Is.EqualTo("/scan/a\nb.txt"));
-            Assert.That(fields[1], Has.Length.EqualTo(14));
+            Assert.That(fields[1], Has.Length.EqualTo(15));
             Assert.That(fields[2][0], Is.EqualTo("/scan/plain.txt"));
         });
     }

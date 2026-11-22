@@ -26,7 +26,7 @@ public class ScanResultJsonWriterTests
         {
             Assert.That(
                 document.RootElement.GetProperty("schemaVersion").GetInt32(),
-                Is.EqualTo(2));
+                Is.EqualTo(3));
             Assert.That(scan.GetProperty("rootPath").GetString(), Is.EqualTo("/scan"));
             Assert.That(
                 scan.GetProperty("completedAt").GetString(),

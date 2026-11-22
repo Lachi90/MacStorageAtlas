@@ -52,6 +52,9 @@ public sealed class DiskItemTreeNodeViewModel
             ? FileSizeFormatter.Format(matched)
             : FormattedSize;
 
+    public string AvailabilityDescription =>
+        CloudAvailabilityText.Describe(Item, measurementMode: null);
+
     internal bool HasMaterializedChildren => _children is not null;
 
     public IReadOnlyList<DiskItemTreeNodeViewModel> Children =>

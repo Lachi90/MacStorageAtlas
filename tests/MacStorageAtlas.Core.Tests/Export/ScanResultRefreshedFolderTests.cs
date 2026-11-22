@@ -46,7 +46,7 @@ public class ScanResultRefreshedFolderTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(document.RootElement.GetProperty("schemaVersion").GetInt32(), Is.EqualTo(2));
+            Assert.That(document.RootElement.GetProperty("schemaVersion").GetInt32(), Is.EqualTo(3));
             Assert.That(
                 document.RootElement.GetProperty("scan").GetProperty("completedAt").GetString(),
                 Is.EqualTo("2026-11-03T10:00:00.0000000Z"));
@@ -74,7 +74,7 @@ public class ScanResultRefreshedFolderTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(read.Metadata.SchemaVersion, Is.EqualTo(2));
+            Assert.That(read.Metadata.SchemaVersion, Is.EqualTo(3));
             Assert.That(read.Metadata.ScanCompletedAt, Is.EqualTo(Completed));
             Assert.That(read.Metadata.HasRefreshedFolders, Is.True);
             Assert.That(

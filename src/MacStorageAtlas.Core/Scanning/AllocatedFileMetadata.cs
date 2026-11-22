@@ -7,4 +7,5 @@ public readonly record struct AllocatedFileMetadata(
     long? DataAllocatedSizeBytes = null,
     SharedDataIdentity? SharedDataIdentity = null,
     CloneAccountingCoverage CloneAccountingCoverage =
-        CloneAccountingCoverage.Unavailable);
+        CloneAccountingCoverage.Unavailable,
+    CloudAvailabilityReading? CloudAvailability = null);

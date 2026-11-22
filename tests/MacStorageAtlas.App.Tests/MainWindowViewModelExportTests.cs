@@ -83,7 +83,7 @@ public class MainWindowViewModelExportTests
         {
             Assert.That(lines[0], Does.EndWith("Path,Name,Kind,Depth,MeasurementMode,"
                 + "MeasuredSizeBytes,CountedSizeBytes,SharedSizeBytes,IsSharedStorage,"
-                + "Extension,Category,CreatedUtc,ModifiedUtc,LastAccessedUtc"));
+                + "Extension,Category,CreatedUtc,ModifiedUtc,LastAccessedUtc,Availability"));
             Assert.That(lines, Has.Length.EqualTo(6));
             Assert.That(
                 viewModel.ExportStatusMessage,
@@ -121,7 +121,7 @@ public class MainWindowViewModelExportTests
         {
             Assert.That(
                 document.RootElement.GetProperty("schemaVersion").GetInt32(),
-                Is.EqualTo(2));
+                Is.EqualTo(3));
             Assert.That(
                 document.RootElement.GetProperty("scan").GetProperty("completedAt").GetString(),
                 Is.EqualTo("2026-07-30T12:00:00.0000000Z"));

@@ -17,7 +17,8 @@ public sealed record ScanExportRow(
     FileCategory? Category,
     DateTimeOffset? CreatedUtc,
     DateTimeOffset? ModifiedUtc,
-    DateTimeOffset? LastAccessedUtc)
+    DateTimeOffset? LastAccessedUtc,
+    CloudAvailability Availability = CloudAvailability.Unknown)
 {
     public static ScanExportRow FromDiskItem(
         DiskItem item,
@@ -46,6 +47,7 @@ public sealed record ScanExportRow(
             item.IsDirectory ? null : FileCategoryMap.Find(extension),
             item.Metadata.CreatedTimeUtc,
             item.Metadata.ModifiedTimeUtc,
-            item.Metadata.LastAccessTimeUtc);
+            item.Metadata.LastAccessTimeUtc,
+            item.CloudAvailability);
     }
 }

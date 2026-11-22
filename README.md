@@ -125,6 +125,15 @@ remembered between runs.
 - Browse results as a folder tree sorted by size, or as an interactive treemap.
 - Inspect selected file and folder metadata captured during the scan, including
   item kind and available created or modified dates.
+- See which files and folders exist only in the cloud. Placeholders from iCloud
+  Drive and File Provider apps such as OneDrive carry a cloud icon in the
+  folder tree and Largest files whose tooltip shows how much of a folder is
+  only in the cloud, the Selected item tab states Local, Only in
+  the cloud, Partly local, or Unknown, and the status bar counts local and
+  cloud-only files with the cloud-only size, always labeled as logical content
+  not on this Mac. The status comes from file metadata in every measurement
+  mode, nothing is downloaded, and a cloud folder whose listing was never
+  fetched is reported instead of listed.
 - Preview the selected item with Quick Look from its toolbar control, and use
   Space or Command-I shortcuts for inspection.
 - Control-click or right-click an item in the folder tree, treemap, Largest
@@ -157,9 +166,9 @@ remembered between runs.
 - Search and filter scanned items by name or path, and press Command-F to jump
   to the search box.
 - Narrow a completed scan with advanced filters covering size, creation,
-  modification and last-access dates, file extension, file category, and
-  shared-storage status. Criteria combine with AND, and filtering never
-  rescans.
+  modification and last-access dates, file extension, file category,
+  shared-storage status, and cloud availability. Criteria combine with AND, and
+  filtering never rescans.
 - Set each date bound to a fixed date or to a span before the moment the filter
   runs, such as 18 months ago. A relative bound is stored as the span, so a
   saved preset keeps meaning the same span instead of drifting as time passes.
@@ -176,7 +185,8 @@ remembered between runs.
   neutralized so no cell executes on open. A cancelled or failed export never
   leaves a partial file behind. JSON exports of a result with rescanned folders
   list those folders and their rescan times, and a CSV export reports that the
-  result mixes measurement times.
+  result mixes measurement times. Every exported row states the item's cloud
+  availability.
 - Optionally record completed scans to a local history, so a later release can
   show what grew or shrank between two points in time. Recording is off until
   you turn it on, snapshots stay on your Mac and never include file contents,

@@ -5,7 +5,8 @@ public readonly record struct DiskItemMetadata(
     FileAttributes? Attributes,
     DateTimeOffset? CreatedTimeUtc,
     DateTimeOffset? ModifiedTimeUtc,
-    DateTimeOffset? LastAccessTimeUtc)
+    DateTimeOffset? LastAccessTimeUtc,
+    CloudAvailability CloudAvailability = CloudAvailability.Unknown)
 {
     public static DiskItemMetadata Unknown(DiskItemKind kind) =>
         new(

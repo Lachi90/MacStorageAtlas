@@ -552,6 +552,9 @@ to an actionable subset.
   images, audio, documents, disk images and installers, and code.
 - Shared-storage status, selecting results whose storage is counted against
   another path in the same scan.
+- Cloud availability, selecting local files only or cloud-only files only.
+  Files whose availability is unknown match neither, and presets saved before
+  the criterion existed apply no availability restriction.
 
 Criteria combine with AND. Filters are evaluated against files; directories
 appear only as ancestors of matching files.
@@ -1360,6 +1363,10 @@ script.
   their rescan times, to the JSON metadata. A CSV export of a refreshed result
   reports that the result mixes measurement times. Version 1 JSON exports
   remain readable.
+- Export schema version 3 adds each item's cloud availability as an
+  `availability` JSON field and an `Availability` CSV column. Version 1 and 2
+  JSON exports remain readable and present every item's availability as
+  Unknown.
 - Row order is fully determined by the result, so exporting twice produces
   identical files.
 - CSV parses correctly for paths containing commas, quotation marks, and line
@@ -1433,6 +1440,10 @@ that a user can confirm a cleanup actually held.
   time and every rescanned folder with its rescan time. The history marks
   snapshots that contain rescanned folders. Version 1 snapshots remain readable
   and are shown without rescanned folders.
+- Snapshots written under schema version 3 also record each item's cloud
+  availability. Version 1 and 2 snapshots remain readable and present every
+  item's availability as Unknown. A scan with cloud folders that were not
+  listed is recorded as a partial scan.
 
 ## What a snapshot stores, and where
 
@@ -1796,3 +1807,70 @@ Avalonia layout with the bundled Inter font, the widest single row needs
 search field at its 140-point minimum, on Apple Silicon and under Rosetta.
 The compact Actions button therefore appears only below the supported minimum
 width.
+
+---
+
+# 36. Cloud Availability
+
+## Status
+
+Delivered by `show-cloud-availability` as the local, provider-neutral first
+step toward WP-14. The status on iCloud Drive and OneDrive folders in light
+and dark appearance and with VoiceOver still needs manual verification on
+macOS.
+
+## Purpose
+
+Show which files and folders exist only as cloud placeholders, how much logical
+content lives only in the cloud, and which files actually occupy this Mac,
+without downloading anything or contacting a provider.
+
+## Acceptance Criteria
+
+- Every scanned file is Local, Cloud only, or Unknown, read from the
+  `SF_DATALESS` metadata flag in every measurement mode.
+- A folder is Cloud only, Local, Partly local, or Unknown according to the
+  files the scan included below it. An empty folder is Local.
+- The folder tree and Largest files mark cloud-only and partly local items with
+  a cloud icon. Hovering the icon shows the same text as the Availability row,
+  including how many files and how many logical bytes are only in the cloud.
+  VoiceOver reads the same text. Local items carry no marker.
+- The Selected item tab has an Availability row. For a folder or file with
+  cloud-only content it also states the cloud-only size.
+- The status bar summarizes the whole result as "N files local · M files only
+  in the cloud (X logical, not on this Mac)" when the result contains
+  cloud-only files. A logical result adds that its total includes this size.
+- The cloud-only size is never added to or shown as a measured byte count and
+  is never presented as space that can be freed.
+- The Filters panel offers local files only and cloud-only files only, and the
+  criterion narrows Largest files and File types like the other criteria.
+- A folder that itself carries `SF_DATALESS` is never listed, is reported in
+  the status bar as a cloud folder that was not listed, and makes the scan
+  partial in scan history.
+- Snapshots and exports record each item's availability under schema
+  version 3.
+
+## Documented non-goals
+
+- Downloading, evicting, pinning, or otherwise changing cloud state.
+- Naming the provider or calling a provider API.
+- A "free up space" or "remove download" action.
+- Comparing two scans.
+
+## Affected Projects
+
+- `MacStorageAtlas.Core`
+- `MacStorageAtlas.Platform.Mac`
+- `MacStorageAtlas.App`
+- Matching test projects
+
+## Implementation Notes
+
+`MacFileMetadataReader` implements `ICloudAvailabilityReader` with `stat(2)`
+and adds `ATTR_CMN_FLAGS` and `ATTR_FILE_TOTALSIZE` to its `getattrlist(2)`
+read, so allocated modes reuse the existing metadata call. In logical mode the
+same `stat(2)` call supplies the logical length. `DiskItem.CloudTotals` keeps
+local, cloud-only, and unknown file counts, the cloud-only logical size, and
+unlisted cloud folders per directory. The scan adds them while it unwinds, and
+folder rescans and Trash update them along the ancestor path. See
+[Storage measurement semantics](STORAGE_MEASUREMENT.md#cloud-availability).

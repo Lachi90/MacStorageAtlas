@@ -30,6 +30,8 @@ public sealed record DiskItemFilter
 
     public bool SharedStorageOnly { get; init; }
 
+    public CloudAvailabilityCriterion CloudAvailability { get; init; }
+
     public bool IsActive =>
         !string.IsNullOrWhiteSpace(TextTerm)
         || MinimumSizeBytes is not null
@@ -37,7 +39,8 @@ public sealed record DiskItemFilter
         || HasDateCriteria
         || Extensions.Count > 0
         || Categories.Count > 0
-        || SharedStorageOnly;
+        || SharedStorageOnly
+        || CloudAvailability != CloudAvailabilityCriterion.Any;
 
     public bool HasDateCriteria =>
         CreatedAfter is not null
@@ -135,6 +138,12 @@ public sealed record DiskItemFilter
                 "Minimum size is larger than maximum size.");
         }
 
+        if (!Enum.IsDefined(CloudAvailability))
+        {
+            return DiskItemFilterValidation.Invalid(
+                "The cloud availability criterion is not supported.");
+        }
+
         foreach (var criterion in DateCriteria)
         {
             if (criterion?.Validate() is { IsValid: false } invalid)
@@ -166,6 +175,7 @@ public sealed record DiskItemFilter
         && LastAccessedAfter == other.LastAccessedAfter
         && LastAccessedBefore == other.LastAccessedBefore
         && SharedStorageOnly == other.SharedStorageOnly
+        && CloudAvailability == other.CloudAvailability
         && Extensions.SequenceEqual(other.Extensions, StringComparer.Ordinal)
         && Categories.SequenceEqual(other.Categories);
 
@@ -182,6 +192,7 @@ public sealed record DiskItemFilter
         hash.Add(LastAccessedAfter);
         hash.Add(LastAccessedBefore);
         hash.Add(SharedStorageOnly);
+        hash.Add(CloudAvailability);
 
         foreach (var extension in Extensions)
         {

@@ -13,6 +13,7 @@ public sealed class DiskScanner : IDiskScanner
     private readonly Func<string, FileAttributes, DiskItemKind, DiskItemMetadata>
         _itemMetadataReader;
     private readonly Func<IReadOnlyList<EquivalentPath>> _equivalentPathReader;
+    private readonly Func<string, CloudAvailabilityReading> _cloudAvailabilityReader;
 
     public DiskScanner()
         : this(Directory.EnumerateFileSystemEntries)
@@ -43,18 +44,55 @@ public sealed class DiskScanner : IDiskScanner
     {
     }
 
+    public DiskScanner(
+        IAllocatedFileMetadataReader allocatedMetadataReader,
+        ICloudAvailabilityReader cloudAvailabilityReader)
+        : this(
+            Directory.EnumerateFileSystemEntries,
+            allocatedMetadataReader:
+                (allocatedMetadataReader
+                    ?? throw new ArgumentNullException(nameof(allocatedMetadataReader))).Read,
+            cloudAvailabilityReader:
+                (cloudAvailabilityReader
+                    ?? throw new ArgumentNullException(nameof(cloudAvailabilityReader)))
+                .ReadCloudAvailability)
+    {
+    }
+
+    public DiskScanner(
+        IAllocatedFileMetadataReader allocatedMetadataReader,
+        IEquivalentPathProvider equivalentPathProvider,
+        ICloudAvailabilityReader cloudAvailabilityReader)
+        : this(
+            Directory.EnumerateFileSystemEntries,
+            allocatedMetadataReader:
+                (allocatedMetadataReader
+                    ?? throw new ArgumentNullException(nameof(allocatedMetadataReader))).Read,
+            equivalentPathReader:
+                (equivalentPathProvider
+                    ?? throw new ArgumentNullException(nameof(equivalentPathProvider)))
+                .GetEquivalentPaths,
+            cloudAvailabilityReader:
+                (cloudAvailabilityReader
+                    ?? throw new ArgumentNullException(nameof(cloudAvailabilityReader)))
+                .ReadCloudAvailability)
+    {
+    }
+
     internal DiskScanner(
         Func<string, IEnumerable<string>> enumerateFileSystemEntries,
         Func<string, long>? logicalSizeReader = null,
         Func<string, AllocatedFileMetadata>? allocatedMetadataReader = null,
         Func<string, FileAttributes, DiskItemKind, DiskItemMetadata>? itemMetadataReader = null,
-        Func<IReadOnlyList<EquivalentPath>>? equivalentPathReader = null)
+        Func<IReadOnlyList<EquivalentPath>>? equivalentPathReader = null,
+        Func<string, CloudAvailabilityReading>? cloudAvailabilityReader = null)
     {
         _enumerateFileSystemEntries = enumerateFileSystemEntries;
         _logicalSizeReader = logicalSizeReader ?? (path => new FileInfo(path).Length);
         _allocatedMetadataReader = allocatedMetadataReader ?? MissingAllocatedMetadata;
         _itemMetadataReader = itemMetadataReader ?? ReadItemMetadata;
         _equivalentPathReader = equivalentPathReader ?? NoEquivalentPaths;
+        _cloudAvailabilityReader = cloudAvailabilityReader ?? UnknownCloudAvailability;
     }
 
     public async IAsyncEnumerable<ScanProgress> ScanAsync(
@@ -279,6 +317,13 @@ public sealed class DiskScanner : IDiskScanner
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (directory.IsUnlistedCloudFolder)
+        {
+            directory.SetCloudTotals(CloudAvailabilityTotals.ForUnlistedCloudFolder());
+            state.AddUnlistedCloudFolder(directory.Path);
+            yield break;
+        }
+
         if (visitedDirectories is not null)
         {
             string? identity = null;
@@ -381,6 +426,7 @@ public sealed class DiskScanner : IDiskScanner
                     directory.MeasuredSizeBytes += item.MeasuredSizeBytes;
                     directory.SizeBytes += item.SizeBytes;
                     directory.SharedSizeBytes += item.SharedSizeBytes;
+                    directory.AddCloudTotals(item.CloudTotals);
                     continue;
                 }
 
@@ -392,6 +438,7 @@ public sealed class DiskScanner : IDiskScanner
                 directory.MeasuredSizeBytes += item.MeasuredSizeBytes;
                 directory.SizeBytes += item.SizeBytes;
                 directory.SharedSizeBytes += item.SharedSizeBytes;
+                directory.AddCloudTotals(item.CloudTotals);
                 state.FilesScanned++;
                 state.BytesScanned += item.SizeBytes;
                 var fileProgress = state.TryProgress(currentEntryPath);
@@ -431,6 +478,10 @@ public sealed class DiskScanner : IDiskScanner
 
             if (isDirectory)
             {
+                item.Metadata = item.Metadata with
+                {
+                    CloudAvailability = ReadCloudAvailability(entryPath).Availability
+                };
                 return new EntryOutcome(
                     EntryOutcomeKind.Directory,
                     item,
@@ -454,9 +505,14 @@ public sealed class DiskScanner : IDiskScanner
     {
         if (measurementMode == StorageMeasurementMode.Logical)
         {
-            var logicalSize = _logicalSizeReader(file.Path);
+            var reading = ReadCloudAvailability(file.Path);
+            var logicalSize = reading.Availability != CloudAvailability.Unknown
+                              && file.Metadata.Kind != DiskItemKind.SymbolicLink
+                ? reading.LogicalSizeBytes
+                : _logicalSizeReader(file.Path);
             file.MeasuredSizeBytes = logicalSize;
             file.SizeBytes = logicalSize;
+            ApplyFileCloudAvailability(file, reading);
             return;
         }
 
@@ -467,12 +523,46 @@ public sealed class DiskScanner : IDiskScanner
             file.MeasuredSizeBytes = metadata.AllocatedSizeBytes;
             file.SizeBytes = accounting.CountedSizeBytes;
             file.SharedSizeBytes = accounting.SharedSizeBytes;
-            return;
+        }
+        else
+        {
+            file.MeasuredSizeBytes = metadata.AllocatedSizeBytes;
+            file.SizeBytes = metadata.AllocatedSizeBytes;
         }
 
-        file.MeasuredSizeBytes = metadata.AllocatedSizeBytes;
-        file.SizeBytes = metadata.AllocatedSizeBytes;
+        ApplyFileCloudAvailability(
+            file,
+            metadata.CloudAvailability ?? ReadCloudAvailability(file.Path));
     }
+
+    private static void ApplyFileCloudAvailability(
+        DiskItem file,
+        CloudAvailabilityReading reading)
+    {
+        file.Metadata = file.Metadata with { CloudAvailability = reading.Availability };
+        if (reading.Availability == CloudAvailability.CloudOnly)
+        {
+            file.SetCloudTotals(
+                CloudAvailabilityTotals.ForFile(
+                    CloudAvailability.CloudOnly,
+                    reading.LogicalSizeBytes));
+        }
+    }
+
+    private CloudAvailabilityReading ReadCloudAvailability(string path)
+    {
+        try
+        {
+            return _cloudAvailabilityReader(path);
+        }
+        catch (Exception exception) when (IsRecoverable(exception))
+        {
+            return CloudAvailabilityReading.Unknown;
+        }
+    }
+
+    private static CloudAvailabilityReading UnknownCloudAvailability(string path) =>
+        CloudAvailabilityReading.Unknown;
 
     private static string ItemName(string path)
     {
@@ -613,7 +703,10 @@ public sealed class DiskScanner : IDiskScanner
             root.Metadata = _itemMetadataReader(
                 root.Path,
                 attributes,
-                ItemKind(root.Path, attributes, isDirectory: true));
+                ItemKind(root.Path, attributes, isDirectory: true)) with
+            {
+                CloudAvailability = ReadCloudAvailability(root.Path).Availability
+            };
         }
         catch (Exception exception) when (IsRecoverable(exception))
         {
@@ -696,6 +789,8 @@ public sealed class DiskScanner : IDiskScanner
                     : null;
         private IReadOnlyList<ScanError> _errorSnapshot = [];
         private readonly List<EquivalentPath> _omittedEquivalentPaths = [];
+        private readonly List<string> _unlistedCloudFolders = [];
+        private IReadOnlyList<string> _unlistedCloudFolderSnapshot = [];
         private IReadOnlyList<EquivalentPath> _omittedEquivalentPathSnapshot = [];
         private long _entriesSinceLastProgress;
         private long _lastProgressTimestamp = Stopwatch.GetTimestamp();
@@ -811,6 +906,12 @@ public sealed class DiskScanner : IDiskScanner
             return true;
         }
 
+        public void AddUnlistedCloudFolder(string path)
+        {
+            _unlistedCloudFolders.Add(path);
+            _unlistedCloudFolderSnapshot = _unlistedCloudFolders.ToArray();
+        }
+
         public void AddError(string path, Exception exception)
         {
             _errors.Add(new ScanError(path, exception.Message, exception.GetType().Name));
@@ -860,7 +961,8 @@ public sealed class DiskScanner : IDiskScanner
                 measurementMode,
                 _cloneAccountingCoverage)
             {
-                OmittedEquivalentPaths = _omittedEquivalentPathSnapshot
+                OmittedEquivalentPaths = _omittedEquivalentPathSnapshot,
+                UnlistedCloudFolders = _unlistedCloudFolderSnapshot
             };
         }
 

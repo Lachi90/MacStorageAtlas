@@ -168,10 +168,85 @@ states the original scan time and lists each rescanned folder with the time its
 rescan completed. A later rescan of an ancestor replaces the entries for its
 descendants, and a full scan clears the list. Scan-history snapshots (schema
 version 2) and JSON exports (export schema version 2) record the original scan
-completion time and the rescanned folders. Version 1 snapshots and exports
-remain readable and are treated as having no rescanned folders. A CSV export
+completion time and the rescanned folders. Schema version 3 keeps these fields
+and adds cloud availability. Version 1 snapshots and exports remain readable
+and are treated as having no rescanned folders. A CSV export
 has no metadata block, so its completion message states that the result mixes
 measurement times.
+
+## Cloud availability
+
+Every scanned file records whether its content is stored on this Mac. macOS
+sets the `SF_DATALESS` flag (`0x40000000`) in `st_flags` on a file whose
+content exists only with its cloud provider. iCloud Drive and providers built
+on Apple's File Provider framework, such as OneDrive, use the same flag, so the
+status does not depend on the provider's name and no provider is contacted.
+
+- **Local** means the flag is clear.
+- **Cloud only** means the flag is set. The file is a placeholder.
+- **Unknown** means the status could not be read. Unknown is never shown as
+  Local or Cloud only.
+
+The flag is read in every measurement mode from metadata only:
+
+- In logical mode, one `stat(2)` call per file supplies both the flag and the
+  logical length (`st_size`), which is the value the scan used before. A
+  followed symbolic link keeps its previous length read, and a file whose
+  status cannot be read falls back to that read as well.
+- In the allocated modes, the flag and the logical length come from the
+  metadata read that already runs: `ATTR_CMN_FLAGS` and `ATTR_FILE_TOTALSIZE`
+  in the `getattrlist(2)` read on clone-capable volumes, or the `stat(2)`
+  fallback. Only when that read did not return the flag does the scan add one
+  `stat(2)` call.
+- On systems without this metadata, every item is Unknown.
+
+The scan benchmark on 2026-11-22 (50,000 files in 200 folders, Release build,
+arm64, macOS 27.2.1) measured no slowdown in logical mode: the median duration
+changed from about 295 ms to about 284 ms, because the length read and the
+flag read share one call.
+
+A folder derives its availability from the files the scan included below it:
+
+- **Cloud only** when every such file is cloud only.
+- **Local** when none is. An empty folder is Local.
+- **Partly local** when cloud-only files occur together with local files or
+  files whose status is Unknown.
+- **Unknown** when at least one file is Unknown and none is cloud only.
+
+A directory that itself carries `SF_DATALESS` is a cloud folder whose listing
+the provider has not fetched. Listing it could make the provider download data,
+so the scan never enters it. It stays in the result as an empty folder marked
+Cloud only, counts as cloud content for its ancestors, and is reported as a
+cloud folder that was not listed. That report is separate from scan errors and
+access errors, and the completeness verdict treats such a scan as incomplete
+(`IncompleteCloudFoldersNotListed`). A check on 2026-11-22 found no such folder
+in complete iCloud Drive and OneDrive trees, so the rule costs nothing when
+providers keep their folder structure local.
+
+Availability never changes a measured size. Allocated modes already count a
+placeholder at its local allocation, which is usually zero. Folder availability
+and its counts are recomputed along the ancestor path when a folder is
+rescanned or an item is moved to Trash, and a folder rescan replaces the
+unlisted cloud folders inside it.
+
+### Cloud-only size as a labeled second basis
+
+The cloud-only size is the combined logical length of the cloud-only files
+below the scan root or below a selected folder. It is the only byte count a
+result shows outside the scan's measurement basis, and this exception is
+deliberate:
+
+- Its label always contains "logical" and "not on this Mac".
+- It is never added to, subtracted from, or shown in a column with the
+  measured, counted, or shared bytes, and it is never presented as space that
+  can be freed.
+- In logical mode the same bytes are already part of the scan total, and the
+  label says so ("included in the logical total").
+- The result summary in the status bar shows it for the whole result, next to
+  the other whole-result totals, only when the result contains cloud-only
+  files. The Selected item details show it for the selected folder or file.
+- Exports and snapshots record each item's availability, not the cloud-only
+  size.
 
 ## Clone-accounting coverage
 
@@ -217,6 +292,12 @@ spreadsheet sort or after rows from two exports are combined. A directory row
 reports the totals of its own subtree, so summing every row would count each
 file once per ancestor; the metadata byte total sums the file rows only and
 equals the counted size of the scan root.
+
+Export schema version 3 adds an `availability` field to every JSON item and an
+`Availability` column to CSV, with the values `Local`, `CloudOnly`,
+`PartlyLocal`, and `Unknown`. A filtered JSON export also records the
+`cloudAvailability` criterion. Earlier exports and snapshots stay readable and
+present every item as `Unknown`.
 
 The JSON metadata also carries `refreshedFolders`, the folders rescanned after
 the original scan with the time each rescan completed. The list is empty for a

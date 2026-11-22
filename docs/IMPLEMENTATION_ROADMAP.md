@@ -1153,4 +1153,4 @@ folder-matching domain namespaces.
 | WP-11 | Planned | `codex/storage-feature-roadmap` | Maintain versioned rule catalog |
 | WP-12 | Planned | `codex/storage-feature-roadmap` | Opt-in only |
 | WP-13 | Planned | `codex/storage-feature-roadmap` | Read-only phase first |
-| WP-14 | Deferred | `codex/storage-feature-roadmap` | Requires provider decision |
+| WP-14 | Deferred | `codex/storage-feature-roadmap` | Requires provider decision. Local, provider-neutral first step (`show-cloud-availability`) implemented: per-file and per-folder cloud availability from the `SF_DATALESS` flag in every measurement mode, a labeled cloud-only size, an availability filter, and availability in history snapshots and exports under schema version 3; unfetched cloud folders are reported instead of listed. Manual verification on iCloud Drive and OneDrive in both appearances and with VoiceOver pending. Direct provider scans remain out of scope |
