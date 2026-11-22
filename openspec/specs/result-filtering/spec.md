@@ -224,7 +224,7 @@ Atlas Storage Analyzer SHALL support filtering files by file extension, by a nam
 
 ### Requirement: Filtered results are presented consistently across result views
 
-Atlas Storage Analyzer SHALL apply the active filter to the folder tree, the largest-files list, and the file-type summary so that all three describe the same matched files. The treemap MUST retain its full unfiltered layout and MUST distinguish matching areas without removing non-matching areas.
+Atlas Storage Analyzer SHALL apply the active filter to the folder tree, the largest-files list, and the file-type summary so that all three describe the same matched files. The largest-files list and the file-type summary MUST describe the matched files that lie inside the insight scope, and the folder tree MUST continue to describe every matched file of the result. The treemap MUST retain its full unfiltered layout and MUST distinguish matching areas without removing non-matching areas.
 
 #### Scenario: List views show matches only
 
@@ -232,6 +232,15 @@ Atlas Storage Analyzer SHALL apply the active filter to the folder tree, the lar
 - **WHEN** the user views the largest-files list and the file-type summary
 - **THEN** both describe only matching files
 - **AND** both are consistent with the filtered folder tree
+
+#### Scenario: List views show matches inside the insight scope
+
+- **GIVEN** a filter is active
+- **AND** the insight scope is a folder narrower than the scan root
+- **WHEN** the user views the largest-files list and the file-type summary
+- **THEN** both describe only matching files inside that folder or its
+  subfolders
+- **AND** every file they list is also shown as a match in the folder tree
 
 #### Scenario: The treemap keeps true proportions
 
@@ -598,3 +607,26 @@ A stored preset whose date bounds were saved as absolute instants MUST continue 
 - **GIVEN** stored settings contain a preset whose modification bound is the absolute instant 1 January 2026
 - **WHEN** the preset is loaded and evaluated at two different reference times
 - **THEN** both evaluations use 1 January 2026 as the modification bound
+
+### Requirement: Results can be filtered by cloud availability
+
+Atlas Storage Analyzer SHALL let the user restrict a filter to local files or to cloud-only files. The criterion MUST match files only, MUST combine with the other criteria using AND semantics, MUST NOT match files whose availability is Unknown, and MUST be stored with saved presets. A preset saved without the criterion MUST apply no availability restriction.
+
+#### Scenario: Showing only local files
+
+- **GIVEN** a completed result with local and cloud-only files
+- **WHEN** the user filters to local files
+- **THEN** only local files are matched
+- **AND** Largest files lists only local files
+
+#### Scenario: Combining availability with a size criterion
+
+- **GIVEN** a filter for cloud-only files of at least 100 MB
+- **WHEN** the filter is applied
+- **THEN** only cloud-only files that meet the size criterion are matched
+
+#### Scenario: An older preset applies no availability restriction
+
+- **GIVEN** a preset saved before the availability criterion existed
+- **WHEN** the user applies it
+- **THEN** files of every availability can match

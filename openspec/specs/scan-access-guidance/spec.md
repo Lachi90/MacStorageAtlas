@@ -8,7 +8,7 @@ scan errors, privacy, scan semantics, and cleanup safety boundaries.
 
 ### Requirement: Incomplete scans surface access guidance
 
-Atlas Storage Analyzer SHALL surface user-facing access guidance when the current scan result contains permission-related inaccessible paths or when the application cannot determine whether macOS access is sufficient for the selected scan scope. The guidance MUST identify that the scan may be incomplete, MUST state the number of inaccessible paths known from the scan, and MUST NOT describe inaccessible space as purgeable, free, available, or safe to delete.
+Atlas Storage Analyzer SHALL surface user-facing access guidance only when the current scan result contains permission-related inaccessible paths. The guidance MUST identify that the scan may be incomplete, MUST state the number of inaccessible paths known from the scan, and MUST NOT describe inaccessible space as purgeable, free, available, or safe to delete.
 
 #### Scenario: Completed scan has permission-related inaccessible paths
 
@@ -27,9 +27,10 @@ Atlas Storage Analyzer SHALL surface user-facing access guidance when the curren
 
 #### Scenario: Access status is indeterminate
 
-- **GIVEN** Atlas Storage Analyzer cannot determine whether macOS access is sufficient for the selected scan scope
-- **WHEN** it presents access guidance
-- **THEN** the guidance states that access may be incomplete
+- **GIVEN** Atlas Storage Analyzer cannot determine whether macOS access is sufficient
+- **AND** a scan completes without permission-related inaccessible paths
+- **WHEN** Atlas Storage Analyzer displays the completed scan result
+- **THEN** it shows no access guidance
 - **AND** it does not claim Full Disk Access is granted or denied
 
 ### Requirement: Raw scan errors remain available
