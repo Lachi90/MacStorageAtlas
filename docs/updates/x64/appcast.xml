@@ -3,6 +3,14 @@
     <channel>
         <title>AtlasStorageAnalyzer</title>
         <item>
+            <title>1.2.0</title>
+            <pubDate>Sun, 22 Nov 2026 15:07:26 +0100</pubDate>
+            <sparkle:version>1.2.0</sparkle:version>
+            <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/Lachi90/MacStorageAtlas/releases/download/v1.2.0/AtlasStorageAnalyzer-1.2.0-osx-x64.dmg" length="57578000" type="application/octet-stream" sparkle:edSignature="xvaLLxTXK7r+BuugS05PvztpttM/UlhQqDs+valji9e619qK3p1hLK+QbKeFilh9yITvg1H09waclc3DCt6fCA=="/>
+        </item>
+        <item>
             <title>1.1.1</title>
             <pubDate>Thu, 12 Nov 2026 11:33:27 +0100</pubDate>
             <sparkle:version>1.1.1</sparkle:version>
@@ -21,6 +29,6 @@
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: W0qD7lkpa0Jmj46whM3L3ZL7Ycnlj43gN7P+/eGZ+m5PmPynH4JhQOPft5+wUG7BY+gqRSfWUCO6v1ghCo5rDQ==
-length: 1471
+edSignature: Z90F6J3Syvsj0FlLbkOYonfVmmQLV7YyVQxZQTdIIuzUlxzj6D8VFGJT+LhEz68DtGK9FmMe32vdyJI5B+zRCg==
+length: 2103
 -->
