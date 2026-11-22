@@ -454,6 +454,10 @@ Filters and presets are implemented by `add-advanced-filters`. Relative date
 bounds, preset renaming in the filter panel, preset updating in place, and
 applied-preset reporting are implemented by `improve-filter-presets`, which
 stops a saved age preset from drifting as time passes.
+`scope-insights-to-selected-folder` keeps the Largest files list and the File
+types summary consistent with the folder selected in the tree or treemap: both
+describe the matched files inside that folder, while the folder tree and the
+filter match totals keep describing the whole result.
 
 ### Scope
 
@@ -1063,11 +1067,25 @@ Do not begin implementation until:
 ## Accessibility and interaction
 
 - Every pointer action needs a keyboard equivalent.
+- Expose every main-window command in the macOS menu bar (File, Edit, Scan,
+  Item, View, Window, and Help) with the same enablement as its control.
+  Implemented by `add-native-menu-bar`; manual menu, shortcut, and VoiceOver
+  verification in the direct-download and Mac App Store builds is pending.
 - Use native shortcuts where appropriate:
-  - Space: Quick Look.
+  - Space and Command-Y: Quick Look.
   - Command-I: details.
-  - Command-R: rescan.
+  - Command-R: scan or rescan; Shift-Command-R: rescan the selected folder.
+  - Command-Period: stop the running scan.
+  - Command-O: select a folder; Command-E and Shift-Command-E: export CSV and
+    JSON.
+  - Option-Command-R: Reveal in Finder; Option-Command-C: copy the path.
+  - Command-B: add to or remove from the cleanup basket.
+  - Command-Delete: Move to Trash with the existing confirmation.
   - Command-F: focus filters/search.
+- Shortcuts that a text field uses never act on a scanned item while a text
+  field has focus. Avalonia registers a menu shortcut as a native key
+  equivalent that macOS handles before the text field, so these shortcuts stay
+  in window key handling and their menu entries show no shortcut.
 - Provide accessible names for treemap items and icon-only buttons.
 - Do not encode file type or status by color alone.
 
@@ -1124,13 +1142,13 @@ folder-matching domain namespaces.
 | WP-00 | Complete | `codex/storage-feature-roadmap` | Comparison corrected and verified 2026-07-24; OpenSpec change: `correct-market-comparison` |
 | WP-01 | Partial | `codex/storage-feature-roadmap` | Local Developer ID signing, notarization, and stapling (`sign-and-notarize-releases`) plus Mac App Store packaging complete; sandbox-compatible Trash, Finder reveal, and sandbox-aware access guidance for the App Store build (`fix-sandboxed-mac-integrations`) complete. App Review rejection of 1.0.2 resolved on 2026-08-25 by renaming the product to Atlas Storage Analyzer and removing the temporary LaunchServices entitlement exception (`resolve-app-store-rejection`). Version 1.0.3 was approved and released on the Mac App Store on 2026-08-27, and the public surfaces were updated to present the Store as an available channel (`announce-app-store-availability`). In-app update implementation was archived on `codex/add-in-app-updates` on 2026-09-30 with 28/29 tasks complete and an open production release gate: Sparkle 2.9.6, standard UI, arm64/Rosetta replacement and relaunch, active-work deferral, signed-feed policies, architecture checks, and compile-time Store exclusion are implemented. Signed universal Store packaging with unchanged inputs and local sandbox GUI/menu exclusion on ARM and Rosetta are verified. Immutable-directory failure preserves the old signed app and settings/history; next-start recovery guidance and successful retry/relaunch passed on both ARM and Rosetta x64. Physical Intel and final production-feed/release acceptance remain open; updater support has not been announced as live |
 | WP-02 | Complete | `codex/storage-feature-roadmap` | Measurement definitions (`define-storage-measurement`), hardlink accounting (`deduplicate-hardlinks`), capability-gated verified full-clone accounting (`investigate-apfs-clone-accounting`), and scan benchmark tooling with local baseline verification on 2026-07-29 (`benchmark-and-optimize-scans`) complete |
-| WP-03 | Complete | `codex/storage-feature-roadmap` | Metadata details (`add-file-metadata`) plus Quick Look preview, Space handling, and Command-I details shortcut (`add-quick-look`) complete |
+| WP-03 | Complete | `codex/storage-feature-roadmap` | Metadata details (`add-file-metadata`) plus Quick Look preview, Space handling, and Command-I details shortcut (`add-quick-look`) complete. Follow-up item context menus on the folder tree, treemap, Largest files, and Duplicates with Copy path and Command-Option-C (`add-item-context-menus`) implemented; manual pointer and VoiceOver verification on macOS pending. Follow-up native menu bar with File, Edit, Scan, Item, View, Window, and Help menus and macOS shortcuts (`add-native-menu-bar`) implemented; manual menu, shortcut, and VoiceOver verification in both builds pending |
 | WP-04 | Complete | `codex/storage-feature-roadmap` | Preparatory lazy/off-thread result tree (`virtualize-result-tree`) plus advanced filters and presets (`add-advanced-filters`). Scope changes: file-versus-folder, hidden-status, and package-membership dimensions dropped; "large downloads" preset replaced by "Large disk images and installers" because filters evaluate within the current scan root |
 | WP-05 | Complete | `codex/storage-feature-roadmap` | CSV and JSON export (`export-scan-results`). Scope change: the logical-plus-allocated size column pair was replaced by the scan's own measurement basis, because one scan produces one basis |
 | WP-06 | Complete | `codex/storage-feature-roadmap` | Full Disk Access guidance (`guide-full-disk-access`) complete with conservative access classification, settings fallback, and same-root rescan |
-| WP-07 | Complete | `codex/storage-feature-roadmap` | Cleanup basket and reviewed multi-item Trash workflow (`add-cleanup-basket`) plus shared sensitive-path cleanup protection (`protect-sensitive-paths`) complete |
+| WP-07 | Complete | `codex/storage-feature-roadmap` | Cleanup basket and reviewed multi-item Trash workflow (`add-cleanup-basket`) plus shared sensitive-path cleanup protection (`protect-sensitive-paths`) complete. Follow-up streamlined main toolbar with one Scan, Rescan, and Stop control, direct icon item actions, a basket toggle with count, and one Export menu at the default window size (`streamline-main-toolbar`) implemented; manual visual, tooltip, and VoiceOver verification on macOS pending |
 | WP-08 | Complete | `codex/storage-feature-roadmap` | Basket move and copy with destination preflight and cross-volume copy-then-verified-delete (`move-and-copy-items`); rename and replace collision policies deliberately deferred |
-| WP-09 | Partial | `codex/storage-feature-roadmap` | Persistence half delivered (`persist-scan-history`): opt-in gzip-compressed full-fidelity snapshots, retention by count and total size, completeness verdict per snapshot, and history listing, deletion, and clearing. Comparison between two snapshots remains outstanding. Scope changes: move and rename detection deferred because stable file identity exists today only in shared-aware allocated mode, and snapshots are never truncated to fit a limit because an omitted item is indistinguishable from a deleted one |
+| WP-09 | Partial | `codex/storage-feature-roadmap` | Persistence half delivered (`persist-scan-history`): opt-in gzip-compressed full-fidelity snapshots, retention by count and total size, completeness verdict per snapshot, and history listing, deletion, and clearing. Folder rescans in place (`rescan-folder-in-place`) implemented: a completed folder rescan records a whole-root snapshot under schema version 2 with the original scan time and each rescanned folder, version 1 snapshots stay readable, and JSON exports carry the same provenance under export schema version 2; manual GUI and VoiceOver verification on macOS pending. Comparison between two snapshots remains outstanding. Scope changes: move and rename detection deferred because stable file identity exists today only in shared-aware allocated mode, and snapshots are never truncated to fit a limit because an omitted item is indistinguishable from a deleted one |
 | WP-10 | Complete | `codex/storage-feature-roadmap` | Exact duplicate detection (`detect-exact-duplicates`) complete with opt-in local content reads, byte-for-byte confirmation, hardlink-aware reclaimable totals, cloud-placeholder skips, cancellation, and duplicate review integration |
 | WP-11 | Planned | `codex/storage-feature-roadmap` | Maintain versioned rule catalog |
 | WP-12 | Planned | `codex/storage-feature-roadmap` | Opt-in only |

@@ -103,6 +103,8 @@ public partial class MainWindowViewModel
         NotifyExportCommandsCanExecuteChanged();
         StartDuplicateAnalysisCommand.NotifyCanExecuteChanged();
         MoveToTrashCommand.NotifyCanExecuteChanged();
+        CopySelectedItemPathCommand.NotifyCanExecuteChanged();
+        RescanFolderCommand.NotifyCanExecuteChanged();
         MoveCleanupBasketToTrashCommand.NotifyCanExecuteChanged();
         MoveCleanupBasketToLocationCommand.NotifyCanExecuteChanged();
         CopyCleanupBasketToLocationCommand.NotifyCanExecuteChanged();

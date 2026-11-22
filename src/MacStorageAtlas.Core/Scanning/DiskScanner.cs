@@ -88,7 +88,7 @@ public sealed class DiskScanner : IDiskScanner
             SelectOmittedAlternates(fullRootPath));
         SetRootMetadata(root);
         var visitedDirectories = options.FollowSymbolicLinks
-            ? new HashSet<string>(PathComparer)
+            ? new HashSet<string>(ScanPath.Comparer)
             : null;
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -109,6 +109,164 @@ public sealed class DiskScanner : IDiskScanner
         cancellationToken.ThrowIfCancellationRequested();
         DiskItemSorter.SortBySizeDescending(root);
         yield return state.Progress(fullRootPath, isCompleted: true);
+    }
+
+    public IAsyncEnumerable<ScanProgress> ScanSubtreeAsync(
+        string scanRootPath,
+        string subtreePath,
+        ScanOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(scanRootPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(subtreePath);
+
+        options ??= ScanOptions.Default;
+        if (!Enum.IsDefined(options.MeasurementMode))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(options),
+                options.MeasurementMode,
+                "The storage measurement mode is not supported.");
+        }
+
+        if (options.MeasurementMode == StorageMeasurementMode.SharedAwareAllocated)
+        {
+            throw new NotSupportedException(
+                "A folder cannot be rescanned on its own in shared-aware allocated mode, "
+                + "because hardlinks and clones are attributed across the whole scan.");
+        }
+
+        if (options.FollowSymbolicLinks)
+        {
+            throw new NotSupportedException(
+                "A folder cannot be rescanned on its own while symbolic links are followed, "
+                + "because folders reached through links depend on the paths visited before them.");
+        }
+
+        var fullRootPath = ScanPath.Normalize(scanRootPath);
+        var fullSubtreePath = ScanPath.Normalize(subtreePath);
+        if (!ScanPath.IsWithin(fullSubtreePath, fullRootPath))
+        {
+            throw new ArgumentException(
+                "The folder is not inside the scan root.",
+                nameof(subtreePath));
+        }
+
+        if (ScanPath.Comparer.Equals(fullSubtreePath, fullRootPath))
+        {
+            return ScanAsync(scanRootPath, options, cancellationToken);
+        }
+
+        var omittedAlternates = SelectOmittedAlternates(Path.GetFullPath(scanRootPath));
+        if (omittedAlternates.Keys.Any(alternate => ScanPath.IsWithin(fullSubtreePath, alternate))
+            || !IsTraversedByFullScan(fullRootPath, fullSubtreePath, options))
+        {
+            throw new ArgumentException(
+                "A full scan of the scan root does not include the folder.",
+                nameof(subtreePath));
+        }
+
+        return ScanSubtreeCoreAsync(
+            fullSubtreePath,
+            options,
+            omittedAlternates,
+            cancellationToken);
+    }
+
+    private async IAsyncEnumerable<ScanProgress> ScanSubtreeCoreAsync(
+        string subtreePath,
+        ScanOptions options,
+        IReadOnlyDictionary<string, EquivalentPath> omittedAlternates,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var placeholder = new DiskItem(ItemName(subtreePath), subtreePath, isDirectory: true);
+        var state = new ScanState(placeholder, options.MeasurementMode, omittedAlternates);
+
+        if (!Directory.Exists(subtreePath) && !File.Exists(subtreePath))
+        {
+            yield return state.Progress(subtreePath, isCompleted: true) with
+            {
+                IsRootPresent = false
+            };
+            yield break;
+        }
+
+        var outcome = PrepareEntry(subtreePath, options, state);
+        if (outcome.Kind != EntryOutcomeKind.Directory)
+        {
+            yield return state.Progress(subtreePath, isCompleted: true) with
+            {
+                IsRootPresent = false
+            };
+            yield break;
+        }
+
+        var subtree = outcome.Item!;
+        state.Root = subtree;
+        state.DirectoriesScanned++;
+        yield return state.Progress(subtreePath);
+
+        await foreach (var progress in ScanDirectoryAsync(
+                           subtree,
+                           options,
+                           state,
+                           visitedDirectories: null,
+                           includeChildren: outcome.ExpandPackage,
+                           cancellationToken))
+        {
+            yield return progress;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        DiskItemSorter.SortBySizeDescending(subtree);
+        yield return state.Progress(subtreePath, isCompleted: true);
+    }
+
+    private static bool IsTraversedByFullScan(
+        string rootPath,
+        string subtreePath,
+        ScanOptions options)
+    {
+        var ancestor = Path.GetDirectoryName(subtreePath);
+        while (ancestor is not null
+               && !ScanPath.Comparer.Equals(Path.TrimEndingDirectorySeparator(ancestor), rootPath))
+        {
+            if (!options.TreatPackagesAsDirectories && IsPackage(ancestor))
+            {
+                return false;
+            }
+
+            if (!options.IncludeHiddenFiles
+                && Path.GetFileName(ancestor).StartsWith(".", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            if (TryGetAttributes(ancestor) is { } attributes
+                && ((!options.IncludeHiddenFiles && (attributes & FileAttributes.Hidden) != 0)
+                    || (attributes & FileAttributes.ReparsePoint) != 0))
+            {
+                return false;
+            }
+
+            ancestor = Path.GetDirectoryName(ancestor);
+        }
+
+        return ancestor is not null;
+    }
+
+    private static FileAttributes? TryGetAttributes(string path)
+    {
+        try
+        {
+            return File.GetAttributes(path);
+        }
+        catch (Exception exception) when (IsRecoverable(exception))
+        {
+            return null;
+        }
     }
 
     private async IAsyncEnumerable<ScanProgress> ScanDirectoryAsync(
@@ -387,7 +545,7 @@ public sealed class DiskScanner : IDiskScanner
 
     private Dictionary<string, EquivalentPath> SelectOmittedAlternates(string rootPath)
     {
-        var omittedAlternates = new Dictionary<string, EquivalentPath>(PathComparer);
+        var omittedAlternates = new Dictionary<string, EquivalentPath>(ScanPath.Comparer);
         IReadOnlyList<EquivalentPath> equivalentPaths;
         try
         {
@@ -398,7 +556,7 @@ public sealed class DiskScanner : IDiskScanner
             return omittedAlternates;
         }
 
-        var normalizedRoot = NormalizePath(rootPath);
+        var normalizedRoot = ScanPath.Normalize(rootPath);
         foreach (var equivalentPath in equivalentPaths)
         {
             if (string.IsNullOrWhiteSpace(equivalentPath.VisiblePath)
@@ -409,13 +567,13 @@ public sealed class DiskScanner : IDiskScanner
                 continue;
             }
 
-            var visiblePath = NormalizePath(equivalentPath.VisiblePath);
-            var alternatePath = NormalizePath(equivalentPath.AlternatePath);
-            if (PathComparer.Equals(alternatePath, normalizedRoot)
-                || !IsWithin(alternatePath, normalizedRoot)
-                || !IsWithin(visiblePath, normalizedRoot)
-                || IsWithin(visiblePath, alternatePath)
-                || IsWithin(alternatePath, visiblePath))
+            var visiblePath = ScanPath.Normalize(equivalentPath.VisiblePath);
+            var alternatePath = ScanPath.Normalize(equivalentPath.AlternatePath);
+            if (ScanPath.Comparer.Equals(alternatePath, normalizedRoot)
+                || !ScanPath.IsWithin(alternatePath, normalizedRoot)
+                || !ScanPath.IsWithin(visiblePath, normalizedRoot)
+                || ScanPath.IsWithin(visiblePath, alternatePath)
+                || ScanPath.IsWithin(alternatePath, visiblePath))
             {
                 continue;
             }
@@ -426,22 +584,6 @@ public sealed class DiskScanner : IDiskScanner
         }
 
         return omittedAlternates;
-    }
-
-    private static string NormalizePath(string path) =>
-        Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
-
-    private static bool IsWithin(string path, string ancestorPath)
-    {
-        if (PathComparer.Equals(path, ancestorPath))
-        {
-            return true;
-        }
-
-        var prefix = Path.EndsInDirectorySeparator(ancestorPath)
-            ? ancestorPath
-            : ancestorPath + Path.DirectorySeparatorChar;
-        return path.StartsWith(prefix, PathComparison);
     }
 
     private static IReadOnlyList<EquivalentPath> NoEquivalentPaths() => [];
@@ -532,21 +674,13 @@ public sealed class DiskScanner : IDiskScanner
         throw new IOException(
             $"Allocated metadata is unavailable for '{path}' on this scanner.");
 
-    private static StringComparison PathComparison =>
-        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-
-    private static StringComparer PathComparer =>
-        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
-            ? StringComparer.OrdinalIgnoreCase
-            : StringComparer.Ordinal;
-
     private sealed class ScanState(
         DiskItem root,
         StorageMeasurementMode measurementMode,
         IReadOnlyDictionary<string, EquivalentPath> omittedAlternates)
     {
+        public DiskItem Root { get; set; } = root;
+
         private static readonly TimeSpan MinimumProgressInterval = TimeSpan.FromMilliseconds(150);
         private const long MaximumEntriesBetweenProgress = 4_096;
 
@@ -720,7 +854,7 @@ public sealed class DiskScanner : IDiskScanner
                 FilesScanned,
                 DirectoriesScanned,
                 BytesScanned,
-                root,
+                Root,
                 _errorSnapshot,
                 isCompleted,
                 measurementMode,

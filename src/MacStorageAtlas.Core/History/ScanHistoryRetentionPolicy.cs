@@ -117,5 +117,6 @@ public static class ScanHistoryRetentionPolicy
         IReadOnlyList<ScanSnapshotDescriptor> existing) =>
         existing
             .OrderBy(snapshot => snapshot.ScanCompletedAt)
+            .ThenBy(snapshot => snapshot.CapturedAt)
             .ThenBy(snapshot => snapshot.SnapshotId, StringComparer.Ordinal);
 }

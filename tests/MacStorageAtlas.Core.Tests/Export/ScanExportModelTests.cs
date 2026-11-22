@@ -145,7 +145,7 @@ public class ScanExportModelTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(metadata.SchemaVersion, Is.EqualTo(1));
+            Assert.That(metadata.SchemaVersion, Is.EqualTo(2));
             Assert.That(
                 metadata.SchemaVersion,
                 Is.EqualTo(ScanExportMetadata.CurrentSchemaVersion));

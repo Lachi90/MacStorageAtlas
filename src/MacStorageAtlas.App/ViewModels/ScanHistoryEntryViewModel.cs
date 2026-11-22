@@ -22,6 +22,8 @@ public sealed class ScanHistoryEntryViewModel
         {
             RootPath = descriptor.RootPath;
             ScanCompletedAt = descriptor.ScanCompletedAt;
+            CapturedAt = descriptor.CapturedAt;
+            RefreshedFolderCount = descriptor.Metadata.RefreshedFolders.Count;
             CompletedAt = descriptor.ScanCompletedAt.ToLocalTime().ToString(
                 "g",
                 CultureInfo.CurrentCulture);
@@ -35,6 +37,7 @@ public sealed class ScanHistoryEntryViewModel
 
         RootPath = string.Empty;
         ScanCompletedAt = DateTimeOffset.MinValue;
+        CapturedAt = DateTimeOffset.MinValue;
         CompletedAt = string.Empty;
         ItemCount = string.Empty;
         MeasurementBasis = string.Empty;
@@ -47,6 +50,20 @@ public sealed class ScanHistoryEntryViewModel
     public string RootPath { get; }
 
     public DateTimeOffset ScanCompletedAt { get; }
+
+    public DateTimeOffset CapturedAt { get; }
+
+    public int RefreshedFolderCount { get; }
+
+    public bool HasRefreshedFolders => RefreshedFolderCount > 0;
+
+    public string RefreshedFoldersLabel =>
+        RefreshedFolderCount switch
+        {
+            0 => string.Empty,
+            1 => "Contains rescanned folders (1 folder rescanned after the original scan)",
+            _ => $"Contains rescanned folders ({RefreshedFolderCount.ToString("N0", CultureInfo.CurrentCulture)} folders rescanned after the original scan)"
+        };
 
     public string CompletedAt { get; }
 

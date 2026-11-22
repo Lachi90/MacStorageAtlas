@@ -121,7 +121,7 @@ public class MainWindowViewModelExportTests
         {
             Assert.That(
                 document.RootElement.GetProperty("schemaVersion").GetInt32(),
-                Is.EqualTo(1));
+                Is.EqualTo(2));
             Assert.That(
                 document.RootElement.GetProperty("scan").GetProperty("completedAt").GetString(),
                 Is.EqualTo("2026-07-30T12:00:00.0000000Z"));

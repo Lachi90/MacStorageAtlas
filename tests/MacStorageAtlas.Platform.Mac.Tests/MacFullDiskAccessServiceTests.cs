@@ -168,6 +168,18 @@ public class MacFullDiskAccessServiceTests
         Assert.That(result, Is.EqualTo(FullDiskAccessSettingsResult.Failed));
     }
 
+    [Test]
+    public void ProbeIncludesTheSystemPrivacyDatabaseDirectoryPresentOnEveryMac()
+    {
+        var paths = FullDiskAccessProbe.ProbePaths().ToArray();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(paths[0], Is.EqualTo("/Library/Application Support/com.apple.TCC"));
+            Assert.That(paths, Has.Length.GreaterThanOrEqualTo(2));
+        });
+    }
+
     private sealed class FakeProbe(FullDiskAccessProbeResult result) : IFullDiskAccessProbe
     {
         public FullDiskAccessProbeResult Probe() => result;

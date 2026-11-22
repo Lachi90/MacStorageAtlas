@@ -50,7 +50,9 @@ public partial class App : Application
                 scanHistoryStore: new FileSystemScanHistoryStore(
                     ScanHistoryStoreLocation.Default()),
                 scanHistoryClearConfirmationService:
-                    new AvaloniaScanHistoryClearConfirmationService(mainWindow));
+                    new AvaloniaScanHistoryClearConfirmationService(mainWindow),
+                folderRescanConfirmationService:
+                    new AvaloniaFolderRescanConfirmationService(mainWindow));
 
             desktop.MainWindow = mainWindow;
 

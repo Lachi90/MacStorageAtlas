@@ -19,7 +19,6 @@ public static class ScanCompletenessClassifier
                 ScanCompleteness.IncompleteAccessRestricted,
             AccessGuidanceStatus.SandboxedSelectionRequired =>
                 ScanCompleteness.IncompleteAccessRestricted,
-            AccessGuidanceStatus.Indeterminate => ScanCompleteness.Undetermined,
             AccessGuidanceStatus.IncompleteScan =>
                 ScanCompleteness.IncompleteRecoverableErrors,
             _ => errors.Count > 0

@@ -51,7 +51,9 @@ visible.
 
 Two dedicated tabs answer the questions that matter: *which kinds of files take
 up the most room?* and *what are the single biggest files on disk?* — each with
-counts, sizes, and full paths.
+counts, sizes, and full paths. Both tabs follow the folder you select in the
+folder tree or the treemap, name that folder, and return to the whole scan with
+one click on "Show whole scan".
 
 | File types | Largest files |
 | --- | --- |
@@ -74,10 +76,12 @@ but Atlas Storage Analyzer never auto-selects a copy for cleanup.
 
 Found something to inspect? Preview the selected item with Quick Look, reveal it
 in Finder, move an eligible item to the Trash after a confirmation, or collect
-multiple scanned items in the cleanup basket for a final review. Broad or
-sensitive containers are blocked from in-app cleanup with an explanation. Files
-are never permanently deleted — approved cleanup items go to the macOS Trash,
-and partial failures identify the item that could not be moved.
+multiple scanned items in the cleanup basket for a final review. Control-click
+any item in the tree, treemap, or result lists to reach these actions from a
+context menu, or copy the item's full path. Broad or sensitive containers are
+blocked from in-app cleanup with an explanation. Files are never permanently
+deleted — approved cleanup items go to the macOS Trash, and partial failures
+identify the item that could not be moved.
 
 ### 📦 Archive instead of delete
 
@@ -111,18 +115,45 @@ remembered between runs.
 
 - Select and scan any folder or volume with live progress reporting, and
   cancel a running scan at any time.
+- Work from a single-row toolbar. One scan control reads Scan, Rescan once a
+  result for the selected location is shown, and Stop while a scan or folder
+  rescan runs, and ignores an accidental second click. At the default window
+  size Quick Look, Reveal in Finder, Move to Trash, one cleanup basket toggle
+  that shows the basket item count, and one Export menu for CSV and JSON are
+  direct icon controls. Each one names its action and shortcut in its tooltip
+  and to VoiceOver.
 - Browse results as a folder tree sorted by size, or as an interactive treemap.
 - Inspect selected file and folder metadata captured during the scan, including
   item kind and available created or modified dates.
-- Preview the selected item with Quick Look using the toolbar or its Actions
-  menu, and use Space or Command-I shortcuts for inspection.
-- See storage broken down by file type and a list of the largest files.
+- Preview the selected item with Quick Look from its toolbar control, and use
+  Space or Command-I shortcuts for inspection.
+- Control-click or right-click an item in the folder tree, treemap, Largest
+  files list, or Duplicates list to open a context menu with Quick Look, Show
+  details, Reveal in Finder, Copy path, Rescan this folder for folders,
+  cleanup-basket actions, and Move to Trash for that item. Command-Option-C
+  copies the selected item's full path.
+- See storage broken down by file type and a list of the largest files. Both
+  tabs describe the folder last selected in the folder tree or the treemap,
+  including its subfolders; selecting a file uses its containing folder.
+  Picking an entry in the Largest files or Duplicates list keeps the scope, an
+  active filter still applies inside it, and "Show whole scan" returns both
+  tabs to the entire result. Export, scan history, duplicate analysis, and the
+  filter match totals always cover the whole result.
 - Run opt-in exact duplicate analysis after a scan completes. Duplicate
   analysis reads local file contents only when candidates survive metadata and
   sample checks, can be cancelled, skips known cloud-only placeholders, shows
   hardlinks as linked paths, and lets duplicate entries flow through the same
   Quick Look, Finder reveal, and cleanup-basket review commands as other
   scanned items.
+- Rescan one folder of a displayed result in place with "Rescan this folder" on
+  the Selected item tab, the item context menu, or Shift-Command-R. Only that
+  folder is remeasured, with the scan options of the displayed result, while
+  the rest of the result keeps its values. Ancestor totals, the treemap,
+  filters, insights, errors, and the cleanup basket follow the refreshed
+  folder, and the result summary lists each rescanned folder with its rescan
+  time. Shared-aware allocated results and scans that follow symbolic links
+  offer a confirmed full rescan instead, because their folder totals depend on
+  traversal order.
 - Search and filter scanned items by name or path, and press Command-F to jump
   to the search box.
 - Narrow a completed scan with advanced filters covering size, creation,
@@ -143,12 +174,16 @@ remembered between runs.
   exactly and carries the scan's unreadable-path list; CSV is written for
   spreadsheets, with a UTF-8 byte order mark and leading formula characters
   neutralized so no cell executes on open. A cancelled or failed export never
-  leaves a partial file behind.
+  leaves a partial file behind. JSON exports of a result with rescanned folders
+  list those folders and their rescan times, and a CSV export reports that the
+  result mixes measurement times.
 - Optionally record completed scans to a local history, so a later release can
   show what grew or shrank between two points in time. Recording is off until
   you turn it on, snapshots stay on your Mac and never include file contents,
-  and the store is capped by snapshot count and total size. You can delete a
-  single recorded scan or clear the whole history at any time.
+  and the store is capped by snapshot count and total size. A completed folder
+  rescan records a snapshot of the whole merged result that states the original
+  scan time and each rescanned folder, and the history marks such snapshots.
+  You can delete a single recorded scan or clear the whole history at any time.
 - Reveal items in Finder, move one eligible item to Trash, or review a
   multi-item cleanup basket before moving approved items to Trash. Broad or
   sensitive containers are blocked from in-app cleanup with an explanation.
@@ -168,8 +203,38 @@ remembered between runs.
   measurement.
 - Remembers your scanner preferences and recent scan locations between runs,
   with controls to remove individual entries or clear the list.
+- Find every command in the macOS menu bar, under File, Edit, Scan, Item,
+  View, Window, and Help, with the same enablement as its toolbar or context
+  menu control and the keyboard shortcuts listed below.
 - Modern, native-feeling UI that follows the system light/dark appearance, with
   a responsive treemap and a live scan-progress overlay.
+
+### Keyboard shortcuts
+
+| Shortcut | Command | Menu |
+| --- | --- | --- |
+| Command-O | Select Folder… | File |
+| Command-E | Export as CSV… | File |
+| Shift-Command-E | Export as JSON… | File |
+| Command-R | Scan or Rescan the selected location | Scan |
+| Shift-Command-R | Rescan the selected folder | Scan > Rescan Folder |
+| Command-Period | Stop the running scan | Scan |
+| Command-Y or Space | Quick Look | Item |
+| Command-I | Show Details | Item |
+| Option-Command-R | Reveal in Finder | Item |
+| Option-Command-C | Copy Path | Item |
+| Command-B | Add to or Remove from Cleanup Basket | Item |
+| Command-Delete | Move to Trash… | Item |
+| Command-F | Filter and Search | View |
+| Command-M | Minimize | Window |
+
+A shortcut does nothing while its command is unavailable. Space,
+Shift-Command-R, Option-Command-C, Command-B, and Command-Delete never act on a
+scanned item while a text field such as the search box has focus, so they keep
+their text-editing behavior there. Because macOS would otherwise deliver them to
+the menu before the text field, their menu entries do not display the shortcut;
+the item context menu shows them instead. Move to Trash from the menu or
+Command-Delete keeps the protected-path check and the Trash confirmation.
 
 > Completed-result screenshots above show Atlas Storage Analyzer analyzing a prepared
 > demo folder of photos, caches, archives, design assets, and video projects,

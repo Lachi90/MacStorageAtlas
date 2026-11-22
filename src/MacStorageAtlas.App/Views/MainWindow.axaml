@@ -23,6 +23,133 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="File">
+                <NativeMenu>
+                    <NativeMenuItem Header="Select Folder…"
+                                    Gesture="Meta+O"
+                                    Command="{Binding SelectFolderCommand}"/>
+                    <NativeMenuItem Header="Open Recent">
+                        <NativeMenu NeedsUpdate="OnOpenRecentMenuNeedsUpdate"/>
+                    </NativeMenuItem>
+                    <NativeMenuItemSeparator/>
+                    <NativeMenuItem Header="Export as CSV…"
+                                    Gesture="Meta+E"
+                                    Command="{Binding ExportCsvCommand}"/>
+                    <NativeMenuItem Header="Export as JSON…"
+                                    Gesture="Shift+Meta+E"
+                                    Command="{Binding ExportJsonCommand}"/>
+                </NativeMenu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="Edit">
+                <NativeMenu>
+                    <NativeMenuItem Header="Undo" Click="OnUndoMenuItemClick"/>
+                    <NativeMenuItem Header="Redo" Click="OnRedoMenuItemClick"/>
+                    <NativeMenuItemSeparator/>
+                    <NativeMenuItem Header="Cut" Click="OnCutMenuItemClick"/>
+                    <NativeMenuItem Header="Copy" Click="OnCopyMenuItemClick"/>
+                    <NativeMenuItem Header="Paste" Click="OnPasteMenuItemClick"/>
+                    <NativeMenuItem Header="Select All" Click="OnSelectAllMenuItemClick"/>
+                </NativeMenu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="Scan">
+                <NativeMenu>
+                    <NativeMenuItem Header="{Binding ScanCommandLabel}"
+                                    Gesture="Meta+R"
+                                    Command="{Binding RescanCommand}"/>
+                    <NativeMenuItem Header="Rescan Folder"
+                                    Command="{Binding RescanFolderCommand}"/>
+                    <NativeMenuItem Header="Stop"
+                                    Gesture="Meta+OemPeriod"
+                                    Command="{Binding StopScanCommand}"/>
+                    <NativeMenuItemSeparator/>
+                    <NativeMenuItem Header="Find Duplicates"
+                                    Command="{Binding StartDuplicateAnalysisCommand}"/>
+                </NativeMenu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="Item">
+                <NativeMenu>
+                    <NativeMenuItem Header="Quick Look"
+                                    Gesture="Meta+Y"
+                                    Command="{Binding QuickLookCommand}"/>
+                    <NativeMenuItem Header="Show Details"
+                                    Gesture="Meta+I"
+                                    Command="{Binding ShowSelectedItemDetailsCommand}"/>
+                    <NativeMenuItem Header="Reveal in Finder"
+                                    Gesture="Alt+Meta+R"
+                                    Command="{Binding RevealInFinderCommand}"/>
+                    <NativeMenuItem Header="Copy Path"
+                                    Command="{Binding CopySelectedItemPathCommand}"/>
+                    <NativeMenuItemSeparator/>
+                    <NativeMenuItem Header="{Binding CleanupBasketCommandLabel}"
+                                    Command="{Binding ToggleSelectedItemInCleanupBasketCommand}"/>
+                    <NativeMenuItemSeparator/>
+                    <NativeMenuItem Header="Move to Trash…"
+                                    Command="{Binding MoveToTrashCommand}"/>
+                </NativeMenu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="View">
+                <NativeMenu>
+                    <NativeMenuItem Header="Filter and Search"
+                                    Gesture="Meta+F"
+                                    Click="OnFilterAndSearchMenuItemClick"/>
+                    <NativeMenuItem Header="Show Whole Scan"
+                                    Command="{Binding ResetInsightScopeCommand}"/>
+                    <NativeMenuItemSeparator/>
+                    <NativeMenuItem Header="Shared-aware allocated size"
+                                    ToggleType="Radio"
+                                    IsChecked="{Binding MeasurementMode, Mode=OneWay, Converter={x:Static conv:StorageMeasurementModeMatchConverter.Instance}, ConverterParameter={x:Static coreScanning:StorageMeasurementMode.SharedAwareAllocated}}"
+                                    Command="{Binding SelectMeasurementModeCommand}"
+                                    CommandParameter="{x:Static coreScanning:StorageMeasurementMode.SharedAwareAllocated}"/>
+                    <NativeMenuItem Header="Allocated size per path"
+                                    ToggleType="Radio"
+                                    IsChecked="{Binding MeasurementMode, Mode=OneWay, Converter={x:Static conv:StorageMeasurementModeMatchConverter.Instance}, ConverterParameter={x:Static coreScanning:StorageMeasurementMode.Allocated}}"
+                                    Command="{Binding SelectMeasurementModeCommand}"
+                                    CommandParameter="{x:Static coreScanning:StorageMeasurementMode.Allocated}"/>
+                    <NativeMenuItem Header="Logical size"
+                                    ToggleType="Radio"
+                                    IsChecked="{Binding MeasurementMode, Mode=OneWay, Converter={x:Static conv:StorageMeasurementModeMatchConverter.Instance}, ConverterParameter={x:Static coreScanning:StorageMeasurementMode.Logical}}"
+                                    Command="{Binding SelectMeasurementModeCommand}"
+                                    CommandParameter="{x:Static coreScanning:StorageMeasurementMode.Logical}"/>
+                    <NativeMenuItemSeparator/>
+                    <NativeMenuItem Header="Scan Inside Application Bundles"
+                                    ToggleType="CheckBox"
+                                    IsChecked="{Binding ExpandApplicationBundles, Mode=OneWay}"
+                                    Command="{Binding ToggleExpandApplicationBundlesCommand}"/>
+                    <NativeMenuItem Header="Include Hidden Files"
+                                    ToggleType="CheckBox"
+                                    IsChecked="{Binding IncludeHiddenFiles, Mode=OneWay}"
+                                    Command="{Binding ToggleIncludeHiddenFilesCommand}"/>
+                    <NativeMenuItem Header="Follow Symbolic Links"
+                                    ToggleType="CheckBox"
+                                    IsChecked="{Binding FollowSymbolicLinks, Mode=OneWay}"
+                                    Command="{Binding ToggleFollowSymbolicLinksCommand}"/>
+                    <NativeMenuItemSeparator/>
+                    <NativeMenuItem Header="Scan History"
+                                    Click="OnScanHistoryMenuItemClick"/>
+                </NativeMenu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="Window">
+                <NativeMenu>
+                    <NativeMenuItem Header="Minimize"
+                                    Gesture="Meta+M"
+                                    Click="OnMinimizeMenuItemClick"/>
+                    <NativeMenuItem Header="Zoom"
+                                    Click="OnZoomMenuItemClick"/>
+                </NativeMenu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="Help">
+                <NativeMenu>
+                    <NativeMenuItem Header="Atlas Storage Analyzer Support"
+                                    Click="OnSupportMenuItemClick"/>
+                    <NativeMenuItem Header="Privacy Policy"
+                                    Click="OnPrivacyPolicyMenuItemClick"/>
+                </NativeMenu>
+            </NativeMenuItem>
+        </NativeMenu>
+    </NativeMenu.Menu>
+
     <Window.Resources>
         <DataTemplate x:Key="DateBoundTemplate" x:DataType="vm:DateBoundViewModel">
             <StackPanel Spacing="4" Margin="0,0,0,8">
@@ -70,6 +197,47 @@
                            Text="{Binding ResolvedDescription}"/>
             </StackPanel>
         </DataTemplate>
+        <ContextMenu x:Key="ResultItemContextMenu"
+                     x:DataType="vm:MainWindowViewModel"
+                     AutomationProperties.Name="Item actions">
+            <MenuItem Header="Quick Look"
+                      InputGesture="Space"
+                      AutomationProperties.Name="Quick Look"
+                      Command="{Binding QuickLookCommand}"/>
+            <MenuItem Header="Show details"
+                      InputGesture="Meta+I"
+                      AutomationProperties.Name="Show details"
+                      Command="{Binding ShowSelectedItemDetailsCommand}"/>
+            <MenuItem Header="Reveal in Finder"
+                      AutomationProperties.Name="Reveal in Finder"
+                      Command="{Binding RevealInFinderCommand}"/>
+            <Separator/>
+            <MenuItem Header="Copy path"
+                      InputGesture="Meta+Alt+C"
+                      AutomationProperties.Name="Copy path"
+                      Command="{Binding CopySelectedItemPathCommand}"/>
+            <Separator x:Name="FolderActionsGroup"/>
+            <MenuItem Header="Rescan this folder"
+                      InputGesture="Shift+Meta+R"
+                      IsVisible="{Binding IsSelectedItemDirectory}"
+                      AutomationProperties.Name="{Binding RescanSelectedFolderAccessibleName}"
+                      Command="{Binding RescanFolderCommand}"/>
+            <Separator/>
+            <MenuItem Header="Add to cleanup basket"
+                      InputGesture="Meta+B"
+                      AutomationProperties.Name="Add selected item to cleanup basket"
+                      Command="{Binding AddSelectedItemToCleanupBasketCommand}"/>
+            <MenuItem Header="Remove from cleanup basket"
+                      InputGesture="Meta+B"
+                      AutomationProperties.Name="Remove selected item from cleanup basket"
+                      Command="{Binding RemoveSelectedItemFromCleanupBasketCommand}"/>
+            <Separator/>
+            <MenuItem Classes="danger"
+                      Header="Move to Trash…"
+                      InputGesture="Meta+Back"
+                      AutomationProperties.Name="Move to Trash"
+                      Command="{Binding MoveToTrashCommand}"/>
+        </ContextMenu>
     </Window.Resources>
 
     <DockPanel>
@@ -86,35 +254,45 @@
                 BorderBrush="{DynamicResource DividerBrush}"
                 BorderThickness="0,0,0,1"
                 Padding="16,8">
-            <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto"
-                  ColumnSpacing="10"
+            <Grid ColumnSpacing="10"
                   VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="100*" MinWidth="140" MaxWidth="220"/>
+                </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0"
                             Orientation="Horizontal"
                             Spacing="8"
                             VerticalAlignment="Center">
-                    <Button Command="{Binding SelectFolderCommand}">
+                    <Button Classes="toolbar"
+                            AutomationProperties.Name="Select folder"
+                            ToolTip.Tip="Select a folder to scan (Command-O)"
+                            Command="{Binding SelectFolderCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <PathIcon Data="{StaticResource IconFolder}"/>
                             <TextBlock Text="Select folder"/>
                         </StackPanel>
                     </Button>
-                    <Button Classes="accent" Command="{Binding ScanFolderCommand}">
+                    <Button Name="PrimaryScanButton"
+                            Classes="toolbar primary-scan"
+                            Classes.accent="{Binding !IsScanning}"
+                            Classes.danger="{Binding IsScanning}"
+                            ToolTip.Tip="{Binding PrimaryScanActionToolTip}"
+                            AutomationProperties.Name="{Binding PrimaryScanActionLabel}"
+                            Command="{Binding PrimaryScanActionCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <PathIcon Data="{StaticResource IconSearch}"/>
-                            <TextBlock Text="Scan"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding RescanCommand}">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <PathIcon Data="{StaticResource IconRefresh}"/>
-                            <TextBlock Text="Rescan"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding StopScanCommand}">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <PathIcon Data="{StaticResource IconStop}"/>
-                            <TextBlock Text="Stop"/>
+                            <PathIcon Data="{StaticResource IconSearch}"
+                                      IsVisible="{Binding IsPrimaryScanActionScan}"/>
+                            <PathIcon Data="{StaticResource IconRefresh}"
+                                      IsVisible="{Binding IsPrimaryScanActionRescan}"/>
+                            <PathIcon Data="{StaticResource IconStop}"
+                                      IsVisible="{Binding IsPrimaryScanActionStop}"/>
+                            <TextBlock Text="{Binding PrimaryScanActionLabel}"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -125,65 +303,75 @@
                     <StackPanel Name="FullActionGroup"
                                 Orientation="Horizontal"
                                 Spacing="8"
-                                VerticalAlignment="Center"
-                                IsVisible="False">
-                        <Button Command="{Binding RevealInFinderCommand}">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource IconReveal}"/>
-                                <TextBlock Text="Reveal in Finder"/>
-                            </StackPanel>
+                                VerticalAlignment="Center">
+                        <Button Name="QuickLookButton"
+                                Classes="icon"
+                                ToolTip.Tip="Quick Look (Space or Command-Y)"
+                                AutomationProperties.Name="Quick Look"
+                                Command="{Binding QuickLookCommand}">
+                            <PathIcon Data="{StaticResource IconPreview}"/>
                         </Button>
-                        <Button Command="{Binding QuickLookCommand}">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource IconPreview}"/>
-                                <TextBlock Text="Quick Look"/>
-                            </StackPanel>
+                        <Button Name="RevealInFinderButton"
+                                Classes="icon"
+                                ToolTip.Tip="Reveal in Finder (Option-Command-R)"
+                                AutomationProperties.Name="Reveal in Finder"
+                                Command="{Binding RevealInFinderCommand}">
+                            <PathIcon Data="{StaticResource IconReveal}"/>
                         </Button>
-                        <Button Classes="danger" Command="{Binding MoveToTrashCommand}">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource IconTrash}"/>
-                                <TextBlock Text="Move to Trash"/>
+                        <Button Name="MoveToTrashButton"
+                                Classes="icon danger"
+                                ToolTip.Tip="Move to Trash (Command-Delete)"
+                                AutomationProperties.Name="Move to Trash"
+                                Command="{Binding MoveToTrashCommand}">
+                            <PathIcon Data="{StaticResource IconTrash}"/>
+                        </Button>
+
+                        <Border Width="1" Margin="2,2" Background="{DynamicResource DividerBrush}"/>
+
+                        <Button Name="CleanupBasketToggleButton"
+                                Classes="icon"
+                                ToolTip.Tip="{Binding CleanupBasketToggleToolTip}"
+                                AutomationProperties.Name="{Binding CleanupBasketCommandLabel}"
+                                Command="{Binding ToggleSelectedItemInCleanupBasketCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <PathIcon Data="{StaticResource IconBasketAdd}"
+                                          IsVisible="{Binding !CleanupBasketToggleRemovesItem}"/>
+                                <PathIcon Data="{StaticResource IconBasketRemove}"
+                                          IsVisible="{Binding CleanupBasketToggleRemovesItem}"/>
+                                <Border Name="CleanupBasketCountBadge"
+                                        Classes="count-badge"
+                                        IsVisible="{Binding HasCleanupBasketItems}">
+                                    <TextBlock Text="{Binding CleanupBasketItemCount}"/>
+                                </Border>
                             </StackPanel>
                         </Button>
 
                         <Border Width="1" Margin="2,2" Background="{DynamicResource DividerBrush}"/>
 
-                        <Button ToolTip.Tip="Add the selected scan item to the cleanup basket"
-                                AutomationProperties.Name="Add selected item to cleanup basket"
-                                Command="{Binding AddSelectedItemToCleanupBasketCommand}">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource IconTrash}"/>
-                                <TextBlock Text="Add to basket"/>
-                            </StackPanel>
-                        </Button>
-                        <Button ToolTip.Tip="Remove the selected scan item from the cleanup basket"
-                                AutomationProperties.Name="Remove selected item from cleanup basket"
-                                Command="{Binding RemoveSelectedItemFromCleanupBasketCommand}">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource IconTrash}"/>
-                                <TextBlock Text="Remove from basket"/>
-                            </StackPanel>
-                        </Button>
-
-                        <Border Width="1" Margin="2,2" Background="{DynamicResource DividerBrush}"/>
-
-                        <Button ToolTip.Tip="Export the current result as comma-separated values"
-                                Command="{Binding ExportCsvCommand}">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource IconExport}"/>
-                                <TextBlock Text="Export CSV"/>
-                            </StackPanel>
-                        </Button>
-                        <Button ToolTip.Tip="Export the current result as JSON"
-                                Command="{Binding ExportJsonCommand}">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource IconExport}"/>
-                                <TextBlock Text="Export JSON"/>
-                            </StackPanel>
+                        <Button Name="ExportMenuButton"
+                                Classes="icon"
+                                IsEnabled="{Binding IsExportAvailable}"
+                                ToolTip.Tip="Export as CSV (Command-E) or JSON (Shift-Command-E)"
+                                AutomationProperties.Name="Export">
+                            <PathIcon Data="{StaticResource IconExport}"/>
+                            <Button.Flyout>
+                                <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                                    <MenuItem Header="Export as CSV…"
+                                              InputGesture="Meta+E"
+                                              AutomationProperties.Name="Export as CSV"
+                                              Command="{Binding ExportCsvCommand}"/>
+                                    <MenuItem Header="Export as JSON…"
+                                              InputGesture="Shift+Meta+E"
+                                              AutomationProperties.Name="Export as JSON"
+                                              Command="{Binding ExportJsonCommand}"/>
+                                </MenuFlyout>
+                            </Button.Flyout>
                         </Button>
                     </StackPanel>
 
                     <Button Name="CompactActionsButton"
+                            Classes="toolbar"
+                            IsVisible="False"
                             ToolTip.Tip="Selected item and export actions"
                             AutomationProperties.Name="Selected item and export actions">
                         <StackPanel Orientation="Horizontal" Spacing="6">
@@ -195,14 +383,7 @@
                                 <StackPanel Spacing="10" Width="220" Margin="4">
                                     <TextBlock Classes="label" Text="Selected item"/>
                                     <Button HorizontalAlignment="Stretch"
-                                            HorizontalContentAlignment="Left"
-                                            Command="{Binding RevealInFinderCommand}">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <PathIcon Data="{StaticResource IconReveal}"/>
-                                            <TextBlock Text="Reveal in Finder"/>
-                                        </StackPanel>
-                                    </Button>
-                                    <Button HorizontalAlignment="Stretch"
+                                            AutomationProperties.Name="Quick Look"
                                             HorizontalContentAlignment="Left"
                                             Command="{Binding QuickLookCommand}">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
@@ -210,7 +391,17 @@
                                             <TextBlock Text="Quick Look"/>
                                         </StackPanel>
                                     </Button>
+                                    <Button HorizontalAlignment="Stretch"
+                                            AutomationProperties.Name="Reveal in Finder"
+                                            HorizontalContentAlignment="Left"
+                                            Command="{Binding RevealInFinderCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource IconReveal}"/>
+                                            <TextBlock Text="Reveal in Finder"/>
+                                        </StackPanel>
+                                    </Button>
                                     <Button Classes="danger"
+                                            AutomationProperties.Name="Move to Trash"
                                             HorizontalAlignment="Stretch"
                                             HorizontalContentAlignment="Left"
                                             Command="{Binding MoveToTrashCommand}">
@@ -222,26 +413,19 @@
                                     <TextBlock Classes="label" Text="Cleanup basket"/>
                                     <Button HorizontalAlignment="Stretch"
                                             HorizontalContentAlignment="Left"
-                                            ToolTip.Tip="Add the selected scan item to the cleanup basket"
-                                            AutomationProperties.Name="Add selected item to cleanup basket"
-                                            Command="{Binding AddSelectedItemToCleanupBasketCommand}">
+                                            AutomationProperties.Name="{Binding CleanupBasketCommandLabel}"
+                                            Command="{Binding ToggleSelectedItemInCleanupBasketCommand}">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <PathIcon Data="{StaticResource IconTrash}"/>
-                                            <TextBlock Text="Add to basket"/>
-                                        </StackPanel>
-                                    </Button>
-                                    <Button HorizontalAlignment="Stretch"
-                                            HorizontalContentAlignment="Left"
-                                            ToolTip.Tip="Remove the selected scan item from the cleanup basket"
-                                            AutomationProperties.Name="Remove selected item from cleanup basket"
-                                            Command="{Binding RemoveSelectedItemFromCleanupBasketCommand}">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <PathIcon Data="{StaticResource IconTrash}"/>
-                                            <TextBlock Text="Remove from basket"/>
+                                            <PathIcon Data="{StaticResource IconBasketAdd}"
+                                                      IsVisible="{Binding !CleanupBasketToggleRemovesItem}"/>
+                                            <PathIcon Data="{StaticResource IconBasketRemove}"
+                                                      IsVisible="{Binding CleanupBasketToggleRemovesItem}"/>
+                                            <TextBlock Text="{Binding CleanupBasketCommandLabel}"/>
                                         </StackPanel>
                                     </Button>
                                     <TextBlock Classes="label" Text="Export"/>
                                     <Button HorizontalAlignment="Stretch"
+                                            AutomationProperties.Name="Export CSV"
                                             HorizontalContentAlignment="Left"
                                             ToolTip.Tip="Export the current result as comma-separated values"
                                             Command="{Binding ExportCsvCommand}">
@@ -251,6 +435,7 @@
                                         </StackPanel>
                                     </Button>
                                     <Button HorizontalAlignment="Stretch"
+                                            AutomationProperties.Name="Export JSON"
                                             HorizontalContentAlignment="Left"
                                             ToolTip.Tip="Export the current result as JSON"
                                             Command="{Binding ExportJsonCommand}">
@@ -272,7 +457,7 @@
                             Spacing="8"
                             VerticalAlignment="Center"
                             HorizontalAlignment="Right">
-                    <Button ToolTip.Tip="Scan options">
+                    <Button Classes="toolbar" ToolTip.Tip="Scan options" AutomationProperties.Name="Options">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <PathIcon Data="{StaticResource IconOptions}"/>
                             <TextBlock Text="Options"/>
@@ -308,6 +493,7 @@
                     </Button>
 
                     <Button Name="ScanHistoryButton"
+                            Classes="toolbar"
                             ToolTip.Tip="Scan history"
                             AutomationProperties.Name="Scan history"
                             Command="{Binding ScanHistory.RefreshCommand}">
@@ -418,6 +604,10 @@
                                                                             <TextBlock Classes="caption"
                                                                                        IsVisible="{Binding IsReadable}"
                                                                                        Text="{Binding ItemCount, StringFormat='{}{0} items'}"/>
+                                                                            <TextBlock Classes="caption"
+                                                                                       TextWrapping="Wrap"
+                                                                                       IsVisible="{Binding HasRefreshedFolders}"
+                                                                                       Text="{Binding RefreshedFoldersLabel}"/>
                                                                         </StackPanel>
                                                                         <StackPanel Grid.Column="1"
                                                                                     Orientation="Horizontal"
@@ -446,6 +636,7 @@
                     </Button>
 
                     <Button Name="FilterButton"
+                            Classes="toolbar"
                             ToolTip.Tip="Result filters"
                             AutomationProperties.Name="Result filters">
                         <StackPanel Orientation="Horizontal" Spacing="6">
@@ -591,12 +782,14 @@
                         </Button.Flyout>
                     </Button>
 
-                    <TextBox Name="SearchBox"
-                             Width="220"
-                             Text="{Binding SearchText, Mode=TwoWay}"
-                             AutomationProperties.Name="Search name or path"
-                             PlaceholderText="Search name or path"/>
                 </StackPanel>
+
+                <TextBox Name="SearchBox"
+                         Grid.Column="6"
+                         VerticalAlignment="Center"
+                         Text="{Binding SearchText, Mode=TwoWay}"
+                         AutomationProperties.Name="Search name or path"
+                         PlaceholderText="Search name or path"/>
             </Grid>
         </Border>
 
@@ -643,6 +836,7 @@
                                    IsVisible="{Binding ShowFullDiskAccessManualFallback}"/>
                     </StackPanel>
                     <Button Grid.Column="1"
+                            AutomationProperties.Name="Open Settings"
                             VerticalAlignment="Center"
                             IsVisible="{Binding IsFullDiskAccessActionVisible}"
                             Command="{Binding OpenFullDiskAccessSettingsCommand}">
@@ -652,6 +846,7 @@
                         </StackPanel>
                     </Button>
                     <Button Grid.Column="2"
+                            AutomationProperties.Name="Rescan"
                             VerticalAlignment="Center"
                             Command="{Binding RescanAfterFullDiskAccessCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
@@ -675,6 +870,52 @@
                     Padding="16,8"
                     IsVisible="{Binding TrashStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                 <TextBlock Classes="danger" TextWrapping="Wrap" Text="{Binding TrashStatusMessage}"/>
+            </Border>
+            <Border Background="{DynamicResource ChromeBackgroundBrush}"
+                    BorderBrush="{DynamicResource DividerBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="16,8"
+                    IsVisible="{Binding IsRescanningFolder}">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                    <ProgressBar Grid.Column="0"
+                                 IsIndeterminate="True"
+                                 Width="120"
+                                 VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1"
+                               VerticalAlignment="Center"
+                               TextWrapping="Wrap"
+                               Text="{Binding FolderRescanProgressMessage}"/>
+                    <Button Grid.Column="2"
+                            VerticalAlignment="Center"
+                            AutomationProperties.Name="Stop the folder rescan"
+                            Command="{Binding StopScanCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconStop}"/>
+                            <TextBlock Text="Stop"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+            <Border Background="{DynamicResource ChromeBackgroundBrush}"
+                    Padding="16,8"
+                    IsVisible="{Binding FolderRescanStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock TextWrapping="Wrap" Text="{Binding FolderRescanStatusMessage}"/>
+            </Border>
+            <Border Background="{DynamicResource ChromeBackgroundBrush}"
+                    BorderBrush="{DynamicResource DividerBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="16,8"
+                    IsVisible="{Binding HasRefreshedFolders}">
+                <StackPanel Spacing="2">
+                    <TextBlock Classes="label"
+                               TextWrapping="Wrap"
+                               Text="{Binding RefreshedFoldersSummary}"/>
+                    <ScrollViewer MaxHeight="36">
+                        <TextBlock Classes="caption"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding RefreshedFoldersDetails}"/>
+                    </ScrollViewer>
+                </StackPanel>
             </Border>
             <Border Background="{DynamicResource ChromeBackgroundBrush}"
                     BorderBrush="{DynamicResource DividerBrush}"
@@ -729,32 +970,34 @@
                                LineSpacing="8"
                                VerticalAlignment="Center">
                         <Button Classes="danger"
+                                AutomationProperties.Name="Review basket"
                                 Command="{Binding MoveCleanupBasketToTrashCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource IconTrash}"/>
                                 <TextBlock Text="Review basket"/>
                             </StackPanel>
                         </Button>
-                        <Button Command="{Binding MoveCleanupBasketToLocationCommand}">
+                        <Button Command="{Binding MoveCleanupBasketToLocationCommand}" AutomationProperties.Name="Move to…">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource IconRename}"/>
                                 <TextBlock Text="Move to…"/>
                             </StackPanel>
                         </Button>
-                        <Button Command="{Binding CopyCleanupBasketToLocationCommand}">
+                        <Button Command="{Binding CopyCleanupBasketToLocationCommand}" AutomationProperties.Name="Copy to…">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource IconCopy}"/>
                                 <TextBlock Text="Copy to…"/>
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding CancelCleanupBasketMoveCommand}"
+                                AutomationProperties.Name="Cancel"
                                 IsVisible="{Binding IsRunningCleanupBasketOperation}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource IconStop}"/>
                                 <TextBlock Text="Cancel"/>
                             </StackPanel>
                         </Button>
-                        <Button Command="{Binding ClearCleanupBasketCommand}">
+                        <Button Command="{Binding ClearCleanupBasketCommand}" AutomationProperties.Name="Clear basket">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource IconTrash}"/>
                                 <TextBlock Text="Clear basket"/>
@@ -843,13 +1086,13 @@
                                Text="Select a folder or volume to scan and see what is taking up space, as a folder tree and an interactive treemap."/>
 
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                        <Button Classes="accent" Command="{Binding SelectFolderCommand}">
+                        <Button Classes="accent" Command="{Binding SelectFolderCommand}" AutomationProperties.Name="Select folder">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource IconFolder}"/>
                                 <TextBlock Text="Select folder"/>
                             </StackPanel>
                         </Button>
-                        <Button Command="{Binding ScanFolderCommand}">
+                        <Button Command="{Binding ScanFolderCommand}" AutomationProperties.Name="Scan">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource IconSearch}"/>
                                 <TextBlock Text="Scan"/>
@@ -959,6 +1202,11 @@
                                   SelectedItem="{Binding SelectedTreeItem, Mode=TwoWay}"
                                   Background="Transparent"
                                   Padding="8">
+                            <TreeView.Styles>
+                                <Style Selector="TreeViewItem">
+                                    <Setter Property="ContextMenu" Value="{StaticResource ResultItemContextMenu}"/>
+                                </Style>
+                            </TreeView.Styles>
                             <TreeView.ItemTemplate>
                                 <TreeDataTemplate x:DataType="vm:DiskItemTreeNodeViewModel"
                                                   ItemsSource="{Binding Children}">
@@ -989,23 +1237,24 @@
                             <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="16,14,16,8">
                                 <TextBlock Grid.Column="0" Classes="section-header" Text="Treemap"/>
                                 <TextBlock Grid.Column="1" Classes="caption" VerticalAlignment="Center"
-                                           Text="Click a block to inspect it"/>
+                                           Text="Click a block to inspect it, Control-click for actions"/>
                             </Grid>
                             <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource DividerBrush}"/>
                             <Border Margin="12"
-                                    MinHeight="240"
+                                    MinHeight="120"
                                     CornerRadius="{StaticResource ControlRadius}"
                                     ClipToBounds="True"
                                     IsVisible="{Binding TreemapRectangles.Count}">
                                 <controls:TreemapControl Rectangles="{Binding TreemapRectangles}"
                                                          HighlightedItems="{Binding HighlightedTreemapItems}"
                                                          IsHighlightActive="{Binding IsFilterActive}"
-                                                         SelectedRectangle="{Binding SelectedTreemapRectangle, Mode=TwoWay}"/>
+                                                         SelectedRectangle="{Binding SelectedTreemapRectangle, Mode=TwoWay}"
+                                                         ContextMenu="{StaticResource ResultItemContextMenu}"/>
                             </Border>
                         </DockPanel>
                     </Border>
 
-<Border Grid.Row="1" Classes="card" MinHeight="220">
+<Border Grid.Row="1" Classes="card" MinHeight="180">
                         <TabControl SelectedIndex="{Binding SelectedResultsTabIndex, Mode=TwoWay}">
 
 <TabItem Header="Selected item">
@@ -1042,18 +1291,55 @@
                                                        TextWrapping="Wrap"
                                                        IsVisible="{Binding SelectedItemIsCountedElsewhere}"/>
                                         </Grid>
+                                        <Button HorizontalAlignment="Left"
+                                                IsVisible="{Binding IsSelectedItemDirectory}"
+                                                ToolTip.Tip="Remeasure only this folder with the scan options of the displayed result (Shift-Command-R)"
+                                                AutomationProperties.Name="{Binding RescanSelectedFolderAccessibleName}"
+                                                Command="{Binding RescanFolderCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <PathIcon Data="{StaticResource IconRefresh}"/>
+                                                <TextBlock Text="Rescan this folder"/>
+                                            </StackPanel>
+                                        </Button>
                                     </StackPanel>
                                 </ScrollViewer>
                             </TabItem>
 
 <TabItem Header="File types">
                                 <DockPanel Margin="0,12,0,0">
+                                    <Grid DockPanel.Dock="Top"
+                                          ColumnDefinitions="*,Auto"
+                                          ColumnSpacing="8"
+                                          Margin="0,0,0,8"
+                                          IsVisible="{Binding HasInsightScope}">
+                                        <TextBlock Grid.Column="0"
+                                                   Classes="caption"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Text="{Binding InsightScopeCaption}"
+                                                   ToolTip.Tip="{Binding InsightScopePath}"
+                                                   AutomationProperties.Name="{Binding InsightScopeCaption}"
+                                                   AutomationProperties.HelpText="{Binding InsightScopePath}"/>
+                                        <Button Grid.Column="1"
+                                                Command="{Binding ResetInsightScopeCommand}"
+                                                IsVisible="{Binding IsInsightScopeNarrowed}"
+                                                ToolTip.Tip="Show the largest files and file types of the whole scan"
+                                                AutomationProperties.Name="Show whole scan">
+                                            <TextBlock Text="Show whole scan"/>
+                                        </Button>
+                                    </Grid>
                                     <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="16" Margin="0,0,0,6">
                                         <TextBlock Grid.Column="0" Classes="label" Text="Extension"/>
                                         <TextBlock Grid.Column="1" Classes="label" Text="Files" MinWidth="60" TextAlignment="Right"/>
                                         <TextBlock Grid.Column="2" Classes="label" Text="Size" MinWidth="90" TextAlignment="Right"/>
                                     </Grid>
                                     <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource DividerBrush}" Margin="0,0,0,4"/>
+                                    <TextBlock DockPanel.Dock="Top"
+                                               Classes="subtle"
+                                               Margin="0,4,0,0"
+                                               TextWrapping="Wrap"
+                                               Text="{Binding InsightScopeEmptyMessage}"
+                                               IsVisible="{Binding ShowFileTypesEmptyMessage}"/>
                                     <ScrollViewer>
                                         <ItemsControl ItemsSource="{Binding FileTypeSummaries}">
                                             <ItemsControl.ItemTemplate>
@@ -1072,13 +1358,45 @@
 
 <TabItem Header="Largest files">
                                 <DockPanel Margin="0,12,0,0">
+                                    <Grid DockPanel.Dock="Top"
+                                          ColumnDefinitions="*,Auto"
+                                          ColumnSpacing="8"
+                                          Margin="0,0,0,8"
+                                          IsVisible="{Binding HasInsightScope}">
+                                        <TextBlock Grid.Column="0"
+                                                   Classes="caption"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Text="{Binding InsightScopeCaption}"
+                                                   ToolTip.Tip="{Binding InsightScopePath}"
+                                                   AutomationProperties.Name="{Binding InsightScopeCaption}"
+                                                   AutomationProperties.HelpText="{Binding InsightScopePath}"/>
+                                        <Button Grid.Column="1"
+                                                Command="{Binding ResetInsightScopeCommand}"
+                                                IsVisible="{Binding IsInsightScopeNarrowed}"
+                                                ToolTip.Tip="Show the largest files and file types of the whole scan"
+                                                AutomationProperties.Name="Show whole scan">
+                                            <TextBlock Text="Show whole scan"/>
+                                        </Button>
+                                    </Grid>
                                     <TextBlock DockPanel.Dock="Bottom"
                                                Classes="caption"
                                                Margin="0,8,0,0"
                                                Text="Select a file and use “Reveal in Finder” to locate it."/>
+                                    <TextBlock DockPanel.Dock="Top"
+                                               Classes="subtle"
+                                               Margin="0,4,0,0"
+                                               TextWrapping="Wrap"
+                                               Text="{Binding InsightScopeEmptyMessage}"
+                                               IsVisible="{Binding ShowLargeFilesEmptyMessage}"/>
                                     <ListBox ItemsSource="{Binding LargeFiles}"
                                              SelectedItem="{Binding SelectedLargeFile, Mode=TwoWay}"
                                              Background="Transparent">
+                                        <ListBox.Styles>
+                                            <Style Selector="ListBoxItem">
+                                                <Setter Property="ContextMenu" Value="{StaticResource ResultItemContextMenu}"/>
+                                            </Style>
+                                        </ListBox.Styles>
                                         <ListBox.ItemTemplate>
                                             <DataTemplate x:DataType="coreItems:DiskItem">
                                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
@@ -1113,13 +1431,14 @@
                                                        TextWrapping="Wrap"
                                                        IsVisible="{Binding DuplicateAnalysisProgressMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                         </StackPanel>
-                                        <Button Grid.Column="1" Command="{Binding StartDuplicateAnalysisCommand}">
+                                        <Button Grid.Column="1" Command="{Binding StartDuplicateAnalysisCommand}" AutomationProperties.Name="Find duplicates">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <PathIcon Data="{StaticResource IconSearch}"/>
                                                 <TextBlock Text="Find"/>
                                             </StackPanel>
                                         </Button>
                                         <Button Grid.Column="2"
+                                                AutomationProperties.Name="Cancel"
                                                 Command="{Binding CancelDuplicateAnalysisCommand}"
                                                 IsVisible="{Binding IsAnalyzingDuplicates}">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -1150,6 +1469,11 @@
                                                         <ListBox ItemsSource="{Binding Entries}"
                                                                  SelectedItem="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectedDuplicateEntry, Mode=TwoWay}"
                                                                  Background="Transparent">
+                                                            <ListBox.Styles>
+                                                                <Style Selector="ListBoxItem">
+                                                                    <Setter Property="ContextMenu" Value="{StaticResource ResultItemContextMenu}"/>
+                                                                </Style>
+                                                            </ListBox.Styles>
                                                             <ListBox.ItemTemplate>
                                                                 <DataTemplate x:DataType="coreInsights:DuplicateGroupEntry">
                                                                     <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10" Margin="0,2">
@@ -1212,7 +1536,7 @@
                                         <TextBlock Grid.Column="0" Classes="subtle" VerticalAlignment="Center"
                                                    Text="No scan errors."
                                                    IsVisible="{Binding !ScanErrors.Count}"/>
-                                        <Button Grid.Column="1" Command="{Binding CopyErrorPathCommand}">
+                                        <Button Grid.Column="1" Command="{Binding CopyErrorPathCommand}" AutomationProperties.Name="Copy path">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <PathIcon Data="{StaticResource IconCopy}"/>
                                                 <TextBlock Text="Copy path"/>
@@ -1240,7 +1564,7 @@
             </Grid>
 
 <Border Background="{DynamicResource ScrimBrush}"
-                    IsVisible="{Binding IsScanning}">
+                    IsVisible="{Binding ShowScanOverlay}">
                 <Border Classes="card"
                         Padding="28"
                         MinWidth="360"
@@ -1270,7 +1594,7 @@
                                 <TextBlock Classes="caption" HorizontalAlignment="Center" Text="{Binding MeasurementBasisLabel}"/>
                             </StackPanel>
                         </StackPanel>
-                        <Button Classes="danger" HorizontalAlignment="Center" Command="{Binding StopScanCommand}">
+                        <Button Classes="danger" HorizontalAlignment="Center" Command="{Binding StopScanCommand}" AutomationProperties.Name="Stop">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource IconStop}"/>
                                 <TextBlock Text="Stop"/>

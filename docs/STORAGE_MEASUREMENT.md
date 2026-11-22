@@ -132,6 +132,47 @@ allocation, counted contribution, and shared bytes. Treemaps, file-type totals,
 largest-file ordering, progress, and directory totals use counted
 contributions.
 
+## Folder rescans
+
+"Rescan this folder" remeasures one directory of a displayed result and
+replaces only that directory's subtree. The rest of the result keeps the values
+from the original scan:
+
+- The folder is measured with the scan options and measurement mode of the
+  displayed result, not the options currently selected in the toolbar, so one
+  result keeps one measurement basis.
+- Hidden-file, package-expansion, symbolic-link, and firmlink-equivalent
+  omission rules apply exactly as a full scan of the original scan root would
+  apply them to the same folder. Equivalent-path omission is selected for the
+  original scan root, so an alternate inside the folder stays omitted.
+- The size change of the folder is added to every ancestor up to the scan
+  root, and each touched ancestor is reordered by size. Recoverable errors and
+  omitted equivalent paths inside the folder are replaced by those found by the
+  rescan, and those outside it are kept.
+- A folder whose path no longer refers to a directory is removed from the
+  result, and its size is subtracted from its ancestors.
+- A cancelled or failed folder rescan leaves the result, its errors, its
+  cleanup basket, and its history unchanged.
+- Rescanning the scan root itself is a full rescan with the result's options.
+
+Shared-aware allocated mode attributes hardlinks and verified clones to the
+first included path that reaches them, and followed symbolic links make the
+visited folders depend on traversal order. In both cases the bytes attributed
+to one folder depend on the paths visited before it, so a folder cannot be
+remeasured on its own. The app explains this and offers a full rescan of the
+scan root with the result's options instead. It never starts that rescan
+without confirmation.
+
+A result with rescanned folders mixes measurement times. The result summary
+states the original scan time and lists each rescanned folder with the time its
+rescan completed. A later rescan of an ancestor replaces the entries for its
+descendants, and a full scan clears the list. Scan-history snapshots (schema
+version 2) and JSON exports (export schema version 2) record the original scan
+completion time and the rescanned folders. Version 1 snapshots and exports
+remain readable and are treated as having no rescanned folders. A CSV export
+has no metadata block, so its completion message states that the result mixes
+measurement times.
+
 ## Clone-accounting coverage
 
 Shared-aware progress and completed results capture the coverage observed so
@@ -176,6 +217,11 @@ spreadsheet sort or after rows from two exports are combined. A directory row
 reports the totals of its own subtree, so summing every row would count each
 file once per ancestor; the metadata byte total sums the file rows only and
 equals the counted size of the scan root.
+
+The JSON metadata also carries `refreshedFolders`, the folders rescanned after
+the original scan with the time each rescan completed. The list is empty for a
+result without folder rescans, and `completedAt` always states the original
+full scan.
 
 The same caveats apply to an export as to the on-screen totals: a shared-aware
 number is not a promise of unique physical or reclaimable bytes, and shared

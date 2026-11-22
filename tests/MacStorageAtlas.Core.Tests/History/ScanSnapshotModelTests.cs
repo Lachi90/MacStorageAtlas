@@ -70,10 +70,12 @@ public class ScanSnapshotModelTests
     }
 
     [Test]
-    public void OnlyTheCurrentSchemaVersionIsSupported()
+    public void VersionsOneThroughTheCurrentSchemaVersionAreSupported()
     {
         Assert.Multiple(() =>
         {
+            Assert.That(ScanSnapshotSchema.CurrentVersion, Is.EqualTo(2));
+            Assert.That(ScanSnapshotSchema.IsSupported(1), Is.True);
             Assert.That(
                 ScanSnapshotSchema.IsSupported(ScanSnapshotSchema.CurrentVersion),
                 Is.True);

@@ -42,9 +42,7 @@ internal sealed class AccessGuidanceClassifier
                     inaccessiblePathCount);
         }
 
-        return assessment.Status == FullDiskAccessStatus.Indeterminate
-            ? new AccessGuidance(AccessGuidanceStatus.Indeterminate, InaccessiblePathCount: 0)
-            : AccessGuidance.None;
+        return AccessGuidance.None;
     }
 
     private static bool IsPermissionRelated(ScanError error) =>

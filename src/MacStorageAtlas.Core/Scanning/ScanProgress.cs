@@ -15,4 +15,6 @@ public sealed record ScanProgress(
         CloneAccountingCoverage.Unavailable)
 {
     public IReadOnlyList<EquivalentPath> OmittedEquivalentPaths { get; init; } = [];
+
+    public bool IsRootPresent { get; init; } = true;
 }

@@ -4,6 +4,7 @@ using System.Collections.Specialized;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
 using MacStorageAtlas.Rendering;
@@ -64,6 +65,8 @@ public sealed class TreemapControl : Control
         };
 
         SizeChanged += (_, _) => InvalidateVisual();
+
+        AddHandler(ContextRequestedEvent, OnContextRequestedTunnel, RoutingStrategies.Tunnel);
     }
 
     public IReadOnlyList<TreemapRect>? Rectangles
@@ -200,12 +203,42 @@ public sealed class TreemapControl : Control
     {
         base.OnPointerPressed(e);
 
-        if (e.GetCurrentPoint(this).Properties.PointerUpdateKind == PointerUpdateKind.LeftButtonPressed)
+        if (HandlePointerPress(
+                e.GetPosition(this),
+                e.GetCurrentPoint(this).Properties.PointerUpdateKind))
         {
-            SelectedRectangle = HitTest(e.GetPosition(this));
             e.Handled = true;
         }
     }
+
+    internal bool HandlePointerPress(Point position, PointerUpdateKind kind)
+    {
+        switch (kind)
+        {
+            case PointerUpdateKind.LeftButtonPressed:
+                SelectedRectangle = HitTest(position);
+                return true;
+            case PointerUpdateKind.RightButtonPressed when HitTest(position) is { } rectangle:
+                SelectedRectangle = rectangle;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void OnContextRequestedTunnel(object? sender, ContextRequestedEventArgs e)
+    {
+        var position = e.TryGetPosition(this, out var point) ? point : (Point?)null;
+        if (!HasItemContextAt(position))
+        {
+            e.Handled = true;
+        }
+    }
+
+    internal bool HasItemContextAt(Point? position) =>
+        position is { } point
+            ? HitTest(point) is not null
+            : SelectedRectangle is not null;
 
     private TreemapRect? HitTest(Point point)
     {

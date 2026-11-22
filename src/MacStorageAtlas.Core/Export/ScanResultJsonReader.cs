@@ -33,6 +33,7 @@ public static class ScanResultJsonReader
             scan.GetProperty("itemCount").GetInt64(),
             scan.GetProperty("totalCountedSizeBytes").GetInt64())
         {
+            RefreshedFolders = ScanDocumentJson.ReadRefreshedFolders(scan),
             SchemaVersion = root.GetProperty("schemaVersion").GetInt32()
         };
 

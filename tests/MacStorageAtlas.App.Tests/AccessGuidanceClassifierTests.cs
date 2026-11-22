@@ -145,12 +145,12 @@ public class AccessGuidanceClassifierTests
     }
 
     [Test]
-    public void ClassifyReportsIndeterminateWhenAccessCannotBeDetermined()
+    public void ClassifyShowsNoGuidanceWhenAccessIsUnknownButNothingWasBlocked()
     {
         var classifier = new AccessGuidanceClassifier();
 
         var guidance = classifier.Classify([], FullDiskAccessAssessment.Indeterminate);
 
-        Assert.That(guidance.Status, Is.EqualTo(AccessGuidanceStatus.Indeterminate));
+        Assert.That(guidance.Status, Is.EqualTo(AccessGuidanceStatus.None));
     }
 }

@@ -48,6 +48,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IItemRelocationService _itemRelocationService;
     private readonly IRelocationDestinationProbe _relocationDestinationProbe;
     private readonly IScanHistoryStore _scanHistoryStore;
+    private readonly IFolderRescanConfirmationService _folderRescanConfirmationService;
     private readonly DuplicateAnalyzer _duplicateAnalyzer;
     private readonly AccessGuidanceClassifier _accessGuidanceClassifier = new();
     private readonly ITreemapLayoutService _treemapLayoutService = new TreemapLayoutService();
@@ -65,6 +66,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private CancellationTokenSource? _scanCancellation;
     private CancellationTokenSource? _exportCancellation;
     private CancellationTokenSource? _treePreparationCancellation;
+    private int _activeTreePreparations;
     private CancellationTokenSource? _cleanupBasketCancellation;
     private CancellationTokenSource? _scanHistoryCancellation;
     private CancellationTokenSource? _duplicateAnalysisCancellation;
@@ -126,12 +128,15 @@ public partial class MainWindowViewModel : ViewModelBase
         IScanHistoryClearConfirmationService? scanHistoryClearConfirmationService = null,
         DuplicateAnalyzer? duplicateAnalyzer = null,
         TimeSpan? searchDebounceInterval = null,
-        Func<DateTimeOffset>? referenceTimeProvider = null)
+        Func<DateTimeOffset>? referenceTimeProvider = null,
+        IFolderRescanConfirmationService? folderRescanConfirmationService = null,
+        TimeProvider? timeProvider = null)
     {
         _folderPickerService = folderPickerService;
         _diskScanner = diskScanner;
         _uiDispatcher = uiDispatcher;
         _referenceTimeProvider = referenceTimeProvider ?? (() => DateTimeOffset.Now);
+        _timeProvider = timeProvider ?? TimeProvider.System;
         Filter = new ResultFilterViewModel(_referenceTimeProvider);
         _searchDebounceInterval = searchDebounceInterval ?? DefaultSearchDebounceInterval;
         _fileRevealService = fileRevealService ?? new MacFileRevealService();
@@ -152,6 +157,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _relocationDestinationProbe =
             relocationDestinationProbe ?? new FileSystemRelocationDestinationProbe();
         _scanHistoryStore = scanHistoryStore ?? new NullScanHistoryStore();
+        _folderRescanConfirmationService =
+            folderRescanConfirmationService ?? new NullFolderRescanConfirmationService();
         if (duplicateAnalyzer is null)
         {
             var duplicateCandidateReader = new MacDuplicateCandidateReader();
@@ -173,6 +180,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         Filter.CriteriaChanged += OnFilterCriteriaChanged;
         Filter.UserPresetsChanged += OnUserPresetsChanged;
+        ObservePrimaryScanActionTargets();
 
         LoadSettings();
     }
@@ -216,6 +224,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private string? _selectedFolderPath;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowScanOverlay))]
     private bool _isScanning;
 
     [ObservableProperty]
@@ -306,8 +315,12 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private DateTimeOffset? _scanCompletedAt;
 
-    partial void OnScanCompletedAtChanged(DateTimeOffset? value) =>
+    partial void OnScanCompletedAtChanged(DateTimeOffset? value)
+    {
         NotifyExportCommandsCanExecuteChanged();
+        RescanFolderCommand.NotifyCanExecuteChanged();
+        NotifyMenuLabelsChanged();
+    }
 
     [ObservableProperty]
     private bool _isExporting;
@@ -316,6 +329,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         NotifyExportCommandsCanExecuteChanged();
         CancelExportCommand.NotifyCanExecuteChanged();
+        RescanFolderCommand.NotifyCanExecuteChanged();
     }
 
     [ObservableProperty]
@@ -383,6 +397,7 @@ public partial class MainWindowViewModel : ViewModelBase
         MoveCleanupBasketToLocationCommand.NotifyCanExecuteChanged();
         CopyCleanupBasketToLocationCommand.NotifyCanExecuteChanged();
         CancelCleanupBasketMoveCommand.NotifyCanExecuteChanged();
+        RescanFolderCommand.NotifyCanExecuteChanged();
     }
 
     [ObservableProperty]
@@ -566,8 +581,6 @@ public partial class MainWindowViewModel : ViewModelBase
                 "Full Disk Access may be needed",
             AccessGuidanceStatus.IncompleteScan =>
                 "Some paths could not be scanned",
-            AccessGuidanceStatus.Indeterminate =>
-                "Access status is unclear",
             AccessGuidanceStatus.SettingsOpenFailure =>
                 "Open Full Disk Access manually",
             AccessGuidanceStatus.SandboxedSelectionRequired =>
@@ -588,8 +601,6 @@ public partial class MainWindowViewModel : ViewModelBase
             AccessGuidanceStatus.IncompleteScan =>
                 InaccessiblePathMessage(
                     "The scan result may be incomplete. Some failures can be normal file permissions, removed files, removable media, or protected macOS locations."),
-            AccessGuidanceStatus.Indeterminate =>
-                "Atlas Storage Analyzer cannot confirm whether macOS access is sufficient for this scan. If protected folders are missing, grant Full Disk Access, restart if needed, and rescan.",
             AccessGuidanceStatus.SettingsOpenFailure =>
                 "System Settings could not be opened automatically. Use the manual path below to grant access, then restart Atlas Storage Analyzer if macOS asks and rescan.",
             AccessGuidanceStatus.SandboxedSelectionRequired =>
@@ -635,11 +646,17 @@ public partial class MainWindowViewModel : ViewModelBase
 
     partial void OnIsScanningChanged(bool value)
     {
+        NotifyPrimaryScanActionChanged();
         NotifyScanCommandsCanExecuteChanged();
         StopScanCommand.NotifyCanExecuteChanged();
         OpenFullDiskAccessSettingsCommand.NotifyCanExecuteChanged();
         RescanAfterFullDiskAccessCommand.NotifyCanExecuteChanged();
         StartDuplicateAnalysisCommand.NotifyCanExecuteChanged();
+        RescanFolderCommand.NotifyCanExecuteChanged();
+        MoveToTrashCommand.NotifyCanExecuteChanged();
+        MoveCleanupBasketToTrashCommand.NotifyCanExecuteChanged();
+        MoveCleanupBasketToLocationCommand.NotifyCanExecuteChanged();
+        CopyCleanupBasketToLocationCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnIncludeHiddenFilesChanged(bool value) => SaveSettings();
@@ -718,7 +735,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private bool CanQuickLook() => SelectedItem is not null;
 
-    private bool CanMoveToTrash() => SelectedItem is not null && !IsMovingToTrash && !IsUpdateRestartPending;
+    private bool CanCopySelectedItemPath() => SelectedItem is not null && !IsUpdateRestartPending;
+
+    private bool CanMoveToTrash() =>
+        SelectedItem is not null && !IsMovingToTrash && !IsScanning && !IsUpdateRestartPending;
 
     private bool CanAddSelectedItemToCleanupBasket() =>
         SelectedItem is not null && _cleanupBasketPlanner is not null;
@@ -730,7 +750,10 @@ public partial class MainWindowViewModel : ViewModelBase
     private bool CanClearCleanupBasket() => HasCleanupBasketItems;
 
     private bool CanRunCleanupBasketOperation() =>
-        HasCleanupBasketItems && !IsRunningCleanupBasketOperation && !IsUpdateRestartPending;
+        HasCleanupBasketItems
+        && !IsRunningCleanupBasketOperation
+        && !IsScanning
+        && !IsUpdateRestartPending;
 
     private bool CanCancelCleanupBasketMove() => IsRunningCleanupBasketOperation;
 
@@ -748,6 +771,17 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             await _clipboardService.SetTextAsync(error.Path);
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCopySelectedItemPath))]
+    private async Task CopySelectedItemPathAsync()
+    {
+        if (SelectedItem is not { } item || IsUpdateRestartPending)
+        {
+            return;
+        }
+
+        await _clipboardService.SetTextAsync(item.Path);
     }
 
     [RelayCommand(CanExecute = nameof(CanStartDuplicateAnalysis))]
@@ -778,13 +812,14 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
-            var result = await Task.Run(
-                    () => _duplicateAnalyzer.AnalyzeAsync(
-                        root,
-                        progress: progress,
-                        cancellationToken: cancellation.Token),
-                    cancellation.Token)
-                .ConfigureAwait(false);
+            var analysis = Task.Run(
+                () => _duplicateAnalyzer.AnalyzeAsync(
+                    root,
+                    progress: progress,
+                    cancellationToken: cancellation.Token),
+                cancellation.Token);
+            _duplicateAnalysis = analysis;
+            var result = await analysis.ConfigureAwait(false);
 
             await _uiDispatcher.InvokeAsync(() =>
             {
@@ -952,6 +987,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         IsMovingToTrash = true;
         MoveToTrashCommand.NotifyCanExecuteChanged();
+        RescanFolderCommand.NotifyCanExecuteChanged();
 
         try
         {
@@ -981,6 +1017,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             IsMovingToTrash = false;
             MoveToTrashCommand.NotifyCanExecuteChanged();
+            RescanFolderCommand.NotifyCanExecuteChanged();
         }
     }
 
@@ -1457,8 +1494,11 @@ public partial class MainWindowViewModel : ViewModelBase
             ScanFailureMessage = null;
             ScanErrors = [];
             ScanCompletedAt = null;
+            ResultProvenance = null;
+            FolderRescanStatusMessage = null;
             SelectedScanError = null;
             _scanRoot = null;
+            ClearInsightScope();
             _cleanupProtectedPathPolicy = null;
             _resultScanOptions = null;
             _treemapLayoutCache.Clear();
@@ -1528,7 +1568,12 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             try
             {
-                await StartScanHistoryCaptureAsync(completed, options).ConfigureAwait(false);
+                await StartScanHistoryCaptureAsync(
+                        completed,
+                        options,
+                        ScanResultProvenance.ForFullScan(
+                            ScanCompletedAt ?? _referenceTimeProvider()))
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -1546,7 +1591,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task StartScanHistoryCaptureAsync(
         ScanProgress progress,
-        ScanOptions options)
+        ScanOptions options,
+        ScanResultProvenance provenance)
     {
         if (!ScanHistoryEnabled)
         {
@@ -1556,7 +1602,7 @@ public partial class MainWindowViewModel : ViewModelBase
         var cancellation = new CancellationTokenSource();
         _scanHistoryCancellation = cancellation;
 
-        var completedAt = ScanCompletedAt ?? _referenceTimeProvider();
+        var completedAt = provenance.ScanCompletedAt;
         var completeness = ScanCompletenessClassifier.Classify(
             AccessGuidance,
             progress.Errors);
@@ -1564,16 +1610,18 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
-            var result = await Task.Run(
-                    () => CaptureScanHistoryAsync(
-                        progress,
-                        options,
-                        completedAt,
-                        completeness,
-                        limits,
-                        cancellation.Token),
-                    cancellation.Token)
-                .ConfigureAwait(false);
+            var capture = Task.Run(
+                () => CaptureScanHistoryAsync(
+                    progress,
+                    options,
+                    completedAt,
+                    provenance.RefreshedFolders,
+                    completeness,
+                    limits,
+                    cancellation.Token),
+                cancellation.Token);
+            _scanHistoryCapture = capture;
+            var result = await capture.ConfigureAwait(false);
 
             await _uiDispatcher
                 .InvokeAsync(() => ScanHistoryStatusMessage = DescribeCapture(result))
@@ -1610,6 +1658,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ScanProgress progress,
         ScanOptions options,
         DateTimeOffset completedAt,
+        IReadOnlyList<RefreshedFolder> refreshedFolders,
         ScanCompleteness completeness,
         ScanHistoryLimits limits,
         CancellationToken cancellationToken)
@@ -1627,7 +1676,10 @@ public partial class MainWindowViewModel : ViewModelBase
             summary.ItemCount,
             summary.TotalCountedSizeBytes,
             progress.Errors.Count,
-            completeness);
+            completeness)
+        {
+            RefreshedFolders = refreshedFolders
+        };
 
         var request = new ScanSnapshotRequest(
             metadata,
@@ -1720,6 +1772,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (progress.IsCompleted)
         {
             _scanRoot = progress.Root;
+            InsightScope = progress.Root;
             _resultScanOptions = options;
             _cleanupProtectedPathPolicy = new CleanupProtectedPathPolicy(progress.Root);
             _cleanupBasketPlanner = new CleanupBasketPlanner(
@@ -1728,6 +1781,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 _cleanupProtectedPathPolicy);
             RefreshCleanupBasketState();
             ScanCompletedAt = _referenceTimeProvider();
+            ResultProvenance = ScanResultProvenance.ForFullScan(ScanCompletedAt.Value);
             SelectedTreeItem = null;
             SelectedTreemapRectangle = null;
             SelectedLargeFile = null;
@@ -1796,11 +1850,7 @@ public partial class MainWindowViewModel : ViewModelBase
     partial void OnSelectedTreeItemChanged(DiskItemTreeNodeViewModel? value)
     {
         NotifySelectedItemPropertiesChanged();
-        RevealInFinderCommand.NotifyCanExecuteChanged();
-        QuickLookCommand.NotifyCanExecuteChanged();
-        ShowSelectedItemDetailsCommand.NotifyCanExecuteChanged();
-        MoveToTrashCommand.NotifyCanExecuteChanged();
-        NotifyCleanupBasketCommandsCanExecuteChanged();
+        NotifySelectedItemCommandsCanExecuteChanged();
         RevealStatusMessage = null;
         QuickLookStatusMessage = null;
         TrashStatusMessage = null;
@@ -1811,17 +1861,14 @@ public partial class MainWindowViewModel : ViewModelBase
             SelectedLargeFile = null;
             SelectedDuplicateEntry = null;
             TreemapRectangles = LayoutChildren(value.Item);
+            ChangeInsightScope(InsightScopeFor(value.Item));
         }
     }
 
     partial void OnSelectedTreemapRectangleChanged(TreemapRect? value)
     {
         NotifySelectedItemPropertiesChanged();
-        RevealInFinderCommand.NotifyCanExecuteChanged();
-        QuickLookCommand.NotifyCanExecuteChanged();
-        ShowSelectedItemDetailsCommand.NotifyCanExecuteChanged();
-        MoveToTrashCommand.NotifyCanExecuteChanged();
-        NotifyCleanupBasketCommandsCanExecuteChanged();
+        NotifySelectedItemCommandsCanExecuteChanged();
         RevealStatusMessage = null;
         QuickLookStatusMessage = null;
         TrashStatusMessage = null;
@@ -1831,17 +1878,14 @@ public partial class MainWindowViewModel : ViewModelBase
             SelectedTreeItem = null;
             SelectedLargeFile = null;
             SelectedDuplicateEntry = null;
+            ChangeInsightScope(InsightScopeFor(value.Value.Item.Item));
         }
     }
 
     partial void OnSelectedLargeFileChanged(DiskItem? value)
     {
         NotifySelectedItemPropertiesChanged();
-        RevealInFinderCommand.NotifyCanExecuteChanged();
-        QuickLookCommand.NotifyCanExecuteChanged();
-        ShowSelectedItemDetailsCommand.NotifyCanExecuteChanged();
-        MoveToTrashCommand.NotifyCanExecuteChanged();
-        NotifyCleanupBasketCommandsCanExecuteChanged();
+        NotifySelectedItemCommandsCanExecuteChanged();
         RevealStatusMessage = null;
         QuickLookStatusMessage = null;
         TrashStatusMessage = null;
@@ -1857,11 +1901,7 @@ public partial class MainWindowViewModel : ViewModelBase
     partial void OnSelectedDuplicateEntryChanged(DuplicateGroupEntry? value)
     {
         NotifySelectedItemPropertiesChanged();
-        RevealInFinderCommand.NotifyCanExecuteChanged();
-        QuickLookCommand.NotifyCanExecuteChanged();
-        ShowSelectedItemDetailsCommand.NotifyCanExecuteChanged();
-        MoveToTrashCommand.NotifyCanExecuteChanged();
-        NotifyCleanupBasketCommandsCanExecuteChanged();
+        NotifySelectedItemCommandsCanExecuteChanged();
         RevealStatusMessage = null;
         QuickLookStatusMessage = null;
         TrashStatusMessage = null;
@@ -1892,6 +1932,17 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    private void NotifySelectedItemCommandsCanExecuteChanged()
+    {
+        RevealInFinderCommand.NotifyCanExecuteChanged();
+        QuickLookCommand.NotifyCanExecuteChanged();
+        ShowSelectedItemDetailsCommand.NotifyCanExecuteChanged();
+        CopySelectedItemPathCommand.NotifyCanExecuteChanged();
+        MoveToTrashCommand.NotifyCanExecuteChanged();
+        RescanFolderCommand.NotifyCanExecuteChanged();
+        NotifyCleanupBasketCommandsCanExecuteChanged();
+    }
+
     private void NotifySelectedItemPropertiesChanged()
     {
         OnPropertyChanged(nameof(SelectedItem));
@@ -1904,6 +1955,9 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(SelectedItemLastAccessTime));
         OnPropertyChanged(nameof(HasSelectedItem));
         OnPropertyChanged(nameof(SelectedItemIsCountedElsewhere));
+        OnPropertyChanged(nameof(IsSelectedItemDirectory));
+        OnPropertyChanged(nameof(RescanSelectedFolderAccessibleName));
+        NotifyMenuLabelsChanged();
     }
 
     private void ClearCleanupBasketForResultReplacement()
@@ -1931,12 +1985,14 @@ public partial class MainWindowViewModel : ViewModelBase
             _cleanupBasketPlanner?.Summary ?? CleanupBasketSummary.Empty;
         CleanupBasketPreflightResults = [];
         NotifyCleanupBasketCommandsCanExecuteChanged();
+        NotifyMenuLabelsChanged();
     }
 
     private void NotifyCleanupBasketCommandsCanExecuteChanged()
     {
         AddSelectedItemToCleanupBasketCommand.NotifyCanExecuteChanged();
         RemoveSelectedItemFromCleanupBasketCommand.NotifyCanExecuteChanged();
+        ToggleSelectedItemInCleanupBasketCommand.NotifyCanExecuteChanged();
         ClearCleanupBasketCommand.NotifyCanExecuteChanged();
         MoveCleanupBasketToTrashCommand.NotifyCanExecuteChanged();
         CancelCleanupBasketMoveCommand.NotifyCanExecuteChanged();
@@ -1962,6 +2018,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private void ApplySearch()
     {
         CancelTreePreparation();
+        CancelInsightPreparation();
+        InsightScope = ResolveInsightScope(InsightScope?.Path);
 
         var request = CreateFilterRequest();
         if (_scanRoot is null
@@ -1971,7 +2029,7 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        ApplyPreparation(Prepare(_scanRoot, request, CancellationToken.None));
+        ApplyPreparation(Prepare(_scanRoot, InsightScope, request, CancellationToken.None));
     }
 
     private void CancelTreePreparation()
@@ -1987,8 +2045,13 @@ public partial class MainWindowViewModel : ViewModelBase
         var cancellation = new CancellationTokenSource();
         _treePreparationCancellation = cancellation;
         previous?.Cancel();
+        CancelInsightPreparation();
 
-        TreePreparation = PrepareTreeAsync(_scanRoot, CreateFilterRequest(), cancellation);
+        TreePreparation = PrepareTreeAsync(
+            _scanRoot,
+            InsightScope,
+            CreateFilterRequest(),
+            cancellation);
     }
 
     private FilterRequest CreateFilterRequest() =>
@@ -1996,6 +2059,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task PrepareTreeAsync(
         DiskItem? root,
+        DiskItem? scope,
         FilterRequest request,
         CancellationTokenSource cancellation)
     {
@@ -2021,7 +2085,18 @@ public partial class MainWindowViewModel : ViewModelBase
             }
 
             var prepared = await Task.Run(
-                    () => Prepare(root, request, token),
+                    () =>
+                    {
+                        Interlocked.Increment(ref _activeTreePreparations);
+                        try
+                        {
+                            return Prepare(root, scope, request, token);
+                        }
+                        finally
+                        {
+                            Interlocked.Decrement(ref _activeTreePreparations);
+                        }
+                    },
                     token)
                 .ConfigureAwait(false);
 
@@ -2053,16 +2128,17 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private PreparedResult Prepare(
         DiskItem root,
+        DiskItem? scope,
         FilterRequest request,
         CancellationToken cancellationToken)
     {
         if (!request.Filter.IsActive)
         {
+            var tree = DiskItemTreeFilter.Filter(root, searchText: null);
             return new PreparedResult(
                 null,
-                DiskItemTreeFilter.Filter(root, searchText: null),
-                _largeFilesService.GetLargestFiles(root),
-                _fileTypeStatisticsService.Calculate(root));
+                tree,
+                PrepareInsights(scope ?? root, null, cancellationToken));
         }
 
         var result = _filterEvaluator.Evaluate(
@@ -2073,16 +2149,29 @@ public partial class MainWindowViewModel : ViewModelBase
         return new PreparedResult(
             result,
             DiskItemTreeFilter.Filter(root, result),
-            _largeFilesService.GetLargestFiles(result.MatchedFiles),
-            _fileTypeStatisticsService.Calculate(result.MatchedFiles));
+            PrepareInsights(scope ?? root, result, cancellationToken));
     }
 
     private void ApplyPreparation(PreparedResult prepared)
     {
+        if (_pendingTreeExpansion is { } expandedPaths)
+        {
+            _pendingTreeExpansion = null;
+            RestoreTreeExpansion(prepared.TreeItems, expandedPaths);
+        }
+
         _filterResult = prepared.Result;
         TreeItems = prepared.TreeItems;
-        LargeFiles = prepared.LargeFiles;
-        FileTypeSummaries = prepared.FileTypeSummaries;
+        CancelInsightPreparation();
+        _areInsightsPrepared = true;
+        if (ReferenceEquals(prepared.Insights.Scope, InsightScope))
+        {
+            ApplyInsightValues(prepared.Insights);
+        }
+        else
+        {
+            ScheduleInsightPreparation();
+        }
 
         if (prepared.Result is { } result)
         {
@@ -2091,6 +2180,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         OnPropertyChanged(nameof(TreeSizeColumnHeader));
         OnPropertyChanged(nameof(IsFilterActive));
+        OnPropertyChanged(nameof(InsightScopeEmptyMessage));
         RefreshTreemapHighlight();
         ReconcileSelections();
     }
@@ -2099,10 +2189,13 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         _filterResult = null;
         TreeItems = [];
+        CancelInsightPreparation();
+        _areInsightsPrepared = false;
         LargeFiles = [];
         FileTypeSummaries = [];
         OnPropertyChanged(nameof(TreeSizeColumnHeader));
         OnPropertyChanged(nameof(IsFilterActive));
+        OnPropertyChanged(nameof(InsightScopeEmptyMessage));
         RefreshTreemapHighlight();
         ReconcileSelections();
     }
@@ -2122,6 +2215,11 @@ public partial class MainWindowViewModel : ViewModelBase
             }
         }
 
+        ReconcileLargeFileSelection();
+    }
+
+    private void ReconcileLargeFileSelection()
+    {
         if (SelectedLargeFile is { } largeFile
             && !LargeFiles.Any(file => ReferenceEquals(file, largeFile)))
         {
@@ -2184,8 +2282,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private sealed record PreparedResult(
         FilterResult? Result,
         IReadOnlyList<DiskItemTreeNodeViewModel> TreeItems,
-        IReadOnlyList<DiskItem> LargeFiles,
-        IReadOnlyList<FileTypeSummary> FileTypeSummaries);
+        PreparedInsights Insights);
 
     private sealed record FilterRequest(
         DiskItemFilter Filter,
@@ -2218,13 +2315,16 @@ public partial class MainWindowViewModel : ViewModelBase
         if (ReferenceEquals(_scanRoot, item))
         {
             _scanRoot = null;
+            ClearInsightScope();
             _cleanupProtectedPathPolicy = null;
             _resultScanOptions = null;
+            ResultProvenance = null;
             _treemapLayoutCache.Clear();
             TreeItems = [];
             TreemapRectangles = [];
             FileTypeSummaries = [];
             LargeFiles = [];
+            NotifyMenuLabelsChanged();
         }
         else
         {
@@ -2282,6 +2382,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         ExportCsvCommand.NotifyCanExecuteChanged();
         ExportJsonCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(IsExportAvailable));
     }
 
     private bool CanExport() =>
@@ -2328,6 +2429,7 @@ public partial class MainWindowViewModel : ViewModelBase
         var coverage = ResultCloneAccountingCoverage;
         var filterResult = _filterResult;
         var errors = ScanErrors;
+        var refreshedFolders = ResultProvenance?.RefreshedFolders ?? [];
 
         await _uiDispatcher.InvokeAsync(() =>
         {
@@ -2348,7 +2450,8 @@ public partial class MainWindowViewModel : ViewModelBase
                             completedAt,
                             filterResult,
                             errors,
-                            cancellation.Token);
+                            cancellation.Token,
+                            refreshedFolders);
 
                         await WriteExportAsync(
                                 request,
@@ -2366,7 +2469,9 @@ public partial class MainWindowViewModel : ViewModelBase
                 ExportStatusMessage = ExportCompletionMessage(
                     itemCount,
                     errors.Count,
-                    destination));
+                    destination,
+                    format,
+                    refreshedFolders.Count));
         }
         catch (OperationCanceledException)
         {
@@ -2455,13 +2560,24 @@ public partial class MainWindowViewModel : ViewModelBase
     private static string ExportCompletionMessage(
         long itemCount,
         int errorCount,
-        string destination)
+        string destination,
+        ScanExportFormat format,
+        int refreshedFolderCount)
     {
         var items = itemCount.ToString("N0", CultureInfo.CurrentCulture);
         var fileName = Path.GetFileName(destination);
         var message = itemCount == 1
             ? $"Exported 1 item to {fileName}."
             : $"Exported {items} items to {fileName}.";
+
+        if (refreshedFolderCount > 0 && format == ScanExportFormat.Csv)
+        {
+            var folders = refreshedFolderCount == 1
+                ? "1 folder was"
+                : $"{refreshedFolderCount.ToString("N0", CultureInfo.CurrentCulture)} folders were";
+            message += $" This result mixes measurement times, because {folders} rescanned "
+                + "after the original scan. The JSON export lists the rescanned folders.";
+        }
 
         if (errorCount == 0)
         {

@@ -14,7 +14,8 @@ public static class ScanExportRequestFactory
         DateTimeOffset scanCompletedAt,
         FilterResult? filterResult = null,
         IReadOnlyList<ScanError>? errors = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyList<RefreshedFolder>? refreshedFolders = null)
     {
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(options);
@@ -42,7 +43,10 @@ public static class ScanExportRequestFactory
             scope,
             filtered ? filterResult!.Filter : null,
             summary.ItemCount,
-            summary.TotalCountedSizeBytes);
+            summary.TotalCountedSizeBytes)
+        {
+            RefreshedFolders = refreshedFolders ?? []
+        };
 
         return new ScanExportRequest(metadata, rows, errors);
     }

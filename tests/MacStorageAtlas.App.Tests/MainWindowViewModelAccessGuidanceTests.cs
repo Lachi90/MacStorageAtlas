@@ -67,7 +67,7 @@ public class MainWindowViewModelAccessGuidanceTests
     }
 
     [Test]
-    public async Task IndeterminateAccessShowsGuidanceWithoutClaimingGrantedOrDenied()
+    public async Task UnknownAccessWithoutBlockedPathsShowsNoGuidance()
     {
         var root = CreateRoot();
         var accessService = new FakeFullDiskAccessService
@@ -81,10 +81,9 @@ public class MainWindowViewModelAccessGuidanceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(viewModel.AccessGuidanceStatus, Is.EqualTo(AccessGuidanceStatus.Indeterminate));
-            Assert.That(viewModel.AccessGuidanceMessage, Does.Contain("cannot confirm"));
-            Assert.That(viewModel.AccessGuidanceMessage, Does.Not.Contain("granted"));
-            Assert.That(viewModel.AccessGuidanceMessage, Does.Not.Contain("denied"));
+            Assert.That(viewModel.AccessGuidanceStatus, Is.EqualTo(AccessGuidanceStatus.None));
+            Assert.That(viewModel.IsAccessGuidanceVisible, Is.False);
+            Assert.That(viewModel.AccessGuidanceMessage, Is.Empty);
         });
     }
 

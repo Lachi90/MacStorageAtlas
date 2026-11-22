@@ -474,6 +474,14 @@ Requirements:
 
 # 11. File Type Statistics
 
+## Status
+
+Delivered. With `scope-insights-to-selected-folder`, the File types tab
+describes the insight scope: the folder last selected in the folder tree or the
+treemap, including its subfolders, or the folder that contains a selected file.
+The tab names the scope, offers "Show whole scan", applies an active filter
+inside the scope, and states when the scope contains no files.
+
 ## Purpose
 
 Summarize disk usage by file extension.
@@ -785,7 +793,8 @@ Allow long scans to be stopped.
 
 ## Acceptance Criteria
 
-- Stop button cancels the active scan.
+- The toolbar scan control reads Stop while a scan or folder rescan runs and
+  cancels it.
 - UI exits scanning state.
 - Partial results remain visible if available.
 - Cancellation does not show as an error.
@@ -817,23 +826,64 @@ Requirements:
 
 # 19. Rescan Selected Folder
 
+## Status
+
+The toolbar Rescan, now one state of the scan control from
+`streamline-main-toolbar`, is part of the baseline. Rescanning one folder of a
+displayed result in place is delivered by `rescan-folder-in-place`. Browsing
+during a folder rescan, preserved expansion, and VoiceOver names on macOS still
+need manual verification.
+
 ## Purpose
 
-Allow the user to scan the same folder again.
+Allow the user to scan the same folder again, or to remeasure one folder of the
+displayed result without rescanning the rest of the scan root.
 
 ## Acceptance Criteria
 
-- Rescan button starts a new scan for the current folder.
+- The toolbar scan control reads Rescan while a completed result for the
+  selected folder is shown and starts a new scan of that folder.
 - Existing scan is cancelled or blocked before starting another.
 - UI state resets correctly.
+- "Rescan this folder" on the Selected item tab, in the item context menu, or
+  through Shift-Command-R remeasures the selected directory, including an
+  unexpanded package. It is available only while a completed result is shown,
+  the selection is a directory, and no scan, export, cleanup operation, or
+  update restart is pending. Rescanning the scan root is a full rescan with the
+  result's options.
+- The folder is measured with the scan options and measurement mode of the
+  displayed result, and traversal rules, including firmlink-equivalent
+  omission, match a full scan of the original root.
+- Ancestor totals, tree order, treemap, filters, Largest files, File types,
+  errors, omitted equivalent paths, access guidance, and the completeness
+  verdict follow the merged result. The folder stays selected and its
+  ancestors stay expanded.
+- A folder that no longer exists is removed with a notice. Cleanup basket
+  entries inside the folder are revalidated by path, vanished entries are
+  removed with a notice that names how many, and duplicate results are cleared.
+- Shared-aware allocated results and results scanned with symbolic links
+  followed explain why a folder cannot be remeasured on its own and offer a
+  confirmed full rescan with the result's options.
+- The result stays browsable while a folder rescan runs. Stopping or failing a
+  folder rescan leaves the result, the basket, and the history unchanged.
+- The result summary states the original scan time and lists each rescanned
+  folder with its rescan time. An ancestor rescan supersedes its descendants.
 
 ## Affected Projects
 
+- `MacStorageAtlas.Core`
 - `MacStorageAtlas.App`
 
 ## Implementation Notes
 
 Reuse the normal scan orchestration path so initial scans and rescans have identical lifecycle behavior.
+
+Folder rescans use `IDiskScanner.ScanSubtreeAsync`, which runs the full-scan
+traversal from the folder with equivalent-path omission selected for the
+original root. `ScanResultMerger` splices the refreshed subtree into the
+displayed tree in one UI-dispatcher step, adjusts ancestor rollups, and merges
+errors and omissions by path. `ScanResultProvenance` records the original scan
+time and the rescanned folders for the summary, history, and export.
 
 ## Codex Prompt
 
@@ -851,6 +901,17 @@ Requirements:
 ---
 
 # 20. Large Files View
+
+## Status
+
+Delivered. With `scope-insights-to-selected-folder`, the Largest files tab
+lists the largest files of the insight scope, up to the usual limit of 100, and
+shares the scope caption and "Show whole scan" action with the File types tab.
+Selecting an entry in this list or in the Duplicates list keeps the scope.
+Moving the scope folder to Trash or rescanning it in place moves the scope to
+the same path or its nearest remaining parent folder, and a new scan resets it
+to the scan root. Scope changes are computed from the completed result without
+reading the filesystem.
 
 ## Purpose
 
@@ -1295,6 +1356,10 @@ script.
   filter, and totals.
 - JSON carries the recoverable scan errors; a CSV export reports their count to
   the user instead.
+- Export schema version 2 adds the rescanned folders of a refreshed result, with
+  their rescan times, to the JSON metadata. A CSV export of a refreshed result
+  reports that the result mixes measurement times. Version 1 JSON exports
+  remain readable.
 - Row order is fully determined by the result, so exporting twice produces
   identical files.
 - CSV parses correctly for paths containing commas, quotation marks, and line
@@ -1363,6 +1428,11 @@ that a user can confirm a cleanup actually held.
   recent locations.
 - An unreadable snapshot is reported and remains deletable without breaking the
   rest of the history.
+- A completed folder rescan records one snapshot of the whole merged result.
+  Snapshots use schema version 2, which records the original scan completion
+  time and every rescanned folder with its rescan time. The history marks
+  snapshots that contain rescanned folders. Version 1 snapshots remain readable
+  and are shown without rescanned folders.
 
 ## What a snapshot stores, and where
 
@@ -1516,3 +1586,213 @@ packaging path excludes the updater from both architectures and keeps updates
 managed by the Mac App Store. Deployment status and remaining acceptance are
 tracked in WP-01 of `IMPLEMENTATION_ROADMAP.md`; public support starts only after
 the first updater-enabled release and signed feeds are published.
+
+# 33. Item Context Menus
+
+## Status
+
+Delivered by WP-03 follow-up `add-item-context-menus`. Pointer and VoiceOver
+behavior on macOS still needs manual verification.
+
+## Purpose
+
+Let users act on a scanned item where they see it, as they do in Finder,
+instead of selecting it and moving to the toolbar.
+
+## Acceptance Criteria
+
+- Control-click, right-click, or two-finger click on an item in the folder
+  tree, the treemap, the Largest files list, or the Duplicates list selects
+  that item and opens an item context menu for it.
+- Opening the menu over treemap space that shows no block opens no item menu
+  and keeps the current selection.
+- The menu offers Quick Look (Space), Show details (Command-I), Reveal in
+  Finder, Copy path (Command-Option-C), Rescan this folder (Shift-Command-R,
+  directories only), Add to cleanup basket, Remove from cleanup basket, and
+  Move to Trash, in that order and grouped by separators.
+- Each entry invokes the existing selected-item command and is enabled exactly
+  when that command is enabled, including the update-restart gate.
+- Move to Trash keeps the protected-path check and the Trash confirmation and
+  only moves items to the macOS Trash.
+- Copy path places the item's full path on the local clipboard as plain text.
+  Command-Option-C does the same while no text field has focus and does
+  nothing without a selected item.
+- Starting a scan clears the selection, which disables every entry, and closes
+  an open item menu.
+- Every entry has an accessible name and a toolbar or keyboard equivalent.
+
+## Documented non-goals
+
+- Multi-selection or bulk actions.
+- Context menus on scan errors, scan history entries, recent locations, the
+  cleanup basket review, or file-type rows.
+- Permanent deletion.
+
+## Affected Projects
+
+- `MacStorageAtlas.App`
+- `MacStorageAtlas.App.Tests`
+
+## Implementation Notes
+
+The window defines one shared `ContextMenu` resource bound to the window's
+`MainWindowViewModel` and attaches it through the tree and list item container
+styles and to the treemap control. Menu entries bind to the existing commands
+without parameters, so enablement, status messages, and safety checks stay
+identical to the toolbar. The treemap selects a block on a secondary-button
+press and suppresses the menu when no block lies under the pointer. The
+`FolderActionsGroup` separator introduces folder-only entries. It holds
+"Rescan this folder" from `rescan-folder-in-place` and is hidden with its
+separator when the selection is a file.
+
+# 34. Menu Bar Commands
+
+## Status
+
+Delivered by the cross-cutting accessibility follow-up `add-native-menu-bar`
+under WP-03. Menus, enablement, and shortcuts in the direct-download and Mac
+App Store builds, including VoiceOver reading of menu entries, still need
+manual verification on macOS.
+
+## Purpose
+
+Make every main-window command discoverable in the macOS menu bar, where
+assistive technologies and the system Help search also find it, and give the
+common commands conventional keyboard shortcuts.
+
+## Acceptance Criteria
+
+- The main window adds File, Edit, Scan, Item, View, Window, and Help menus
+  next to the application menu. Direct-download builds keep Check for Updates
+  and Automatically Check for Updates in the application menu, and the Mac App
+  Store build shows no update entry.
+- File offers Select Folder… (Command-O), Open Recent with the recent scan
+  locations in start-screen order and Clear Menu, Export as CSV… (Command-E),
+  and Export as JSON… (Shift-Command-E).
+- Edit offers Undo, Redo, Cut, Copy, Paste, and Select All for the focused
+  text field.
+- Scan offers Scan or Rescan (Command-R), Rescan Folder, Stop
+  (Command-Period), and Find Duplicates.
+- Item offers Quick Look (Command-Y), Show Details (Command-I), Reveal in
+  Finder (Option-Command-R), Copy Path, Add to or Remove from Cleanup Basket,
+  and Move to Trash….
+- View offers Filter and Search (Command-F), Show Whole Scan, the three size
+  measurement modes as radio entries, the application-bundle, hidden-file, and
+  symbolic-link scan options as checkbox entries, and Scan History.
+- Window offers Minimize (Command-M) and Zoom. Help opens the support page and
+  the privacy policy.
+- Every entry invokes the same command as its toolbar, context-menu, or panel
+  counterpart and is enabled exactly when that command can execute. The Scan
+  entry reads Rescan while a completed result for the selected location is
+  displayed, and the basket entry names the action it will perform.
+- Space (Quick Look), Command-B (add to or remove from the cleanup basket),
+  Command-Delete (Move to Trash), Option-Command-C (Copy Path), and
+  Shift-Command-R (Rescan Folder) are handled by the window and do nothing to
+  scanned items while a text field has focus.
+- Move to Trash from the menu or Command-Delete keeps the protected-path check
+  and the Trash confirmation and only moves items to the macOS Trash.
+
+## Documented non-goals
+
+- Toolbar layout changes, which belong to `streamline-main-toolbar`.
+- A settings window. Command-Comma stays reserved until one exists.
+- Localized menu titles.
+
+## Affected Projects
+
+- `MacStorageAtlas.App`
+- `MacStorageAtlas.App.Tests`
+
+## Implementation Notes
+
+`MainWindow.axaml` declares the menus as the window's `NativeMenu` with
+compiled bindings to `MainWindowViewModel`, which Avalonia merges with the
+application menu on macOS. `App.axaml.cs` keeps adding the update entries to
+the application menu only when `DIRECT_UPDATES` is defined.
+
+Avalonia turns `NativeMenuItem.Gesture` into the native key equivalent of the
+menu item, and macOS dispatches key equivalents to the menu bar before a
+focused text field receives the key. A menu item cannot show a shortcut
+without registering it. Shortcuts that a text field uses, or that must not act
+on an item while a text field has focus, are therefore not registered on the
+menu: their entries show no shortcut, and the window's key handling applies
+them with the text-field guard. The Edit entries leave the standard text
+shortcuts to the text field itself. The item context menu shows Space,
+Command-B, Command-Delete, Option-Command-C, and Shift-Command-R next to its
+entries.
+
+Native menu check marks do not toggle themselves, so the scan-option and
+measurement entries use toggle and selection commands on the ViewModel. The
+Open Recent submenu is rebuilt from `RecentLocations` when macOS asks to update
+it.
+
+# 35. Main Toolbar
+
+## Status
+
+Delivered by `streamline-main-toolbar` under WP-07. The toolbar layout at the
+default, minimum, and a wide window size in light and dark appearance, the
+tooltips, and the VoiceOver names still need manual verification on macOS.
+
+## Purpose
+
+Put the most frequent item actions one click away at the default window size
+and remove toolbar controls that duplicate each other.
+
+## Acceptance Criteria
+
+- One primary scan control reads Scan while no completed result for the
+  selected location is displayed, Rescan while one is, and Stop while a scan
+  or folder rescan runs. It uses the accent style for Scan and Rescan and the
+  danger style for Stop, and it invokes the command its label names.
+- A second activation of the scan control within the same transition has no
+  effect, so a double click starts exactly one scan and does not stop it.
+- Quick Look, Reveal in Finder, Move to Trash, one cleanup basket toggle, and
+  one Export menu are direct icon controls at the default and minimum window
+  width of 1060 points.
+- Every icon control has a tooltip with its action name and shortcut, shows
+  that tooltip while disabled, and has an accessible name that states its
+  action.
+- The basket toggle adds the selected item or removes it, its icon, tooltip,
+  and accessible name name the action it will perform, and it shows the number
+  of items in the basket when the basket is not empty.
+- The Export menu lists Export as CSV… and Export as JSON… and is enabled
+  exactly when export is available.
+- Select folder, Options, History, Filters, and Search stay in the single
+  toolbar row with the existing group separators. The search field shrinks
+  from 220 to 140 points before the row would overflow.
+- No command changes when it is enabled or what it does.
+
+## Documented non-goals
+
+- New commands or a redesign of the Options, Filters, or History flyouts.
+- Theme color or typography changes, or icons beyond the add-to-basket and
+  remove-from-basket icons the toggle needs.
+- Toolbar customization.
+
+## Affected Projects
+
+- `MacStorageAtlas.App`
+- `MacStorageAtlas.App.Tests`
+
+## Implementation Notes
+
+`PrimaryScanActionCommand` on `MainWindowViewModel` dispatches to
+`ScanFolderCommand` or `StopScanCommand` according to `IsScanning` and is
+enabled exactly when that target is. It ignores an activation that follows the
+previous accepted one within `PrimaryScanActionTransitionInterval` (500
+milliseconds, measured with an injectable `TimeProvider`). Folder rescans set
+`IsScanning` and share the scan cancellation source, so the same Stop state
+cancels them. `RescanCommand` stays for the menu bar.
+
+The basket toggle reuses `ToggleSelectedItemInCleanupBasketCommand` and
+`CleanupBasketCommandLabel` from `add-native-menu-bar`. The `icon`,
+`toolbar`, `primary-scan`, and `count-badge` styles live in
+`Styles/Controls.axaml`.
+
+`MainWindow.FullToolbarActionThreshold` is 1050 points. Measured through
+Avalonia layout with the bundled Inter font, the widest single row needs
+1041.5 points, with a five-digit basket count, the Rescan label, and the
+search field at its 140-point minimum, on Apple Silicon and under Rosetta.
+The compact Actions button therefore appears only below the supported minimum
+width.

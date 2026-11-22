@@ -34,6 +34,34 @@ internal static class ScanDocumentJson
         };
     }
 
+    public static void WriteRefreshedFolders(
+        Utf8JsonWriter writer,
+        IReadOnlyList<RefreshedFolder> refreshedFolders)
+    {
+        writer.WriteStartArray("refreshedFolders");
+
+        foreach (var folder in refreshedFolders)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("path", folder.Path);
+            writer.WriteString("completedAt", ScanExportValues.Timestamp(folder.CompletedAt));
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    public static RefreshedFolder[] ReadRefreshedFolders(JsonElement scan) =>
+        scan.TryGetProperty("refreshedFolders", out var refreshedFolders)
+            ? refreshedFolders
+                .EnumerateArray()
+                .Select(folder => new RefreshedFolder(
+                    folder.GetProperty("path").GetString()!,
+                    ScanExportValues.ParseTimestamp(
+                        folder.GetProperty("completedAt").GetString())!.Value))
+                .ToArray()
+            : [];
+
     public static void WriteErrors(
         Utf8JsonWriter writer,
         IReadOnlyList<ScanError> errors)

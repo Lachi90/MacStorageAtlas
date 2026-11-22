@@ -126,8 +126,13 @@ internal sealed class FullDiskAccessProbe : IFullDiskAccessProbe
         return new FullDiskAccessProbeResult(successfulProbeCount, permissionDenied);
     }
 
-    private static IEnumerable<string> ProbePaths()
+    internal const string SystemPrivacyDatabaseDirectory =
+        "/Library/Application Support/com.apple.TCC";
+
+    internal static IEnumerable<string> ProbePaths()
     {
+        yield return SystemPrivacyDatabaseDirectory;
+
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         if (string.IsNullOrWhiteSpace(home))
         {

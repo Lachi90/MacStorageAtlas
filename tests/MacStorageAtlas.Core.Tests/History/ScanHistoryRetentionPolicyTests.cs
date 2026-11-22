@@ -229,6 +229,35 @@ public class ScanHistoryRetentionPolicyTests
         });
     }
 
+    [Test]
+    public void ARefreshedSnapshotOfTheSameScanIsKeptOverTheEarlierCapture()
+    {
+        var original = Snapshot("z-original", "/scan", ageOrder: 0, storedSizeBytes: 10);
+        var refreshed = new ScanSnapshotDescriptor(
+            new ScanSnapshotMetadata(
+                "a-refreshed",
+                Origin.AddHours(2),
+                "/scan",
+                Origin,
+                ScanOptions.Default,
+                StorageMeasurementMode.Logical,
+                CloneAccountingCoverage.Unavailable,
+                10,
+                10,
+                0,
+                ScanCompleteness.Complete)
+            {
+                RefreshedFolders = [new RefreshedFolder("/scan/a", Origin.AddHours(1))]
+            },
+            10);
+
+        var pruned = ScanHistoryRetentionPolicy.DecideForLimitChange(
+            [refreshed, original],
+            new ScanHistoryLimits(1, 1_000));
+
+        Assert.That(pruned, Is.EqualTo(new[] { original }));
+    }
+
     private static ScanSnapshotDescriptor Snapshot(
         string snapshotId,
         string rootPath,

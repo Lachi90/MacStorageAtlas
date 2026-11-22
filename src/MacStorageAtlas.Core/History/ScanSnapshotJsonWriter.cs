@@ -74,6 +74,7 @@ public static class ScanSnapshotJsonWriter
         writer.WriteNumber("itemCount", metadata.ItemCount);
         writer.WriteNumber("totalCountedSizeBytes", metadata.TotalCountedSizeBytes);
         writer.WriteNumber("errorCount", metadata.ErrorCount);
+        ScanDocumentJson.WriteRefreshedFolders(writer, metadata.RefreshedFolders);
         writer.WriteEndObject();
     }
 }

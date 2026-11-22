@@ -257,6 +257,7 @@ public partial class ScanHistoryViewModel : ViewModelBase
                 group.Key,
                 group
                     .OrderByDescending(snapshot => snapshot.ScanCompletedAt)
+                    .ThenByDescending(snapshot => snapshot.CapturedAt)
                     .ThenBy(snapshot => snapshot.SnapshotId, StringComparer.Ordinal)
                     .ToArray()))
             .ToArray();

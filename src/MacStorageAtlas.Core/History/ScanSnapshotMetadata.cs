@@ -59,5 +59,9 @@ public sealed record ScanSnapshotMetadata
 
     public ScanCompleteness Completeness { get; }
 
+    public IReadOnlyList<RefreshedFolder> RefreshedFolders { get; init; } = [];
+
+    public bool HasRefreshedFolders => RefreshedFolders.Count > 0;
+
     public int SchemaVersion { get; init; } = ScanSnapshotSchema.CurrentVersion;
 }

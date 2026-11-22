@@ -6,7 +6,7 @@ namespace MacStorageAtlas.Core.Cleanup;
 public sealed class CleanupBasketPlanner
 {
     private readonly StorageMeasurementMode _measurementMode;
-    private readonly CleanupProtectedPathPolicy? _protectedPathPolicy;
+    private CleanupProtectedPathPolicy? _protectedPathPolicy;
     private readonly List<CleanupBasketItem> _items = [];
 
     public CleanupBasketPlanner(
@@ -100,6 +100,63 @@ public sealed class CleanupBasketPlanner
     }
 
     public void Clear() => _items.Clear();
+
+    public int Rebind(
+        DiskItem root,
+        string subtreePath,
+        CleanupProtectedPathPolicy? protectedPathPolicy = null)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        ArgumentException.ThrowIfNullOrWhiteSpace(subtreePath);
+
+        if (protectedPathPolicy is not null)
+        {
+            _protectedPathPolicy = protectedPathPolicy;
+        }
+
+        var normalizedSubtreePath = NormalizePath(subtreePath);
+        var removed = 0;
+        for (var index = _items.Count - 1; index >= 0; index--)
+        {
+            var basketItem = _items[index];
+            var path = NormalizePath(basketItem.Snapshot.Path);
+            var isInside = IsWithin(path, normalizedSubtreePath);
+            if (!isInside && !IsWithin(normalizedSubtreePath, path))
+            {
+                continue;
+            }
+
+            var current = ScanResultMerger.FindByPath(root, basketItem.Snapshot.Path);
+            if (current is null)
+            {
+                _items.RemoveAt(index);
+                removed++;
+                continue;
+            }
+
+            _items[index] = new CleanupBasketItem(
+                current,
+                CleanupItemSnapshot.FromDiskItem(current),
+                isInside
+                    ? _protectedPathPolicy?.Classify(current) ?? basketItem.ProtectionStatus
+                    : basketItem.ProtectionStatus);
+        }
+
+        return removed;
+    }
+
+    private static bool IsWithin(string path, string ancestorPath)
+    {
+        if (string.Equals(path, ancestorPath, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        var prefix = ancestorPath.EndsWith(Path.DirectorySeparatorChar)
+            ? ancestorPath
+            : ancestorPath + Path.DirectorySeparatorChar;
+        return path.StartsWith(prefix, StringComparison.Ordinal);
+    }
 
     private CleanupBasketSummary CreateSummary(CleanupOperationKind operation)
     {

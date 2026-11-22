@@ -14,7 +14,11 @@ public sealed record ScanExportMetadata(
     long ItemCount,
     long TotalCountedSizeBytes)
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
+
+    public IReadOnlyList<RefreshedFolder> RefreshedFolders { get; init; } = [];
+
+    public bool HasRefreshedFolders => RefreshedFolders.Count > 0;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 }

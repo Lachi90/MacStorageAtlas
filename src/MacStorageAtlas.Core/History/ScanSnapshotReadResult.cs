@@ -50,7 +50,8 @@ public sealed record ScanSnapshotReadResult<TPayload>
             payload: null,
             schemaVersion,
             $"Snapshot schema version {schemaVersion} cannot be read by this version "
-            + $"of MacStorageAtlas, which reads version "
+            + $"of MacStorageAtlas, which reads versions "
+            + $"{ScanSnapshotSchema.MinimumSupportedVersion} to "
             + $"{ScanSnapshotSchema.CurrentVersion}.");
 
     public static ScanSnapshotReadResult<TPayload> Unreadable(string message)

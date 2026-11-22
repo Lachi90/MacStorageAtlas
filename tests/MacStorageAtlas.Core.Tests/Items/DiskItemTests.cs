@@ -141,4 +141,22 @@ public class DiskItemTests
                 Throws.ArgumentException);
         });
     }
+
+    [Test]
+    public void ReplaceDescendantLeavesTheTreeUnchangedForAnItemOutsideIt()
+    {
+        var root = new DiskItem("root", "/root", isDirectory: true) { SizeBytes = 10 };
+        var child = new DiskItem("a.bin", "/root/a.bin", isDirectory: false) { SizeBytes = 10 };
+        root.AddChild(child);
+        var stranger = new DiskItem("b.bin", "/root/b.bin", isDirectory: false) { SizeBytes = 99 };
+
+        var replaced = root.ReplaceDescendant(stranger, replacement: null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(replaced, Is.False);
+            Assert.That(root.Children, Is.EqualTo(new[] { child }));
+            Assert.That(root.SizeBytes, Is.EqualTo(10));
+        });
+    }
 }

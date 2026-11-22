@@ -30,6 +30,24 @@ public sealed class FileTypeStatisticsService
         return Summarize(totals);
     }
 
+    public IReadOnlyList<FileTypeSummary> Calculate(
+        DiskItem scope,
+        Func<DiskItem, bool>? include,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+
+        var totals = CreateTotals();
+        InsightScopeWalker.VisitFiles(
+            scope,
+            include,
+            cancellationToken,
+            file => AddFile(file, totals));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Summarize(totals);
+    }
+
     private static Dictionary<string, (long FileCount, long TotalSizeBytes)> CreateTotals() =>
         new(StringComparer.OrdinalIgnoreCase);
 

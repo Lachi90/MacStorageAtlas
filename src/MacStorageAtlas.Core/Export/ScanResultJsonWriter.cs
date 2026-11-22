@@ -63,6 +63,7 @@ public static class ScanResultJsonWriter
 
         writer.WriteNumber("itemCount", metadata.ItemCount);
         writer.WriteNumber("totalCountedSizeBytes", metadata.TotalCountedSizeBytes);
+        ScanDocumentJson.WriteRefreshedFolders(writer, metadata.RefreshedFolders);
         writer.WriteEndObject();
     }
 

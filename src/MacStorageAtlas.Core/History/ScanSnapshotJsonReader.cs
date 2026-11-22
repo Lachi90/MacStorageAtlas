@@ -261,6 +261,7 @@ public static class ScanSnapshotJsonReader
             scan.GetProperty("errorCount").GetInt64(),
             ScanDocumentJson.ReadEnum<ScanCompleteness>(scan, "completeness"))
         {
+            RefreshedFolders = ScanDocumentJson.ReadRefreshedFolders(scan),
             SchemaVersion = schemaVersion
         };
     }

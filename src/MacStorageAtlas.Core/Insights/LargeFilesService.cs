@@ -32,6 +32,28 @@ public sealed class LargeFilesService
         return limit == 0 ? [] : Rank(files, limit);
     }
 
+    public IReadOnlyList<DiskItem> GetLargestFiles(
+        DiskItem scope,
+        Func<DiskItem, bool>? include,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+        ArgumentOutOfRangeException.ThrowIfNegative(limit);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (limit == 0)
+        {
+            return [];
+        }
+
+        var files = new List<DiskItem>();
+        InsightScopeWalker.VisitFiles(scope, include, cancellationToken, files.Add);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Rank(files, limit);
+    }
+
     private static IReadOnlyList<DiskItem> Rank(IReadOnlyList<DiskItem> files, int limit) =>
         files
             .OrderByDescending(file => file.SizeBytes)
