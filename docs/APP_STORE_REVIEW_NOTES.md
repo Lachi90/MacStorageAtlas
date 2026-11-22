@@ -10,7 +10,7 @@ screen, and run the sandbox checks in docs/PACKAGING.md.
 
 ---
 
-Atlas Storage Analyzer 1.1.1 - App Review Information
+Atlas Storage Analyzer 1.2.0 - App Review Information
 
 1. SCREEN RECORDING
 
@@ -74,6 +74,13 @@ media libraries grow silently. The value is that the app turns "the disk is
 full" into a specific, reviewable list of large items without deleting anything
 on its own.
 
+Version 1.2.0 adds the following, all within the same sandboxed, local
+behavior: rescanning a single folder of the displayed result, context menus on
+result items, a full menu bar with keyboard shortcuts, a marker for files that
+exist only in iCloud Drive or a File Provider app such as OneDrive (read from
+file metadata, nothing is downloaded), and largest-file and file-type lists
+that follow the selected folder.
+
 The app never deletes a file permanently. Every cleanup goes to the macOS Trash
 and stays recoverable, protected and system locations are blocked from in-app
 cleanup, and no item is ever preselected for deletion.
@@ -92,7 +99,9 @@ Because the app is sandboxed, it can only read locations the reviewer selects:
 3. Choose "Scan" to analyze the selected location.
 4. After the scan completes, the tabs for file types, largest files, and
    duplicate analysis become available, and any listed item can be previewed,
-   revealed in Finder, or added to the cleanup basket. Items in the cleanup
+   revealed in Finder, or added to the cleanup basket, from the toolbar, the
+   Item menu, or by right-clicking the item. Right-clicking a folder also offers
+   "Rescan this folder", which remeasures only that folder. Items in the cleanup
    basket are moved to the macOS Trash only after the review sheet is confirmed,
    and they stay there until the Trash is emptied. The app moves items with the
    system file API instead of automating Finder, and macOS records no Put Back
@@ -123,7 +132,11 @@ All scanning, duplicate analysis, and cleanup happens locally on the user's Mac.
 Scan results, paths, and file metadata never leave the device. File contents are
 never uploaded, logged, or persisted; duplicate analysis reads file bytes only
 locally and only to confirm that two candidate files are identical. Cloud-only
-placeholder files are skipped rather than downloaded.
+placeholder files are skipped rather than downloaded, and whether a file is only
+in the cloud is read from its file metadata without contacting the provider.
+The Help menu opens the support page and privacy policy in the user's default
+browser through the system's URL handling; the app itself makes no network
+request.
 
 Privacy policy: https://lachi90.github.io/MacStorageAtlas/privacy.html
 Support: https://lachi90.github.io/MacStorageAtlas/support.html
